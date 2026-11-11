@@ -22,11 +22,11 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 - Atelier avec zoom, rotation, texte et choix du fond. Un fond transparent conserve la transparence de la source ; il ne détoure pas automatiquement une photo.
 - WebP fixe en 512 × 512, 100 Ko maximum ; GIF/vidéo vers WebP animé, 500 Ko maximum, extrait de 6 secondes maximum. Compression adaptée au poids.
 - Export individuel WebP, export de sélection/pack en ZIP, sauvegarde/restauration de la collection en JSON.
-- 16 illustrations vectorielles originales fournies comme collection de départ.
+- Galerie et packs vides au départ. Les exemples de la première version sont retirés automatiquement au chargement et à la restauration d’une sauvegarde, sans supprimer les médias importés.
 
 ## Données et limites
 
-La collection est propre au navigateur et à l’origine du site : aucun compte, stockage serveur ou synchronisation entre appareils. Exporter une sauvegarde pour la transférer ou avant de supprimer les données du navigateur. Les imports sont traités dans le navigateur ; les liens X sont transmis à FxTwitter. Le proxy média accepte seulement des hôtes explicitement autorisés, refuse les redirections et limite le téléchargement à 20 Mo.
+La collection est propre au navigateur et à l’origine du site : aucun compte, stockage serveur ou synchronisation entre appareils. Exporter une sauvegarde pour la transférer ou avant de supprimer les données du navigateur. Les imports sont traités dans le navigateur. Les liens X sont résolus directement auprès de FxTwitter, puis le média est téléchargé directement depuis son hébergeur, sans relais par Zapstick. Les téléchargements sont limités à des hôtes explicitement autorisés et à 20 Mo. Les restrictions CORS des hébergeurs peuvent empêcher un import ; utiliser alors un fichier local.
 
 L’import X dépend d’un service tiers et du caractère public du post. Les pages Giphy/Tenor ne sont pas résolues : utiliser un lien direct vers leur média ou importer le fichier localement. Le GIF fourni en exemple par l’utilisateur est en réalité servi en MP4 par X.
 
@@ -36,6 +36,6 @@ Modifier un WebP animé dans l’atelier crée une variante fixe ; l’original 
 
 ## Architecture
 
-React 19 / Vinext / Vite, Worker Cloudflare. Routes serveur `/api/import` (résolution d’un lien) et `/api/media` (téléchargement borné sur liste d’hôtes autorisés). IndexedDB conserve les objets Blob ; aucun fichier utilisateur n’est stocké dans le dépôt.
+React 19 / Vinext / Vite, hébergé sur un Worker Cloudflare. Aucun endpoint serveur d’import : FxTwitter et les médias sont appelés directement par le navigateur avec des requêtes CORS sans identifiants. IndexedDB conserve les objets Blob ; aucun fichier utilisateur n’est stocké dans le dépôt.
 
 Références : [spécifications WhatsApp](https://github.com/WhatsApp/stickers/tree/main/Android), [API FxTwitter](https://docs.fxembed.com/api/introduction/).

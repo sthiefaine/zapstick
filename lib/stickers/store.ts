@@ -1,4 +1,4 @@
-import { Collection, initialCollection } from './types';
+import { Collection, initialCollection, removeExamples } from './types';
 const KEY = 'collection';
 let connection: Promise<IDBDatabase> | undefined;
 function database() {
@@ -13,7 +13,7 @@ export async function loadCollection(): Promise<Collection> {
   const db=await database();
   return new Promise((resolve,reject)=>{
     const r=db.transaction('workspace').objectStore('workspace').get(KEY);
-    r.onsuccess=()=>resolve(r.result ?? initialCollection()); r.onerror=()=>reject(r.error);
+    r.onsuccess=()=>resolve(removeExamples(r.result ?? initialCollection())); r.onerror=()=>reject(r.error);
   });
 }
 export async function saveCollection(value: Collection) {
@@ -39,5 +39,5 @@ export async function restore(file:File):Promise<Collection>{
     stickerIds.add(s.id);let blob:Blob|undefined;let src:string|undefined;
     if(s.data){if(typeof s.data!=='string'||!s.data.startsWith(`data:${s.mime};base64,`))throw new Error('Média invalide.');blob=await(await fetch(s.data)).blob();if(blob.size>20*1024*1024)throw new Error('Un média dépasse 20 Mo.');}else if(typeof s.src==='string'&&/^\/stickers\/\d{1,2}\.svg$/.test(s.src)){src=s.src;}else throw new Error('Média manquant dans la sauvegarde.');
     return {id:s.id,name:s.name,packId:s.packId,kind:s.kind,mime:s.mime,favorite:s.favorite,createdAt:s.createdAt,isSticker:s.isSticker,sourceUrl:typeof s.sourceUrl==='string'&&s.sourceUrl.startsWith('https://')?s.sourceUrl:undefined,blob,src};
-  }));return{version:1,packs:data.packs,stickers};
+  }));return removeExamples({version:1,packs:data.packs,stickers});
 }
