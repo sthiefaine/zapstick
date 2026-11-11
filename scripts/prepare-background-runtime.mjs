@@ -1,0 +1,10 @@
+import {copyFile,mkdir} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import path from 'node:path';
+const require=createRequire(import.meta.url);
+const packagePath=require.resolve('onnxruntime-web/ort-wasm-simd-threaded.wasm');
+const destination=path.resolve('public/vendor/onnx/1.31.1');
+await mkdir(destination,{recursive:true});
+for(const name of ['ort-wasm-simd-threaded.wasm','ort-wasm-simd-threaded.mjs'])await copyFile(path.join(path.dirname(packagePath),name),path.join(destination,name));
+await copyFile('public/licenses/onnxruntime-MIT.txt',path.join(destination,'LICENSE.txt'));
+console.log('Local ONNX Runtime Web 1.31.1 assets prepared (no model download).');

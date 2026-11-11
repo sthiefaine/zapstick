@@ -46,3 +46,6 @@ yarn-error.log*
 
 # Isolated self-hosted Next.js build
 /.next-coolify/
+
+# Copied from the locked ONNX Runtime package before dev/build
+/public/vendor/onnx/

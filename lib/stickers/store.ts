@@ -67,6 +67,9 @@ export function clearLocalData(): Promise<void> {
     });
     db.close();
     connection = undefined;
+    // Stop inference before removing its non-personal model cache. A browser
+    // refusing CacheStorage must not prevent erasure of the user's collection.
+    try { const {clearBackgroundModelCache}=await import('./background-removal'); await clearBackgroundModelCache(); } catch { /* The collection and preferences can still be erased. */ }
     try { localStorage.removeItem('zapstick-preferences-v1'); } catch { /* Preferences may already be blocked by the browser. */ }
     if (typeof document !== 'undefined') {
       for (const key of ['zapstick-locale', 'zapstick-theme']) {

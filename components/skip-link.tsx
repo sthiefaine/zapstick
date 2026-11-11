@@ -14,7 +14,7 @@ export function ThemeHeadSync(){
  useEffect(()=>{
   const sync=()=>{
    const dark=theme==='dark'||theme==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-   const content=dark?'#181329':'#fff7e8';
+   const content=dark?'#122019':'#f4f8ed';
    for(const meta of document.querySelectorAll('meta[name="theme-color"]')){
     if(meta.hasAttribute('media'))meta.removeAttribute('media');
     if(meta.getAttribute('content')!==content)meta.setAttribute('content',content);

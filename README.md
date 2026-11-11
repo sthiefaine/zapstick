@@ -15,8 +15,8 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 
 ## Fonctionnalités
 
-- Interface conçue pour le mobile : atelier interactif sur un seul écran, outils intégrés, identité Pop mobile, couleurs franches et interactions tactiles.
-- Thèmes clair, sombre et système ; huit langues avec URL propre, choix mémorisés et document traduit.
+- Interface conçue pour le mobile : atelier interactif sur un seul écran, outils intégrés, identité vert pâle, logo sticker et interactions tactiles.
+- Thèmes clair, sombre et système ; huit langues avec URL propre, sélecteur de langue avec drapeaux dans le header, choix mémorisés et document traduit.
 - Accessibilité : navigation au clavier, commandes alternatives aux gestes, focus visible, contraste et mode de réduction des animations.
 - Confidentialité et mentions légales de Clairdev, export et effacement local de la collection et des préférences.
 - Métadonnées de partage Open Graph/Twitter, image de partage, URL canoniques, hreflang, sitemap et indexation activée explicitement pour un domaine public HTTPS.
@@ -27,7 +27,9 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 - Import local PNG/JPEG/WebP/GIF/MP4/WebM, jusqu’à 20 Mo.
 - Import des publications X publiques par FxTwitter API v2 ; liens directs de médias X, Giphy et Tenor.
 - Bouton « Coller et importer » : lecture du presse-papiers au clic et import immédiat du lien. Nécessite HTTPS ou localhost et l’autorisation du navigateur ; le collage manuel reste disponible.
-- Atelier avec aperçu animé, déplacement, zoom, rotation, texte et choix du fond. Un fond transparent conserve la transparence de la source ; il ne détoure pas automatiquement une photo.
+- Atelier avec aperçu animé, déplacement, zoom, rotation et choix du fond. Texte déplaçable avec trois polices, couleurs et fond ; jusqu’à huit émojis déplaçables et redimensionnables, depuis la grille ou le clavier du téléphone.
+- Barre de montage avec vignettes et poignées pour choisir l’extrait d’un GIF ou d’une vidéo ; sélection et aperçu au clavier également disponibles. Le mode fixe capture l’image choisie.
+- Détourage des images fixes avec U²-Net-P, calculé sur l’appareil : chargement au clic, progression, annulation et rétablissement du fond original. Premier usage : environ 19 Mo de moteur et modèle ; qualité variable selon l’image. Voir [les détails et licences](docs/BACKGROUND_REMOVAL.md).
 - WebP fixe en 512 × 512, 100 Ko maximum ; GIF/vidéo vers WebP animé, 500 Ko maximum, extrait de 6 secondes maximum. Compression adaptée au poids, sans marge transparente ajoutée par défaut.
 - Export individuel WebP, export de sélection/pack en ZIP, sauvegarde/restauration de la collection en JSON.
 - Galerie et packs vides au départ. Les exemples de la première version sont retirés automatiquement au chargement et à la restauration d’une sauvegarde, sans supprimer les médias importés.
@@ -37,6 +39,8 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 La collection est propre au navigateur et à l’origine du site : aucun compte, stockage serveur ou synchronisation entre appareils. Exporter une sauvegarde pour la transférer ou avant de supprimer les données du navigateur. Les imports sont traités dans le navigateur. Les liens X sont résolus directement auprès de FxTwitter, puis le média est téléchargé directement depuis son hébergeur, sans relais par Zapstick. Les téléchargements sont limités à des hôtes explicitement autorisés et à 20 Mo. Les restrictions CORS des hébergeurs peuvent empêcher un import ; utiliser alors un fichier local.
 
 L’import X dépend d’un service tiers et du caractère public du post. Les pages Giphy/Tenor ne sont pas résolues : utiliser un lien direct vers leur média ou importer le fichier localement. Les médias animés X peuvent être servis en MP4.
+
+Le détourage télécharge ses poids depuis Hugging Face et son CDN uniquement lorsque demandé ; aucune photo ne leur est envoyée. Le moteur est servi par Zapstick. Les poids sont mis en cache localement et ce cache est vidé avec les données de l’app. Les fichiers animés ne sont pas détourés ; une photo statique est nécessaire. Un fond transparent seul conserve la transparence de la source sans lancer de détourage.
 
 WhatsApp permet de créer un sticker directement à partir de la galerie : télécharger le sticker, l’enregistrer dans la galerie du téléphone, puis ouvrir une discussion WhatsApp → Stickers → Créer et sélectionner le média. Aucune application de stickers supplémentaire n’est nécessaire pour ce parcours. Les ZIP servent à regrouper les fichiers à décompresser ; ils ne sont pas installés automatiquement par Zapstick. La disponibilité des formats et la conservation des animations dépendent du téléphone et de la version de WhatsApp. Ce parcours n’a pas été testé sur un téléphone réel. Les packs Zapstick sont limités à 30 éléments du même type.
 

@@ -6,9 +6,11 @@ import ts from 'typescript';
 
 // Run the production store against IndexedDB's asynchronous transaction model.
 // Only browser storage globals are replaced; the erasure implementation is real.
-const originals = new Map(['indexedDB', 'localStorage', 'document'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const originals = new Map(['indexedDB', 'localStorage', 'document','caches'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const preferences = new Map();
 const cookies = new Map();
+const cacheNames = new Set();
+Object.defineProperty(globalThis,'caches',{configurable:true,value:{delete:async name=>cacheNames.delete(name)}});
 Object.defineProperty(globalThis, 'indexedDB', {configurable: true, value: indexedDB});
 Object.defineProperty(globalThis, 'localStorage', {configurable: true, value: {
   getItem: key => preferences.get(key) ?? null,
@@ -32,8 +34,10 @@ function moduleURL(source) {
   return `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 }
 const typesURL = moduleURL(compile(await readFile(new URL('../lib/stickers/types.ts', import.meta.url), 'utf8')));
+const backgroundCoreURL=moduleURL(compile(await readFile(new URL('../lib/stickers/background-removal-core.ts',import.meta.url),'utf8')));
+const backgroundURL=moduleURL(compile(await readFile(new URL('../lib/stickers/background-removal.ts',import.meta.url),'utf8')).replaceAll("'./background-removal-core'",`'${backgroundCoreURL}'`));
 const storeSource = compile(await readFile(new URL('../lib/stickers/store.ts', import.meta.url), 'utf8'))
-  .replace("from './types'", `from '${typesURL}'`);
+  .replace("from './types'", `from '${typesURL}'`).replace("import('./background-removal')",`import('${backgroundURL}')`);
 const {saveCollection, loadCollection, clearLocalData} = await import(moduleURL(storeSource));
 
 function collection(id = 'private-upload') {
@@ -69,6 +73,7 @@ beforeEach(async () => {
   await clearLocalData();
   preferences.clear();
   cookies.clear();
+  cacheNames.clear();
 });
 afterEach(async () => { await clearLocalData(); });
 after(() => {
@@ -89,8 +94,12 @@ test('erasure removes stored media Blobs and app preferences while preserving un
   cookies.set('zapstick-locale', 'fr');
   cookies.set('zapstick-theme', 'dark');
   cookies.set('unrelated-session', 'keep');
+  cacheNames.add('zapstick-background-model-v1');
+  cacheNames.add('unrelated-cache');
 
   await clearLocalData();
+  assert.equal(cacheNames.has('zapstick-background-model-v1'),false,'erasure also removes the downloaded model');
+  assert.equal(cacheNames.has('unrelated-cache'),true,'unrelated browser caches are preserved');
 
   assert.equal(await workspaceRecordCount(), 0, 'erasure must clear IndexedDB, not just hide collection items');
   assert.deepEqual(await loadCollection(), {version: 1, packs: [], stickers: []});

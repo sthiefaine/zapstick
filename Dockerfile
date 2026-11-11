@@ -6,10 +6,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-FROM ${NODE_IMAGE} AS builder
+FROM dependencies AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 # These values are public and embedded into the browser bundle by Next.js.
 ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000

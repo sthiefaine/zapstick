@@ -14,7 +14,7 @@ const PreferencesContext=createContext<Preferences|null>(null);
 
 function writeCookie(key:string,value:string){try{document.cookie=`${key}=${encodeURIComponent(value)}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;}catch{/* In-memory preferences still work when persistent storage is blocked. */}}
 function persist(theme:ThemePreference,locale:Locale,reduceMotion:boolean|null){try{localStorage.setItem(PREFERENCES_STORAGE_KEY,JSON.stringify({version:1,theme,locale,reduceMotion}));}catch{}writeCookie(THEME_COOKIE,theme);writeCookie(LOCALE_COOKIE,locale);}
-function applyTheme(theme:ThemePreference){const resolved=theme==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;for(const color of document.querySelectorAll('meta[name="theme-color"]')){color.removeAttribute('media');color.setAttribute('content',resolved==='dark'?'#181329':'#fff7e8');}}
+function applyTheme(theme:ThemePreference){const resolved=theme==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;for(const color of document.querySelectorAll('meta[name="theme-color"]')){color.removeAttribute('media');color.setAttribute('content',resolved==='dark'?'#122019':'#f4f8ed');}}
 export function PreferencesProvider({locale:initialLocale=DEFAULT_LOCALE,children}:{locale?:Locale;children:ReactNode}){
  const pathname=usePathname()??'/',router=useRouter();
  const routeLocale=normalizeLocale(pathname.split('/').filter(Boolean)[0]??'');

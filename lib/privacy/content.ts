@@ -41,6 +41,11 @@ export const privacySections = [
   },
 ] as const;
 
+export const backgroundPrivacySection = {
+    title: 'Quand tu retires un fond',
+    body: 'Quand tu demandes un détourage, ton navigateur télécharge le modèle U²-Net-P depuis Hugging Face et son CDN. Ces services reçoivent l’adresse IP et la demande de téléchargement ; l’image ne leur est pas envoyée. Le modèle peut rester en cache sur cet appareil pour accélérer les prochains usages. L’effacement local supprime ce cache. Les règles de confidentialité et les éventuels transferts internationaux de ces hébergeurs s’appliquent.',
+  } as const;
+
 export const legalSections = [
   {
     title: 'Objet du service',

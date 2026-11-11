@@ -268,7 +268,17 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "Collage automatique indisponible. Colle le lien manuellement.",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "Accès au presse-papiers refusé. Colle le lien manuellement.",
     "Le presse-papiers est vide. Colle un lien manuellement.": "Le presse-papiers est vide. Colle un lien manuellement.",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "Le presse-papiers ne contient pas de lien HTTPS valide."
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "Le presse-papiers ne contient pas de lien HTTPS valide.",
+    "Sélectionner un média": "Sélectionner un média",
+    "Découper l’animation": "Découper l’animation",
+    "{duration} s sélectionnées": "{duration} s sélectionnées",
+    "Début de la sélection": "Début de la sélection",
+    "Fin de la sélection": "Fin de la sélection",
+    "{time} secondes": "{time} secondes",
+    "Préparation de la timeline…": "Préparation de la timeline…",
+    "Position de lecture": "Position de lecture",
+    "6 s max.": "6 s max.",
+    "Fin": "Fin"
   },
   "en": {
     "Créer un sticker": "Create a sticker",
@@ -539,7 +549,17 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "Automatic paste is unavailable. Paste the link manually.",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "Clipboard access was denied. Paste the link manually.",
     "Le presse-papiers est vide. Colle un lien manuellement.": "The clipboard is empty. Paste a link manually.",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "The clipboard does not contain a valid HTTPS link."
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "The clipboard does not contain a valid HTTPS link.",
+    "Sélectionner un média": "Select media",
+    "Découper l’animation": "Trim animation",
+    "{duration} s sélectionnées": "{duration} s selected",
+    "Début de la sélection": "Selection start",
+    "Fin de la sélection": "Selection end",
+    "{time} secondes": "{time} seconds",
+    "Préparation de la timeline…": "Preparing timeline…",
+    "Position de lecture": "Playback position",
+    "6 s max.": "6 s max.",
+    "Fin": "End"
   },
   "pt-BR": {
     "Créer un sticker": "Criar figurinha",
@@ -810,7 +830,17 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "A colagem automática não está disponível. Cole o link manualmente.",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "O acesso à área de transferência foi negado. Cole o link manualmente.",
     "Le presse-papiers est vide. Colle un lien manuellement.": "A área de transferência está vazia. Cole um link manualmente.",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "A área de transferência não contém um link HTTPS válido."
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "A área de transferência não contém um link HTTPS válido.",
+    "Sélectionner un média": "Selecionar mídia",
+    "Découper l’animation": "Recortar animação",
+    "{duration} s sélectionnées": "{duration} s selecionados",
+    "Début de la sélection": "Início da seleção",
+    "Fin de la sélection": "Fim da seleção",
+    "{time} secondes": "{time} segundos",
+    "Préparation de la timeline…": "Preparando a linha do tempo…",
+    "Position de lecture": "Posição de reprodução",
+    "6 s max.": "Máx. 6 s",
+    "Fin": "Fim"
   },
   "es": {
     "Créer un sticker": "Crear un sticker",
@@ -1081,7 +1111,17 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "El pegado automático no está disponible. Pega el enlace manualmente.",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "Se ha denegado el acceso al portapapeles. Pega el enlace manualmente.",
     "Le presse-papiers est vide. Colle un lien manuellement.": "El portapapeles está vacío. Pega un enlace manualmente.",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "El portapapeles no contiene un enlace HTTPS válido."
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "El portapapeles no contiene un enlace HTTPS válido.",
+    "Sélectionner un média": "Seleccionar un archivo",
+    "Découper l’animation": "Recortar animación",
+    "{duration} s sélectionnées": "{duration} s seleccionados",
+    "Début de la sélection": "Inicio de la selección",
+    "Fin de la sélection": "Fin de la selección",
+    "{time} secondes": "{time} segundos",
+    "Préparation de la timeline…": "Preparando la línea de tiempo…",
+    "Position de lecture": "Posición de reproducción",
+    "6 s max.": "Máx. 6 s",
+    "Fin": "Fin"
   },
   "de": {
     "Créer un sticker": "Sticker erstellen",
@@ -1352,7 +1392,17 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "Automatisches Einfügen ist nicht verfügbar. Füge den Link manuell ein.",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "Zugriff auf die Zwischenablage verweigert. Füge den Link manuell ein.",
     "Le presse-papiers est vide. Colle un lien manuellement.": "Die Zwischenablage ist leer. Füge einen Link manuell ein.",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "Die Zwischenablage enthält keinen gültigen HTTPS-Link."
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "Die Zwischenablage enthält keinen gültigen HTTPS-Link.",
+    "Sélectionner un média": "Medium auswählen",
+    "Découper l’animation": "Animation zuschneiden",
+    "{duration} s sélectionnées": "{duration} s ausgewählt",
+    "Début de la sélection": "Auswahlbeginn",
+    "Fin de la sélection": "Auswahlende",
+    "{time} secondes": "{time} Sekunden",
+    "Préparation de la timeline…": "Zeitleiste wird vorbereitet…",
+    "Position de lecture": "Wiedergabeposition",
+    "6 s max.": "Max. 6 s",
+    "Fin": "Ende"
   },
   "zh-CN": {
     "Créer un sticker": "创建贴纸",
@@ -1623,7 +1673,17 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "自动粘贴不可用。请手动粘贴链接。",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "无法访问剪贴板。请手动粘贴链接。",
     "Le presse-papiers est vide. Colle un lien manuellement.": "剪贴板为空。请手动粘贴链接。",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "剪贴板中没有有效的 HTTPS 链接。"
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "剪贴板中没有有效的 HTTPS 链接。",
+    "Sélectionner un média": "选择媒体",
+    "Découper l’animation": "裁剪动画",
+    "{duration} s sélectionnées": "已选择 {duration} 秒",
+    "Début de la sélection": "选区起点",
+    "Fin de la sélection": "选区终点",
+    "{time} secondes": "{time} 秒",
+    "Préparation de la timeline…": "正在准备时间轴…",
+    "Position de lecture": "播放位置",
+    "6 s max.": "最长 6 秒",
+    "Fin": "结束"
   },
   "ja": {
     "Créer un sticker": "ステッカーを作る",
@@ -1894,7 +1954,17 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "自動貼り付けは利用できません。リンクを手動で貼り付けてください。",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "クリップボードへのアクセスが拒否されました。リンクを手動で貼り付けてください。",
     "Le presse-papiers est vide. Colle un lien manuellement.": "クリップボードは空です。リンクを手動で貼り付けてください。",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "クリップボードに有効な HTTPS リンクがありません。"
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "クリップボードに有効な HTTPS リンクがありません。",
+    "Sélectionner un média": "メディアを選択",
+    "Découper l’animation": "アニメーションをトリミング",
+    "{duration} s sélectionnées": "{duration} 秒を選択中",
+    "Début de la sélection": "選択範囲の開始",
+    "Fin de la sélection": "選択範囲の終了",
+    "{time} secondes": "{time} 秒",
+    "Préparation de la timeline…": "タイムラインを準備中…",
+    "Position de lecture": "再生位置",
+    "6 s max.": "最大 6 秒",
+    "Fin": "終了"
   },
   "ru": {
     "Créer un sticker": "Создать стикер",
@@ -2165,6 +2235,16 @@
     "Collage automatique indisponible. Colle le lien manuellement.": "Автоматическая вставка недоступна. Вставь ссылку вручную.",
     "Accès au presse-papiers refusé. Colle le lien manuellement.": "Доступ к буферу обмена запрещён. Вставь ссылку вручную.",
     "Le presse-papiers est vide. Colle un lien manuellement.": "Буфер обмена пуст. Вставь ссылку вручную.",
-    "Le presse-papiers ne contient pas de lien HTTPS valide.": "В буфере обмена нет действительной HTTPS-ссылки."
+    "Le presse-papiers ne contient pas de lien HTTPS valide.": "В буфере обмена нет действительной HTTPS-ссылки.",
+    "Sélectionner un média": "Выбрать медиа",
+    "Découper l’animation": "Обрезать анимацию",
+    "{duration} s sélectionnées": "Выбрано {duration} с",
+    "Début de la sélection": "Начало выделения",
+    "Fin de la sélection": "Конец выделения",
+    "{time} secondes": "{time} секунд",
+    "Préparation de la timeline…": "Подготовка шкалы времени…",
+    "Position de lecture": "Позиция воспроизведения",
+    "6 s max.": "Макс. 6 с",
+    "Fin": "Конец"
   }
 }

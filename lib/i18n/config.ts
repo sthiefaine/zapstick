@@ -6,6 +6,9 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   fr: 'Français', en: 'English', 'pt-BR': 'Português (Brasil)', es: 'Español',
   de: 'Deutsch', 'zh-CN': '中文（简体）', ja: '日本語', ru: 'Русский',
 };
+export const LOCALE_FLAGS: Record<Locale, string> = {
+  fr:'🇫🇷',en:'🇬🇧','pt-BR':'🇧🇷',es:'🇪🇸',de:'🇩🇪','zh-CN':'🇨🇳',ja:'🇯🇵',ru:'🇷🇺',
+};
 export function normalizeLocale(input: string): Locale | undefined {
   const value = input.trim().replace(/_/g, '-').toLowerCase();
   const exact = SUPPORTED_LOCALES.find(locale => locale.toLowerCase() === value);
@@ -27,4 +30,4 @@ export function isThemePreference(value: unknown): value is ThemePreference {
   return value === 'light' || value === 'dark' || value === 'system';
 }
 
-export const PREFERENCES_INIT_SCRIPT = `(function(){try{var p=JSON.parse(localStorage.getItem('${PREFERENCES_STORAGE_KEY}')||'{}');var m=typeof p.reduceMotion==='boolean'?p.reduceMotion:matchMedia('(prefers-reduced-motion: reduce)').matches;document.documentElement.dataset.reducedMotion=String(m);var v=p.theme;if(v!=='light'&&v!=='dark'&&v!=='system')v='system';var d=v==='dark'||(v==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.colorScheme=d?'dark':'light';document.querySelectorAll('meta[name=\"theme-color\"]').forEach(function(x){x.removeAttribute('media');x.setAttribute('content',d?'#181329':'#fff7e8');});}catch(e){var d=matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.colorScheme=d?'dark':'light';document.querySelectorAll('meta[name=\"theme-color\"]').forEach(function(x){x.removeAttribute('media');x.setAttribute('content',d?'#181329':'#fff7e8');});}})();`;
+export const PREFERENCES_INIT_SCRIPT = `(function(){try{var p=JSON.parse(localStorage.getItem('${PREFERENCES_STORAGE_KEY}')||'{}');var m=typeof p.reduceMotion==='boolean'?p.reduceMotion:matchMedia('(prefers-reduced-motion: reduce)').matches;document.documentElement.dataset.reducedMotion=String(m);var v=p.theme;if(v!=='light'&&v!=='dark'&&v!=='system')v='system';var d=v==='dark'||(v==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.colorScheme=d?'dark':'light';document.querySelectorAll('meta[name=\"theme-color\"]').forEach(function(x){x.removeAttribute('media');x.setAttribute('content',d?'#122019':'#f4f8ed');});}catch(e){var d=matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.colorScheme=d?'dark':'light';document.querySelectorAll('meta[name=\"theme-color\"]').forEach(function(x){x.removeAttribute('media');x.setAttribute('content',d?'#122019':'#f4f8ed');});}})();`;

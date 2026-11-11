@@ -1,0 +1,49 @@
+.controls{display:grid;gap:20px;min-width:0;color:var(--ink)}
+.group{border:0;padding:0;margin:0;min-width:0;display:block}
+.label{display:block;font-size:13px;font-weight:750;line-height:1.5;margin-bottom:10px;color:var(--ink)}
+.textInput{display:block;width:100%;min-height:76px;resize:vertical;max-height:180px;border:1.5px solid var(--control-border,var(--ink));border-radius:14px;padding:12px;background:var(--surface);color:var(--ink);font:inherit;line-height:1.55}
+.textInput::placeholder{color:var(--muted,var(--ink));opacity:1}
+.fonts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.option,.iconButton,.emojiChoice,.textSelection,.remove{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid var(--control-border,var(--ink));border-radius:12px;padding:10px;background:var(--surface);color:var(--ink);font-size:12px;font-weight:650;line-height:1.4;touch-action:manipulation}
+.option[aria-pressed=true],.emojiChoice[aria-pressed=true]{background:var(--accent);color:var(--accent-text);border-color:var(--accent);box-shadow:0 2px 0 var(--ink)}
+.colors{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.color,.customColor{width:44px;height:44px;min-width:44px;border:1.5px solid var(--control-border,var(--ink));border-radius:12px;display:grid;place-items:center;position:relative}
+.color[aria-pressed=true]{outline:3px solid var(--focus);outline-offset:2px}
+.customColor{overflow:hidden;background:var(--surface);cursor:pointer}
+.customColor input,.backgroundColor input{width:44px;height:44px;border:0;padding:5px;background:var(--surface);color:var(--ink);cursor:pointer}
+.customColor:focus-within{outline:3px solid var(--focus);outline-offset:3px}
+.backgrounds{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.backgrounds .option{padding:8px 5px;font-size:11px;overflow-wrap:anywhere}
+.backgroundColor{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;min-height:44px;font-size:12px;color:var(--ink)}
+.backgroundColor input{border:1.5px solid var(--control-border,var(--ink));border-radius:10px;flex-shrink:0}
+.count{font-size:11px;font-weight:500;margin-left:6px;color:var(--muted,var(--ink))}
+.emojiPicker{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.emojiChoice{padding:5px;font-size:24px;line-height:1;min-width:44px;min-height:44px;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
+.customEmojiLabel{display:block;margin:15px 0 8px;font-size:12px;font-weight:650;line-height:1.5}
+.customEmojiRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,1.2fr);gap:8px;align-items:stretch}
+.customEmojiInput{display:block;width:100%;min-width:0;min-height:44px;border:1.5px solid var(--control-border,var(--ink));border-radius:12px;background:var(--surface);color:var(--ink);padding:7px 12px;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-size:24px;line-height:1.2}
+.customEmojiInput[aria-invalid=true]{border-color:var(--danger,var(--ink))}
+.customEmojiRow .option{overflow-wrap:anywhere}
+.emojiError{margin-top:9px;color:var(--danger,var(--ink));font-size:12px;line-height:1.6}
+.addedEmojis{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line,var(--ink))}
+.note{font-size:12px;line-height:1.6;color:var(--muted,var(--ink));margin-top:10px}
+.sizeRow{display:flex;align-items:center;gap:7px;margin:10px 0 12px;font-size:12px}
+.sizeRow>span{margin-right:3px}
+.sizeRow input{min-width:0;width:100%;flex:1;min-height:44px;accent-color:var(--accent)}
+.iconButton{padding:9px;flex-shrink:0}
+.positions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.actions{display:flex;align-items:stretch;justify-content:space-between;gap:9px;margin-top:10px}
+.textSelection{font-size:12px}
+.remove{color:var(--danger,var(--ink));border-color:var(--danger-line,var(--control-border));background:var(--danger-bg,var(--surface));font-size:12px}
+.stageLayer{position:absolute;inset:0;pointer-events:none;z-index:3}
+.stageCanvas{display:block;width:100%;height:100%;pointer-events:none}
+.overlayHit{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:auto;min-width:44px;min-height:44px;padding:0;border:1.5px solid transparent;border-radius:10px;background:transparent;transform:translate(-50%,-50%);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.overlayHit:active{cursor:grabbing}
+.overlayHit[aria-pressed=true]{border-color:var(--focus);outline:1px solid var(--surface);outline-offset:1px}
+.overlayHit:focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+.controls :where(button,input,textarea):focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.controls button:disabled,.controls input:disabled,.controls textarea:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:370px){.emojiPicker{grid-template-columns:repeat(5,minmax(0,1fr))}.backgrounds{grid-template-columns:repeat(2,minmax(0,1fr))}.fonts{gap:5px}.option{font-size:11px;padding:9px 5px}.actions{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.controls *,.stageLayer *{animation:none!important;transition:none!important}}
+[data-reduced-motion=true] .controls *,[data-reduced-motion=true] .stageLayer *{animation:none!important;transition:none!important}
+@media(forced-colors:active){.option,.iconButton,.emojiChoice,.textSelection,.remove,.textInput,.customEmojiInput,.customColor,.backgroundColor input{background:Canvas;color:CanvasText;border-color:ButtonText;box-shadow:none}.option[aria-pressed=true],.emojiChoice[aria-pressed=true]{background:Highlight;color:HighlightText;border-color:Highlight}.color{forced-color-adjust:none}.overlayHit[aria-pressed=true]{border-color:Highlight;outline-color:Canvas}}
