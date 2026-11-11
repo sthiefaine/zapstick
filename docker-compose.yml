@@ -1,0 +1,31 @@
+services:
+  zapstick:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: ${SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_SITE_INDEXABLE: ${SITE_INDEXABLE:-false}
+        NEXT_PUBLIC_SITE_OPERATOR_NAME: ${SITE_OPERATOR_NAME:-Clairdev}
+        NEXT_PUBLIC_SITE_OPERATOR_COUNTRY: ${SITE_OPERATOR_COUNTRY:-France}
+        NEXT_PUBLIC_PRIVACY_EMAIL: ${PRIVACY_EMAIL:-simonnou.thiefaine@gmail.com}
+        NEXT_PUBLIC_SITE_HOSTING: ${SITE_HOSTING:-}
+        NEXT_PUBLIC_SITE_OPERATOR_ADDRESS: ${SITE_OPERATOR_ADDRESS:-}
+        NEXT_PUBLIC_SITE_OPERATOR_LEGAL_STATUS: ${SITE_OPERATOR_LEGAL_STATUS:-}
+        NEXT_PUBLIC_SITE_OPERATOR_REGISTRATION: ${SITE_OPERATOR_REGISTRATION:-}
+        NEXT_PUBLIC_SITE_PUBLICATION_DIRECTOR: ${SITE_PUBLICATION_DIRECTOR:-}
+    environment:
+      SITE_URL: ${SITE_URL:-http://localhost:3000}
+      SITE_INDEXABLE: ${SITE_INDEXABLE:-false}
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "${ZAPSTICK_PORT:-3000}:3000"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

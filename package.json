@@ -7,12 +7,17 @@
   },
   "scripts": {
     "install:ci": "node scripts/install-ci.mjs",
-    "dev": "node scripts/run-framework.mjs dev",
-    "build": "node scripts/run-framework.mjs build",
-    "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
+    "dev": "ZAPSTICK_BUILD_TARGET=coolify next dev --hostname 0.0.0.0",
+    "build": "npm run build:coolify",
+    "start": "node .next-coolify/standalone/server.js",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:coolify": "ZAPSTICK_BUILD_TARGET=coolify next build --webpack && node scripts/prepare-standalone.mjs",
+    "start:coolify": "node .next-coolify/standalone/server.js",
+    "dev:sites": "node scripts/run-framework.mjs dev",
+    "build:sites": "node scripts/run-framework.mjs build",
+    "start:sites": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -53,6 +58,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.4",
+    "fake-indexeddb": "^6.2.8",
     "json-rpc-2.0": "1.7.1",
     "raw-body": "3.0.2",
     "react-server-dom-webpack": "19.2.6",

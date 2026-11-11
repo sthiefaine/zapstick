@@ -1,26 +1,78 @@
 import { Collection, initialCollection, removeExamples } from './types';
 const KEY = 'collection';
 let connection: Promise<IDBDatabase> | undefined;
-function database() {
-  return connection ??= new Promise<IDBDatabase>((resolve,reject)=>{
+let operations: Promise<void> = Promise.resolve();
+let writeGeneration = 0;
+
+// Serializing operations makes erasure ordered with reads and pending writes.
+// A reset invalidates queued save calls before they can put stale Blob records back.
+function ordered<T>(operation: () => Promise<T>): Promise<T> {
+  const result = operations.then(operation);
+  operations = result.then(() => undefined, () => undefined);
+  return result;
+}
+function database(): Promise<IDBDatabase> {
+  return connection ??= new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open('zapstick-v1', 1);
-    request.onupgradeneeded = ()=>request.result.createObjectStore('workspace');
-    request.onsuccess = ()=>resolve(request.result);
-    request.onerror = ()=>{connection=undefined;reject(new Error('Le stockage de ce navigateur est indisponible.'));};
+    request.onupgradeneeded = () => request.result.createObjectStore('workspace');
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => { db.close(); connection = undefined; };
+      resolve(db);
+    };
+    request.onerror = () => {
+      connection = undefined;
+      reject(new Error('Le stockage de ce navigateur est indisponible.'));
+    };
   });
 }
-export async function loadCollection(): Promise<Collection> {
-  const db=await database();
-  return new Promise((resolve,reject)=>{
-    const r=db.transaction('workspace').objectStore('workspace').get(KEY);
-    r.onsuccess=()=>resolve(removeExamples(r.result ?? initialCollection())); r.onerror=()=>reject(r.error);
+export function loadCollection(): Promise<Collection> {
+  return ordered(async () => {
+    const db = await database();
+    return new Promise<Collection>((resolve, reject) => {
+      const request = db.transaction('workspace').objectStore('workspace').get(KEY);
+      request.onsuccess = () => resolve(removeExamples(request.result ?? initialCollection()));
+      request.onerror = () => reject(new Error('Impossible de lire la collection locale.'));
+    });
   });
 }
-export async function saveCollection(value: Collection) {
-  const db=await database();
-  return new Promise<void>((resolve,reject)=>{
-    const tx=db.transaction('workspace','readwrite'); tx.objectStore('workspace').put(value,KEY);
-    tx.oncomplete=()=>resolve();tx.onerror=()=>reject(new Error('Espace de stockage insuffisant. Télécharge une sauvegarde.'));tx.onabort=()=>reject(new Error('Sauvegarde interrompue.'));
+export function saveCollection(value: Collection): Promise<void> {
+  const generation = writeGeneration;
+  return ordered(async () => {
+    if (generation !== writeGeneration) return;
+    const db = await database();
+    if (generation !== writeGeneration) return;
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('workspace', 'readwrite');
+      tx.objectStore('workspace').put(value, KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(new Error('Espace de stockage insuffisant. Télécharge une sauvegarde.'));
+      tx.onabort = () => reject(new Error('Sauvegarde interrompue.'));
+    });
+  });
+}
+/** Erase all local media records and Zapstick preferences, without deleting downloaded files. */
+export function clearLocalData(): Promise<void> {
+  writeGeneration++;
+  return ordered(async () => {
+    const db = await database();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('workspace', 'readwrite');
+      // Clearing the store erases all Blob data. Unlike deleteDatabase(), it
+      // cannot remain blocked by another open tab holding an older connection.
+      tx.objectStore('workspace').clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(new Error('Impossible d’effacer les données locales. Réessaie.'));
+      tx.onabort = () => reject(new Error('L’effacement a été interrompu. Réessaie.'));
+    });
+    db.close();
+    connection = undefined;
+    try { localStorage.removeItem('zapstick-preferences-v1'); } catch { /* Preferences may already be blocked by the browser. */ }
+    if (typeof document !== 'undefined') {
+      for (const key of ['zapstick-locale', 'zapstick-theme']) {
+        document.cookie = `${key}=; Path=/; Max-Age=0; SameSite=Lax`;
+      }
+    }
   });
 }
 export function download(blob:Blob,name:string){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}

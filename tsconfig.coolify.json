@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "@cloudflare/workers-types"]
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "lib/**/*.mts",
+    "hooks/**/*.ts",
+    ".next-coolify/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".next", ".next-coolify/standalone", ".vinext", ".wrangler", ".sites-runtime", "examples", "worker", "scripts", "outputs", "work"]
+}
