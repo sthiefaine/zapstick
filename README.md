@@ -15,11 +15,14 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 
 ## Fonctionnalités
 
-- Galerie persistante dans IndexedDB, favoris, recherche, tri, vues grille et liste.
+- Interface conçue pour le mobile : navigation en bas, atelier interactif sur un seul écran, outils intégrés sans fenêtres de dialogue.
+- Collection persistante dans IndexedDB, favoris, recherche et filtres. Appui long pour la sélection multiple.
+- Déplacement du visuel au doigt et zoom à deux doigts, avec commandes de cadrage alternatives.
+- Suppressions annulables pendant 12 secondes.
 - Packs fixes ou animés : création, renommage, couleur, ajout/retrait et suppression sans perte des médias.
 - Import local PNG/JPEG/WebP/GIF/MP4/WebM, jusqu’à 20 Mo.
 - Import des publications X publiques par FxTwitter API v2 ; liens directs de médias X, Giphy et Tenor.
-- Atelier avec zoom, rotation, texte et choix du fond. Un fond transparent conserve la transparence de la source ; il ne détoure pas automatiquement une photo.
+- Atelier avec aperçu animé, déplacement, zoom, rotation, texte et choix du fond. Un fond transparent conserve la transparence de la source ; il ne détoure pas automatiquement une photo.
 - WebP fixe en 512 × 512, 100 Ko maximum ; GIF/vidéo vers WebP animé, 500 Ko maximum, extrait de 6 secondes maximum. Compression adaptée au poids.
 - Export individuel WebP, export de sélection/pack en ZIP, sauvegarde/restauration de la collection en JSON.
 - Galerie et packs vides au départ. Les exemples de la première version sont retirés automatiquement au chargement et à la restauration d’une sauvegarde, sans supprimer les médias importés.
