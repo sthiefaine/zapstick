@@ -5,7 +5,7 @@ import { defaults, loadImage, type EditOptions } from '@/lib/stickers/convert';
 import type { Sticker, Pack } from '@/lib/stickers/types';
 import { resolveImport, downloadRemote, type RemoteMedia } from '@/lib/stickers/import';
 import { download } from '@/lib/stickers/store';
-import {readClipboardLink} from '@/lib/stickers/clipboard';
+import {createClipboardReadSession} from '@/lib/stickers/clipboard';
 import { useMediaUrl } from './media';
 import { usePreferences } from '@/components/preferences-provider';
 import { AnimationTimeline, GifAnimationCanvas } from './animation-timeline';
@@ -16,7 +16,9 @@ import {OverlayStage} from './overlay-stage';
 import {BackgroundRemovalControl} from './background-removal-control';
 import {MediaImportCard} from './media-import-card';
 import {ShareZapstick} from './share-zapstick';
+import {AnimatedDownloads} from './animated-downloads';
 import type {EmojiOverlay,TextStyle,OverlaySelection} from '@/lib/stickers/overlays';
+import './studio-controls.css';
 const message = (e: unknown) => e instanceof Error ? e.message : 'Impossible de charger ce média.';
 const accepted = 'image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime';
 type Props = {
@@ -37,7 +39,9 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     const [o, setOptions] = useState<EditOptions>({ ...defaults }), [tool, setTool] = useState<Tool>(null), [name, setName] = useState(''), [packId, setPackId] = useState('');
     const [loading, setLoading] = useState(''), [error, setError] = useState(''), [progress, setProgress] = useState(-1), [duration, setDuration] = useState(0), [playing, setPlaying] = useState(!reduceMotion), [result, setResult] = useState<Sticker | null>(null), [dragging, setDragging] = useState(false), [staticFrame, setStaticFrame] = useState('');
     const [animationPreview, setAnimationPreview] = useState<AnimationPreview | null>(null), [timelineLoading, setTimelineLoading] = useState(false), [playhead, setPlayhead] = useState(0), [seekRequest, setSeekRequest] = useState({ time: 0, revision: 0 });
-    const [overlaySelection,setOverlaySelection]=useState<OverlaySelection>(null),[backgroundBusy,setBackgroundBusy]=useState(false),[backgroundOriginal,setBackgroundOriginal]=useState<Blob|null>(null);
+    const [overlaySelection,setOverlaySelection]=useState<OverlaySelection>(null),[backgroundBusy,setBackgroundBusy]=useState(false),[gifBusy,setGifBusy]=useState(false),[backgroundOriginal,setBackgroundOriginal]=useState<Blob|null>(null);
+    const [clipboardWaiting,setClipboardWaiting]=useState(false),[clipboardSession]=useState(createClipboardReadSession);
+    const clipboardAbort=useRef<AbortController|null>(null);
     const file = useRef<HTMLInputElement>(null), video = useRef<HTMLVideoElement>(null), alive = useRef(true), generation = useRef(0), importOperation=useRef(false), pointers = useRef(new Map<number, {
         x: number;
         y: number;
@@ -46,10 +50,10 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     const canAnimate = !!draft && (draft.mime === 'image/gif' || draft.mime.startsWith('video/'));
     const isAnimated = canAnimate && o.animated, kind = isAnimated ? 'animated' : 'static';
     const matchingPacks = packs.filter(p => p.kind === kind);
-    useEffect(() => { if (active && !wasActive.current && result)
+    useEffect(() => { if(!active)cancelClipboard();if (active && !wasActive.current && result)
         reset(); wasActive.current = active; }, [active]);
-    useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; }; }, []);
-    useEffect(() => { generation.current++;setOptions({ ...defaults, animated: draft?.kind === 'animated' }); setName(draft?.name ?? ''); setPackId(''); setTool(null); setResult(null); setError(''); setDuration(0); setPlaying(!reduceMotion); setOverlaySelection(null); setBackgroundOriginal(null); setPlayhead(0); setSeekRequest({ time: 0, revision: 0 }); pointers.current.clear(); }, [draft?.id]);
+    useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++;clipboardAbort.current?.abort();clipboardAbort.current=null; }; }, []);
+    useEffect(() => { cancelClipboard();generation.current++;setOptions({ ...defaults, animated: draft?.kind === 'animated' }); setName(draft?.name ?? ''); setPackId(''); setTool(null); setResult(null); setError(''); setDuration(0); setPlaying(!reduceMotion); setOverlaySelection(null); setBackgroundOriginal(null); setPlayhead(0); setSeekRequest({ time: 0, revision: 0 }); pointers.current.clear(); }, [draft?.id]);
     useEffect(() => {
         const controller = new AbortController(); let preview: AnimationPreview | undefined;
         setAnimationPreview(null); setTimelineLoading(false);
@@ -135,24 +139,34 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
         importOperation.current=true;
         try{await resolveLink(value);}finally{importOperation.current=false;}
     }
+    function cancelClipboard(){
+        const controller=clipboardAbort.current;
+        if(!controller)return;
+        clipboardAbort.current=null;controller.abort();generation.current++;
+        importOperation.current=false;setClipboardWaiting(false);setLoading('');
+    }
     async function pasteAndImport() {
         if(importOperation.current||progress>=0)return;
         importOperation.current=true;
+        const controller=new AbortController();clipboardAbort.current=controller;
         const request=generation.current;
-        setError('');setLoading(t('Lecture du presse-papiers…'));
+        setError('');setClipboardWaiting(true);setLoading('En attente de ton autorisation…');
         try {
-            const value=await readClipboardLink({
+            const reading=clipboardSession.read({
                 secure:window.isSecureContext,
                 readText:typeof navigator.clipboard?.readText==='function'?()=>navigator.clipboard.readText():undefined,
+                signal:controller.signal,
             });
-            if(!alive.current||request!==generation.current)return;
+            if(!reading)return;
+            const value=await reading;
+            if(controller.signal.aborted||!alive.current||request!==generation.current)return;
+            setClipboardWaiting(false);
             setLink(value);
             await resolveLink(value);
         }catch(e){
-            if(alive.current&&request===generation.current){setError(message(e));document.getElementById('source-link')?.focus();}
+            if(!controller.signal.aborted&&alive.current&&request===generation.current){setError(message(e));requestAnimationFrame(()=>{if(alive.current&&request===generation.current)document.getElementById('source-link')?.focus();});}
         }finally{
-            importOperation.current=false;
-            if(alive.current&&request===generation.current)setLoading('');
+            if(clipboardAbort.current===controller){clipboardAbort.current=null;importOperation.current=false;if(alive.current){setClipboardWaiting(false);if(request===generation.current)setLoading('');}}
         }
     }
     async function selectRemote(item: RemoteMedia) { const request = ++generation.current; setError(''); try {
@@ -217,15 +231,17 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             onWorking(false);
         }
     }
-    function reset() { generation.current++; onDraft(null); setResult(null); setLoading(''); setRemote([]); setLink(''); setError(''); }
-    const disabled = !!loading || progress >= 0 || backgroundBusy;
+    function reset() { cancelClipboard();generation.current++; onDraft(null); setResult(null); setLoading(''); setRemote([]); setLink(''); setError(''); }
+    const disabled = !!loading || progress >= 0 || backgroundBusy || gifBusy;
     const overlayControls={text:o.text,textStyle:o.textStyle,emojis:o.emojis,selectedId:overlaySelection,onSelect:setOverlaySelection,onChangeTextStyle:(value:TextStyle)=>update('textStyle',value),onChangeEmojis:(value:EmojiOverlay[])=>update('emojis',value),disabled};
     function backgroundWorking(value:boolean){setBackgroundBusy(value);onWorking(value);}
+    function gifWorking(value:boolean){setGifBusy(value);onWorking(value);}
     function removedBackground(blob:Blob){if(!draft)return;if(!backgroundOriginal&&draft.blob)setBackgroundOriginal(draft.blob);onDraft({...draft,blob,mime:'image/png'});}
     return <section className={`studio screen ${draft ? 'has-media' : ''} ${result ? 'studio-complete' : ''}`} aria-label={t("Créer un sticker")} hidden={!active}>
   {draft || result ? <div className="screen-title studio-title"><div><h1>{result ? t("Enregistré") : t("Modifier")}</h1></div>{draft && !result ? <button className="round-button" title={t("Changer de média")} aria-label={t("Changer de média")} disabled={disabled} onClick={() => file.current?.click()}><RefreshCw size={19}/></button> : null}</div> : <h1 className="sr-only">{t("Créer un sticker")}</h1>}
   <input ref={file} hidden type="file" accept={accepted} onChange={e => { chooseFile(e.target.files?.[0]); e.target.value = ''; }}/>
   {!draft ? <form className="link-entry" aria-busy={!!loading} onSubmit={e => { e.preventDefault(); importLink(); }}><label className="sr-only" htmlFor="source-link">{t("Lien X ou lien direct vers un média")}</label><input id="source-link" type="url" placeholder={t("Colle ton lien ici")} value={link} onChange={e => setLink(e.target.value)} required disabled={!!loading}/><button className="clipboard-import" type="button" disabled={disabled} onClick={pasteAndImport} aria-label={t('Coller et importer')}><ClipboardPaste size={18} aria-hidden="true"/><span>{t('Coller et importer')}</span></button><button className="round-button dark" type="submit" disabled={!!loading || !link.trim()} aria-label={t("Récupérer le média")}>{loading ? <LoaderCircle size={18} className="spin"/> : <ArrowRight size={20}/>}</button></form> : null}
+  {clipboardWaiting ? <div className="clipboard-permission"><p role="status">{t('En attente de ton autorisation…')}</p><button className="clipboard-cancel" type="button" onClick={cancelClipboard} aria-label={t('Annuler le collage')}>{t('Annuler')}</button></div> : null}
   {remote.length > 1 && !draft ? <div className="remote-choice" aria-label={t("Médias disponibles")}>{remote.map((m, i) => <button key={m.url} disabled={!!loading} onClick={() => selectRemote(m)} aria-label={t('Utiliser le média {count}', { count: i + 1 })}>{m.mime.startsWith('video/') ? <video src={m.url} crossOrigin="anonymous" muted playsInline preload="metadata"/> : <img src={m.url} crossOrigin="anonymous" referrerPolicy="no-referrer" alt={t('Média {count}', { count: i + 1 })}/>}<span>{i + 1}<ArrowRight size={14}/></span></button>)}</div> : null}
   <div className={`stage-shell ${!draft ? 'stage-empty' : ''} ${dragging ? 'stage-dragging' : ''} ${result ? 'stage-success' : ''}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); if (!disabled)
         chooseFile(e.dataTransfer.files[0]); }}>
@@ -236,20 +252,20 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             return;
         } setDuration(d); setOptions(p => p.animated ? ({ ...p, ...normalizeTrim(d, p.start, p.duration) }) : ({...p,start:Math.min(Math.max(0,p.start),Math.max(0,d-.001))})); }} onTimeUpdate={e => { if (playing && isAnimated && e.currentTarget.currentTime >= Math.min(duration, o.start + o.duration) && duration > 0)
             e.currentTarget.currentTime = o.start; setPlayhead(e.currentTarget.currentTime); }} onEnded={e => { if (playing && isAnimated) { e.currentTarget.currentTime = o.start; e.currentTarget.play().catch(() => {}); } }} onError={() => setError(t("Vidéo illisible dans ce navigateur."))}/> : draft.mime === 'image/gif' && animationPreview?.drawAt ? <GifAnimationCanvas preview={animationPreview} playing={playing && isAnimated} active={active && !result} start={o.start} length={o.duration} seek={seekRequest} onTimeUpdate={setPlayhead} onError={reason => setError(message(reason))} label={draft.name} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }}/> : <img className="stage-media" src={staticFrame || src} alt={draft.name} draggable={false} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }} onError={() => setError(t("Cette image ne peut pas être lue."))}/>}
-     <OverlayStage {...overlayControls} onSelect={id=>{setOverlaySelection(id);if(id){setTool(id==='text'?'text':'emoji');setPlaying(false);}}}/>
+     <OverlayStage {...overlayControls} onSelect={id=>{setOverlaySelection(id);if(id)setTool(id==='text'?'text':'emoji');}}/>
     </> : <MediaImportCard onChoose={() => file.current?.click()} disabled={disabled} dragActive={dragging}/>}
-    {loading || progress >= 0 ? <div className="stage-loading" role="status"><LoaderCircle className="spin" size={27}/><strong>{progress >= 0 ? t("Création du sticker…") : t(loading)}</strong>{progress >= 0 ? <><div className="progress-track"><span style={{ width: `${Math.max(4, progress)}%` }}/></div><small>{progress} %</small></> : null}</div> : null}
+    {(loading && !clipboardWaiting) || progress >= 0 ? <div className="stage-loading" role="status"><LoaderCircle className="spin" size={27}/><strong>{progress >= 0 ? t("Création du sticker…") : t(loading)}</strong>{progress >= 0 ? <><div className="progress-track"><span style={{ width: `${Math.max(4, progress)}%` }}/></div><small>{progress} %</small></> : null}</div> : null}
    </div>
    {draft && !result ? <><span className="stage-format">{isAnimated ? <><Play size={9} fill="currentColor"/>{t("ANIMÉ")}</> : t("FIXE")}</span>{canAnimate && isAnimated ? <button className="stage-play" aria-label={playing ? t("Mettre en pause") : t("Lire l’animation")} onClick={togglePlayback}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button> : null}</> : null}
    {result ? <span className="success-seal"><Check size={20}/></span> : null}
   </div>
   {!draft ? <ShareZapstick disabled={disabled}/> : null}
   {error ? <div className="inline-error" role="alert">{t(error)}<button aria-label={t("Fermer le message")} onClick={() => setError('')}><X size={16}/></button></div> : null}
-  {result ? <div className="completed-actions"><p>{result.kind === 'animated' ? t("Sticker animé") : t("Sticker fixe")} <span>·</span> {Math.round((result.blob?.size ?? 0) / 1024)} {t("Ko")}</p><button className="button primary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t("Télécharger")}</button><div className="two-actions"><button className="button secondary" onClick={reset}><Plus size={17}/>{t("Un autre")}</button><button className="button secondary" onClick={onCollection}>{t("Ma collection")}<ArrowRight size={16}/></button></div></div> : draft ? <>
+  {result ? <div className="completed-actions"><p>{result.kind === 'animated' ? t("Sticker animé") : t("Sticker fixe")} <span>·</span> {Math.round((result.blob?.size ?? 0) / 1024)} {t("Ko")}</p>{result.kind==='animated'?<AnimatedDownloads blob={result.blob!} name={result.name} onBusyChange={gifWorking} onError={setError}/>:<button className="button primary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t("Télécharger")}</button>}<div className="two-actions"><button className="button secondary" disabled={gifBusy} onClick={reset}><Plus size={17}/>{t("Un autre")}</button><button className="button secondary" disabled={gifBusy} onClick={onCollection}>{t("Ma collection")}<ArrowRight size={16}/></button></div></div> : draft ? <>
    <span id="sticker-keyboard-help" className="sr-only">{t("Utilise les flèches pour déplacer le sticker ; + et − pour zoomer.")}</span><p className="gesture-hint"><Move size={12}/>{t("Déplace au doigt · pince pour zoomer")}</p>{draft.kind === 'animated' && !canAnimate ? <p className="subtle-note">{t("Cette variante sera fixe. Utilise le GIF ou la vidéo d’origine pour garder l’animation.")}</p> : null}
-   <div className="toolbelt" role="group" aria-label={t("Personnaliser le sticker")}>{([{ id: 'crop', label: t("Cadrer"), icon: SlidersHorizontal }, { id: 'text', label: t("Texte"), icon: Type }, { id: 'emoji', label: t("Émojis"), icon: Smile }, { id: 'background', label: t("Fond"), icon: Palette }, ...(canAnimate ? [{ id: 'animation', label: t("Animation"), icon: Play }] : [])] as const).map(item => <button key={item.id} className={tool === item.id ? 'selected' : ''} aria-pressed={tool === item.id} onClick={() => {setTool(tool === item.id ? null : item.id as Tool);if(item.id==='text'){setOverlaySelection('text');setPlaying(false);}if(item.id==='emoji'){if(overlaySelection==='text')setOverlaySelection(null);setPlaying(false);}}} disabled={disabled}><span><item.icon size={20}/></span>{item.label}</button>)}</div>
-   {tool ? <div className="tool-panel">
-    <div className="tool-panel-heading"><strong>{{ crop: t("Cadrage"), text: t("Texte"), emoji:t("Émojis"), background: t("Fond"), animation: t("Animation"), organize: t("Nom et pack") }[tool]}</strong><button className="small-icon" aria-label={t("Fermer les réglages")} onClick={() => setTool(null)}><X size={16}/></button></div>
+   <div className="toolbelt" role="group" aria-label={t("Personnaliser le sticker")}>{([{ id: 'crop', label: t("Cadrer"), icon: SlidersHorizontal }, { id: 'text', label: t("Texte"), icon: Type }, { id: 'emoji', label: t("Émojis"), icon: Smile }, { id: 'background', label: t("Fond"), icon: Palette }, ...(canAnimate ? [{ id: 'animation', label: t("Animation"), icon: Play }] : [])] as const).map(item => <button key={item.id} className={tool === item.id ? 'selected' : ''} aria-pressed={tool === item.id} aria-expanded={tool === item.id} aria-controls="studio-inline-settings" onClick={() => {setTool(tool === item.id ? null : item.id as Tool);if(item.id==='text')setOverlaySelection('text');if(item.id==='emoji'&&overlaySelection==='text')setOverlaySelection(null);}} disabled={disabled}><span><item.icon size={20}/></span>{item.label}</button>)}</div>
+   {tool ? <div className="studio-inline-settings" id="studio-inline-settings" role="group" aria-labelledby="studio-settings-label">
+    <span className="sr-only" id="studio-settings-label">{{ crop: t("Cadrage"), text: t("Texte"), emoji:t("Émojis"), background: t("Fond"), animation: t("Animation"), organize: t("Nom et pack") }[tool]}</span>
     {tool === 'crop' ? <><div className="range-row"><span>{t("Zoom")}</span><input aria-label={t("Zoom")} type="range" min=".35" max="3" step=".01" value={o.zoom} onChange={e => update('zoom', Number(e.target.value))}/><span>{Math.round(o.zoom * 100)} %</span></div><div className="position-controls">{[{key:'left',label:'Vers la gauche',icon:ArrowLeft,x:-10,y:0},{key:'up',label:'Vers le haut',icon:ArrowUp,x:0,y:-10},{key:'down',label:'Vers le bas',icon:ArrowDown,x:0,y:10},{key:'right',label:'Vers la droite',icon:ArrowRight,x:10,y:0}].map(direction=><button className="button light" key={direction.key} aria-label={t(direction.label)} onClick={()=>setOptions(p=>({...p,offsetX:Math.max(-400,Math.min(400,(p.offsetX??0)+direction.x)),offsetY:Math.max(-400,Math.min(400,(p.offsetY??0)+direction.y))}))}><direction.icon size={17}/></button>)}</div><div className="two-actions"><button className="button light" onClick={() => update('rotation', (o.rotation + 90) % 360)}><RotateCw size={16}/>{t("Tourner")}</button><button className="button light" onClick={() => setOptions(p => ({ ...p, zoom: 1, rotation: 0, offsetX: 0, offsetY: 0 }))}><RefreshCw size={16}/>{t("Recentrer")}</button></div></> : null}
     {tool==='text'||tool==='emoji'?<TextStyleControls {...overlayControls} mode={tool==='emoji'?'emoji':'text'} onChangeText={value=>update('text',value)}/>:null}
     {tool === 'background' ? <>{draft.kind==='static'&&draft.mime.startsWith('image/')&&draft.blob?<><BackgroundRemovalControl blob={draft.blob} disabled={progress>=0} onResult={removedBackground} onBusyChange={backgroundWorking}/>{backgroundOriginal?<button className="button light background-restore" disabled={backgroundBusy} onClick={()=>{onDraft({...draft,blob:backgroundOriginal,mime:backgroundOriginal.type});setBackgroundOriginal(null);}}>{t('Rétablir le fond')}</button>:null}</>:null}<div className="swatches">{['transparent', '#ffffff', '#bfe8b0', '#e7f0df', '#f6c1a3', '#25252b'].map(color => <button key={color} className={`${color === 'transparent' ? 'checker' : ''} ${o.background === color ? 'chosen' : ''}`} style={{ backgroundColor: color === 'transparent' ? undefined : color, color: color === '#25252b' ? '#fff' : '#222' }} aria-label={color === 'transparent' ? t("Fond transparent") : t('Fond {color}', { color })} aria-pressed={o.background === color} onClick={() => update('background', color)}>{o.background === color ? <Check size={18}/> : null}</button>)}</div></> : null}

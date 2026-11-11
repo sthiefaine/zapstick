@@ -33,7 +33,8 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 - Barre de montage avec vignettes et poignées pour choisir l’extrait d’un GIF ou d’une vidéo ; sélection et aperçu au clavier également disponibles. Le mode fixe capture l’image choisie.
 - Détourage des images fixes avec U²-Net-P, calculé sur l’appareil : chargement au clic, progression, annulation et rétablissement du fond original. Premier usage : environ 19 Mo de moteur et modèle ; qualité variable selon l’image. Voir [les détails et licences](docs/BACKGROUND_REMOVAL.md).
 - WebP fixe en 512 × 512, 100 Ko maximum ; GIF/vidéo vers WebP animé, 500 Ko maximum, extrait de 6 secondes maximum. Compression adaptée au poids, sans marge transparente ajoutée par défaut.
-- Export individuel WebP, export de sélection/pack en ZIP, sauvegarde/restauration de la collection en JSON.
+- Téléchargement galerie : WebP fixe ou vrai GIF animé ; WebP animé disponible en option. Export de sélection/pack en ZIP et sauvegarde/restauration de la collection en JSON.
+- Encodage GIF local dans un worker, avec progression et annulation ; compatible avec les WebP animés déjà présents dans la collection.
 - Galerie et packs vides au départ. Les exemples de la première version sont retirés automatiquement au chargement et à la restauration d’une sauvegarde, sans supprimer les médias importés.
 
 ## Données et limites
@@ -44,7 +45,7 @@ L’import X dépend d’un service tiers et du caractère public du post. Les p
 
 Le détourage télécharge ses poids depuis Hugging Face et son CDN uniquement lorsque demandé ; aucune photo ne leur est envoyée. Le moteur est servi par Zapstick. Les poids sont mis en cache localement et ce cache est vidé avec les données de l’app. Les fichiers animés ne sont pas détourés ; une photo statique est nécessaire. Un fond transparent seul conserve la transparence de la source sans lancer de détourage.
 
-WhatsApp permet de créer un sticker directement à partir de la galerie : télécharger le sticker, l’enregistrer dans la galerie du téléphone, puis ouvrir une discussion WhatsApp → Stickers → Créer et sélectionner le média. Aucune application de stickers supplémentaire n’est nécessaire pour ce parcours. Les ZIP servent à regrouper les fichiers à décompresser ; ils ne sont pas installés automatiquement par Zapstick. La disponibilité des formats et la conservation des animations dépendent du téléphone et de la version de WhatsApp. Ce parcours n’a pas été testé sur un téléphone réel. Les packs Zapstick sont limités à 30 éléments du même type.
+Pour la galerie Android, les animations sont téléchargées en GIF. Le WebP animé reste le format conservé dans la collection et peut être téléchargé séparément. Un fichier GIF garde plusieurs images dans le téléchargement ; WhatsApp peut l’envoyer comme GIF. La création d’un **sticker animé** depuis la galerie dépend de la version de WhatsApp et n’est pas garantie par Zapstick. Les images fixes peuvent être choisies via WhatsApp → Stickers → Créer. Les ZIP doivent être décompressés. Le parcours n’a pas été vérifié sur un téléphone réel ; les packs Zapstick contiennent jusqu’à 30 éléments du même type.
 
 Modifier un WebP animé dans l’atelier crée une variante fixe ; l’original animé reste exportable. GIF et MP4 peuvent être convertis en animation. Le navigateur doit prendre en charge l’encodage Canvas WebP et le décodage du format source.
 

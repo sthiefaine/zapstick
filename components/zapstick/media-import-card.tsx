@@ -24,7 +24,7 @@ export function MediaImportCard({onChoose, disabled = false, dragActive = false}
       <g className={styles.sticker}>
         <path d="M78 25h46c15 0 26 11 26 26v36l-35 35H78c-15 0-26-11-26-26V51c0-15 11-26 26-26Z" className={styles.stickerPaper}/>
         <path d="M115 122v-21c0-9 6-14 15-14h20" className={styles.peel}/>
-        <path d="M80 59v7m29-7v7M78 82c8 11 21 13 32 0" className={styles.face}/>
+        <path d="M101 48v48M77 72h48" className={styles.uploadPlus}/>
       </g>
       <path d="m161 29 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" className={styles.spark}/>
       <circle cx="35" cy="132" r="4" className={styles.dot}/>

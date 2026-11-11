@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Download, FolderPlus, Heart, HelpCircle, ImagePlus, Layers, LayoutGrid, Link2, LoaderCircle, MoreHorizontal, Pencil, Plus, Search, Settings2, ShieldCheck, Trash2, Undo2, Upload, X, Play, HardDrive, ExternalLink, CheckSquare, Sticker as StickerIcon } from 'lucide-react';
 import { type Sticker, type Pack, type Collection, initialCollection, colors } from '@/lib/stickers/types';
 import { loadCollection, saveCollection, download, backup, restore } from '@/lib/stickers/store';
-import { defaults } from '@/lib/stickers/convert';
+import type {DownloadFormat} from '@/lib/stickers/download-format';
 import { usePreferences } from '@/components/preferences-provider';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { PrivacySettings } from '@/components/zapstick/privacy-settings';
@@ -27,6 +27,7 @@ export default function Home() {
         text: string;
         revert: () => void;
     } | null>(null), [pendingRestore, setPendingRestore] = useState<Collection | null>(null), [packTarget, setPackTarget] = useState<string | null>(null), [studioBusy, setStudioBusy] = useState(false);
+    const exportAbort=useRef<AbortController|null>(null);
     const saveQueue = useRef(Promise.resolve()), restoreInput = useRef<HTMLInputElement>(null), alive = useRef(true);
     const { stickers, packs } = collection, detail = stickers.find(s => s.id === detailId), currentPack = packs.find(p => p.id === packId);
     useEffect(() => { alive.current = true; loadCollection().then(c => { if (alive.current) {
@@ -35,7 +36,7 @@ export default function Home() {
     } }).catch(e => { if (alive.current) {
         setStorageError(message(e));
         setReady(true);
-    } }); return () => { alive.current = false; }; }, []);
+    } }); return () => { alive.current = false; exportAbort.current?.abort(); }; }, []);
     useEffect(() => { if (!ready)
         return; setSaveStatus("Enregistrement…"); saveQueue.current = saveQueue.current.catch(() => { }).then(() => saveCollection(collection)).then(() => { if (alive.current) {
         setSaveStatus("Enregistré sur cet appareil");
@@ -50,6 +51,7 @@ export default function Home() {
         return; const t = setTimeout(() => setUndo(null), 12000); return () => clearTimeout(t); }, [undo]);
     function navigate(next: View) { if (busy || studioBusy)
         return; if(next==='create')setCreationFolderId(''); setView(next); setDetailId(null); setPackId(null); setSelectMode(false); setSelection([]); setAssigning(false); setPackTarget(null); setEditingPack(false); setQuery(''); setFilter('all'); setShowSearch(false); window.scrollTo({ top: 0, behavior: 'instant' }); }
+    function goHome(){if(busy||studioBusy)return;setDraft(null);setStudioResetKey(value=>value+1);navigate('create');}
     function back() { if (busy || studioBusy)
         return; if (detailId) {
         setDetailId(null);
@@ -94,44 +96,37 @@ export default function Home() {
     finally {
         setBusy('');
     } }
-    async function exportItems(items: Sticker[], name = 'mes-stickers') {
-        if (!items.length || busy)
-            return;
+    async function exportItems(items: Sticker[], name = 'mes-stickers',format:DownloadFormat='gallery') {
+        if (!items.length || busy || exportAbort.current || studioBusy)return;
+        const controller=new AbortController();exportAbort.current=controller;
         setBusy(t("Préparation de l’export…"));
         try {
-            const { convert } = await import('@/lib/stickers/convert');
-            const files: {
-                name: string;
-                blob: Blob;
-            }[] = [];
-            for (let i = 0; i < items.length; i++) {
-                const s = items[i];
-                setBusy(t('Export {current}/{total}', { current: i + 1, total: items.length }));
-                const blob = await mediaBlob(s), output = s.isSticker && s.mime === 'image/webp' ? blob : (await convert(blob, defaults, () => { })).blob;
-                files.push({ name: `${String(i + 1).padStart(2, '0')}-${filename(s.name)}.webp`, blob: output });
+            const {prepareStickerDownload,checkDownloadSignal}=await import('@/lib/stickers/download-format');
+            const files:{name:string;blob:Blob}[]=[];
+            for(let i=0;i<items.length;i++){
+                checkDownloadSignal(controller.signal);
+                const s=items[i];setBusy(t('Export {current}/{total}',{current:i+1,total:items.length}));
+                const source=await mediaBlob(s);
+                const output=await prepareStickerDownload(source,{animated:s.kind==='animated',isSticker:s.isSticker,format,signal:controller.signal,onProgress:percent=>{if(alive.current&&!controller.signal.aborted)setBusy(items.length===1&&s.kind==='animated'&&format==='gallery'?t('Préparation du GIF… {percent} %',{percent}):t('Export {current}/{total}',{current:i+1,total:items.length}));}});
+                files.push({name:`${String(i+1).padStart(2,'0')}-${filename(s.name)}.${output.extension}`,blob:output.blob});
             }
-            if (files.length === 1)
-                download(files[0].blob, files[0].name);
-            else {
-                const { zip } = await import('@/lib/stickers/zip');
-                files.push({name:'README.txt',blob:new Blob([[t('Créé avec Zapstick'),'',t('Enregistrez les stickers dans la galerie de votre téléphone. Dans une discussion WhatsApp, ouvrez Stickers > Créer, puis choisissez le média dans votre galerie. Aucune application supplémentaire n’est nécessaire.'),t('Pour un ZIP, décompressez d’abord les fichiers. La disponibilité des formats et des animations dépend du téléphone et de la version de WhatsApp.'),'https://faq.whatsapp.com/1056840314992666',''].join('\n')],{type:'text/plain;charset=utf-8'})});
-            download(await zip(files), `${filename(name)}.zip`);
+            checkDownloadSignal(controller.signal);
+            if(files.length===1)download(files[0].blob,files[0].name);
+            else{
+                const {zip}=await import('@/lib/stickers/zip');
+                files.push({name:'README.txt',blob:new Blob([[t('Créé avec Zapstick'),'',t('Les images fixes sont en WebP, les animations en GIF. Décompresse d’abord le ZIP, puis choisis le média dans WhatsApp.'),t('Les animations sont téléchargées en GIF pour la galerie. WhatsApp peut les envoyer comme GIF ; leur conversion en sticker animé dépend de sa version.'),'https://faq.whatsapp.com/1056840314992666',''].join('\n')],{type:'text/plain;charset=utf-8'})});
+                const archive=await zip(files);checkDownloadSignal(controller.signal);download(archive,`${filename(name)}.zip`);
             }
             setToast(t("Export téléchargé"));
-        }
-        catch (e) {
-            setToast(message(e));
-        }
-        finally {
-            setBusy('');
-        }
+        }catch(error){if(alive.current)setToast(t(error instanceof Error&&error.name==='AbortError'?'Export annulé.':message(error)));}
+        finally{if(exportAbort.current===controller){exportAbort.current=null;if(alive.current)setBusy('');}}
     }
     const visible = useMemo(() => stickers.filter(s => (!packId || s.packId === packId) && (filter !== 'favorites' || s.favorite) && (filter !== 'animated' || s.kind === 'animated') && (filter !== 'static' || s.kind === 'static') && (!query || s.name.toLocaleLowerCase(locale).includes(query.toLocaleLowerCase(locale)))).sort((a, b) => b.createdAt - a.createdAt), [stickers, packId, filter, query, locale]);
     const hasBack = !!detailId || !!packId || editingPack !== false || view === 'settings' || view === 'help';
     function fillPack(p: Pack) { setView('collection'); setPackId(null); setPackTarget(p.id); setFilter(p.kind); setQuery(''); setSelectMode(true); setSelection([]); setAssigning(false); setEditingPack(false); }
     function toggleSelection(id: string) { setSelection(a => a.includes(id) ? a.filter(x => x !== id) : [...a, id]); }
     return <div className="game-shell">
-  <header className={`app-header ${hasBack ? 'with-back' : ''}`}><div className="header-left">{hasBack ? <button className="round-button header-back" aria-label={t("Retour")} disabled={!!busy || studioBusy} onClick={back}><ArrowLeft size={21}/></button> : null}<button className="wordmark" onClick={() => navigate('create')} aria-label={t("Zapstick accueil")}><img className="logo-mark" src="/brand/zapstick-mark.svg" alt="" width={29} height={29}/>zapstick</button></div><div className="header-actions"><LanguageSwitcher disabled={!!busy || studioBusy}/><button className={`round-button ${view === 'settings' ? 'is-active' : ''}`} aria-label={t("Réglages et sauvegarde")} onClick={() => navigate('settings')} disabled={!!busy || studioBusy}><Settings2 size={20}/></button></div></header>
+  <header className={`app-header ${hasBack ? 'with-back' : ''}`}><div className="header-left">{hasBack ? <button className="round-button header-back" aria-label={t("Retour")} disabled={!!busy || studioBusy} onClick={back}><ArrowLeft size={21}/></button> : null}<button className="wordmark" onClick={goHome} disabled={!!busy||studioBusy} aria-label={t("Zapstick accueil")}><img className="logo-mark" src="/brand/zapstick-mark.svg" alt="" width={29} height={29}/>zapstick</button></div><div className="header-actions"><LanguageSwitcher disabled={!!busy || studioBusy}/><button className={`round-button ${view === 'settings' ? 'is-active' : ''}`} aria-label={t("Réglages et sauvegarde")} onClick={() => navigate('settings')} disabled={!!busy || studioBusy}><Settings2 size={20}/></button></div></header>
   <main className="app-main" id="main-content" tabIndex={-1}>
    {storageError ? <div className="inline-error storage-alert" role="alert">{t(storageError)}<button onClick={() => navigate('settings')}>{t("Sauvegarder")}</button></div> : null}
    {!ready ? <div className="opening-state"><LoaderCircle size={24} className="spin"/><span>{t("Ouverture de la collection…")}</span></div> : <Studio key={studioResetKey} draft={draft} active={view === 'create'} packs={packs} stickers={stickers} onDraft={setDraft} onSave={add} onError={setToast} onCollection={() => navigate('collection')} onWorking={setStudioBusy}/>}
@@ -148,7 +143,7 @@ export default function Home() {
     {selectMode && selection.length ? <div className="selection-actions"><button onClick={() => packTarget ? assign(selection, packTarget) : setAssigning(p => !p)}><FolderPlus size={20}/><span>{packTarget ? t("Ajouter") : t("Ranger")}</span></button><button disabled={!!busy || studioBusy} onClick={() => exportItems(stickers.filter(s => selection.includes(s.id)))}><Download size={20}/><span>{t("Exporter")}</span></button><button onClick={() => deleteItems(selection)}><Trash2 size={19}/><span>{t("Supprimer")}</span></button><button aria-label={t("Fermer la sélection")} onClick={() => { setSelectMode(false); setSelection([]); setAssigning(false); }}><X size={19}/></button></div> : null}
    </section> : null}
    {ready && detail && (view === 'collection' || view === 'packs') ? <section className="screen detail-screen"><div className="screen-title"><div><h1>{detail.kind === 'animated' ? t("Sticker animé") : t("Ton sticker")}</h1></div><button className={`round-button ${detail.favorite ? 'is-favorite' : ''}`} aria-label={detail.favorite ? t("Retirer des favoris") : t("Ajouter aux favoris")} onClick={() => favorite(detail.id)}><Heart size={20} fill={detail.favorite ? 'currentColor' : 'none'}/></button></div><div className="detail-stage checker"><Media sticker={detail}/>{detail.kind === 'animated' ? <span className="stage-format"><Play size={9} fill="currentColor"/>{t("ANIMÉ")}</span> : null}</div><input className="sticker-name" aria-label={t("Nom du sticker")} maxLength={120} value={detail.name} onChange={e => setCollection(c => ({ ...c, stickers: c.stickers.map(s => s.id === detail.id ? { ...s, name: e.target.value } : s) }))} onBlur={() => { if (!detail.name.trim())
-        setCollection(c => ({ ...c, stickers: c.stickers.map(s => s.id === detail.id ? { ...s, name: t("Mon sticker") } : s) })); }}/><div className="sticker-specs"><span>{detail.isSticker ? '512 × 512 · WebP' : detail.mime.split('/')[1].toUpperCase()}</span><span>{detail.blob ? `${Math.round(detail.blob.size / 1024)} ${t("Ko")}` : ''}</span></div><div className="two-actions"><button className="button primary" disabled={!!busy || studioBusy} onClick={() => exportItems([detail])}><Download size={18}/>{t("Télécharger")}</button><button className="button secondary" disabled={!!busy || studioBusy} onClick={() => edit(detail)}><Pencil size={18}/>{detail.isSticker ? t("Modifier") : t("Créer")}</button></div><label className="pack-select-row"><FolderPlus size={17}/>{t('Collection du sticker')}<select aria-label={t('Collection du sticker')} value={detail.folderId??''} onChange={e=>{setUndo(null);setCollection(value=>moveToFolder(value,[detail.id],e.target.value));}}><option value="">{t('À ranger')}</option>{(collection.folders??[]).map(folder=><option key={folder.id} value={folder.id}>{folder.name}</option>)}</select><ChevronDown size={14}/></label><label className="pack-select-row"><Layers size={17}/>{t("Pack du sticker")}<select aria-label={t("Pack du sticker")} value={detail.packId} onChange={e => assign([detail.id], e.target.value)}><option value="">{t("Sans pack")}</option>{packs.filter(p => p.kind === detail.kind).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><ChevronDown size={14}/></label><div className="detail-bottom"><button onClick={async () => { try {
+        setCollection(c => ({ ...c, stickers: c.stickers.map(s => s.id === detail.id ? { ...s, name: t("Mon sticker") } : s) })); }}/><div className="sticker-specs"><span>{detail.isSticker ? '512 × 512 · WebP' : detail.mime.split('/')[1].toUpperCase()}</span><span>{detail.blob ? `${Math.round(detail.blob.size / 1024)} ${t("Ko")}` : ''}</span></div><div className="two-actions"><button className="button primary" disabled={!!busy || studioBusy} onClick={() => exportItems([detail])}><Download size={18}/>{detail.kind==='animated'?t("Télécharger le GIF animé"):t("Télécharger")}</button><button className="button secondary" disabled={!!busy || studioBusy} onClick={() => edit(detail)}><Pencil size={18}/>{detail.isSticker ? t("Modifier") : t("Créer")}</button></div>{detail.kind==='animated'?<button className="quiet-button" disabled={!!busy||studioBusy} onClick={()=>exportItems([detail],detail.name,'webp')}>{t("Télécharger le WebP")}</button>:null}<label className="pack-select-row"><FolderPlus size={17}/>{t('Collection du sticker')}<select aria-label={t('Collection du sticker')} value={detail.folderId??''} onChange={e=>{setUndo(null);setCollection(value=>moveToFolder(value,[detail.id],e.target.value));}}><option value="">{t('À ranger')}</option>{(collection.folders??[]).map(folder=><option key={folder.id} value={folder.id}>{folder.name}</option>)}</select><ChevronDown size={14}/></label><label className="pack-select-row"><Layers size={17}/>{t("Pack du sticker")}<select aria-label={t("Pack du sticker")} value={detail.packId} onChange={e => assign([detail.id], e.target.value)}><option value="">{t("Sans pack")}</option>{packs.filter(p => p.kind === detail.kind).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><ChevronDown size={14}/></label><div className="detail-bottom"><button onClick={async () => { try {
         download(await mediaBlob(detail), `${filename(detail.name)}.${detail.mime.split('/')[1].replace('svg+xml', 'svg')}`);
     }
     catch (e) {
@@ -174,10 +169,10 @@ export default function Home() {
     finally {
         setBusy('');
     } }}/>{pendingRestore ? <div className="restore-confirm"><strong>{t('{count} éléments à restaurer', { count: pendingRestore.stickers.length })}</strong><p>{t("Cette sauvegarde remplacera la collection actuelle.")}</p><div className="two-actions"><button className="button secondary" onClick={() => setPendingRestore(null)}>{t("Annuler")}</button><button className="button primary" onClick={() => { const previous = collection; setCollection(pendingRestore); setPendingRestore(null); setUndo({ text: t("Sauvegarde restaurée"), revert: () => setCollection(previous) }); }}>{t("Restaurer")}</button></div></div> : null}</div><div className="settings-group"><button className="settings-row" onClick={() => navigate('help')}><HelpCircle size={19}/><span>{t("Utiliser avec WhatsApp")}</span><ArrowRight size={16}/></button></div><PrivacySettings privacyHref={`/${locale}/privacy`} legalHref={`/${locale}/legal`} onClearData={async () => { if(busy||studioBusy)throw new Error(t('En attente de la fin de l’opération en cours.'));await saveQueue.current; await clearLocalData(); setStudioResetKey(value=>value+1);setCollection(initialCollection()); setDraft(null); setDetailId(null); setPackId(null); setUndo(null); setPendingRestore(null); setSelection([]); setSelectMode(false); setAssigning(false); setQuery(''); resetPreferences(); setToast(t('Les données locales ont été effacées.')); }}/></section> : null}
-   {view === 'help' ? <section className="screen help-screen"><div className="screen-title"><div><h1>WhatsApp</h1></div></div><div className="help-steps">{[{ title: t("Crée tes stickers"), text: t("Importe une image, un GIF ou une vidéo dans l’atelier.") }, { title: t("Enregistre dans ta galerie"), text: t("Télécharge ton sticker puis enregistre-le dans la galerie de ton téléphone.") }, { title: t("Ajoute-les à WhatsApp"), text: t("Dans une discussion WhatsApp, ouvre Stickers → Créer, puis choisis ton média dans la galerie. Tu peux créer et envoyer ton sticker directement, sans autre application.") }].map((step, i) => <div key={step.title}><span>{i + 1}</span><div><h2>{step.title}</h2><p>{step.text}</p></div></div>)}</div><div className="help-note"><Layers size={19}/><p>{t("Pour un pack ZIP, décompresse d’abord les fichiers avant de les enregistrer dans la galerie. La disponibilité des formats et des animations dépend de ton téléphone et de ta version de WhatsApp.")}</p></div><a className="help-link" href="https://faq.whatsapp.com/1056840314992666" target="_blank" rel="noreferrer">{t("Guide officiel WhatsApp")}<ExternalLink size={14}/></a><button className="button primary full-width" onClick={() => navigate('create')}>{t("Créer un sticker")}<ArrowRight size={18}/></button></section> : null}
+   {view === 'help' ? <section className="screen help-screen"><div className="screen-title"><div><h1>WhatsApp</h1></div></div><div className="help-steps">{[{ title: t("Crée tes stickers"), text: t("Importe une image, un GIF ou une vidéo dans l’atelier.") }, { title: t("Enregistre dans ta galerie"), text: t("Télécharge ton sticker puis enregistre-le dans la galerie de ton téléphone.") }, { title: t("Ajoute-les à WhatsApp"), text: t("Dans une discussion WhatsApp, ouvre Stickers → Créer, puis choisis ton média dans la galerie. Tu peux créer et envoyer ton sticker directement, sans autre application.") }].map((step, i) => <div key={step.title}><span>{i + 1}</span><div><h2>{step.title}</h2><p>{step.text}</p></div></div>)}</div><div className="help-note"><Layers size={19}/><p>{t("Les animations sont téléchargées en GIF pour la galerie. WhatsApp peut les envoyer comme GIF ; leur conversion en sticker animé dépend de sa version.")}</p></div><a className="help-link" href="https://faq.whatsapp.com/1056840314992666" target="_blank" rel="noreferrer">{t("Guide officiel WhatsApp")}<ExternalLink size={14}/></a><button className="button primary full-width" onClick={() => navigate('create')}>{t("Créer un sticker")}<ArrowRight size={18}/></button></section> : null}
   </main>
   <nav className="bottom-nav" aria-label={t("Navigation principale")}><button className={view === 'collection' ? 'active' : ''} aria-current={view === 'collection' ? 'page' : undefined} onClick={() => navigate('collection')} disabled={!!busy || studioBusy}><LayoutGrid size={21}/><span>{t("Collection")}</span>{stickers.length ? <small>{stickers.length}</small> : null}</button><button className={`create-nav ${view === 'create' ? 'active' : ''}`} aria-current={view === 'create' ? 'page' : undefined} onClick={() => navigate('create')} disabled={!!busy || studioBusy}><span className="create-nav-icon"><Plus size={26}/></span><span>{t("Créer")}</span></button><button className={view === 'packs' ? 'active' : ''} aria-current={view === 'packs' ? 'page' : undefined} onClick={() => navigate('packs')} disabled={!!busy || studioBusy}><Layers size={22}/><span>{t("Packs")}</span>{packs.length ? <small>{packs.length}</small> : null}</button></nav>
-  {busy ? <div className="app-toast busy-toast" role="status"><LoaderCircle size={17} className="spin"/>{t(busy)}</div> : null}
+  {busy ? <div className="app-toast busy-toast" role="status"><LoaderCircle size={17} className="spin"/>{t(busy)}{exportAbort.current?<button onClick={()=>exportAbort.current?.abort()}>{t("Annuler")}</button>:null}</div> : null}
   {undo ? <div className="app-toast undo-toast" role="status"><span>{t(undo.text)}</span><button onClick={() => { undo.revert(); setUndo(null); }}><Undo2 size={16}/>{t("Annuler")}</button></div> : toast ? <div className="app-toast" role="status"><Check size={17}/><span>{t(toast)}</span><button aria-label={t("Fermer le message")} onClick={() => setToast('')}><X size={15}/></button></div> : null}
  </div>;
 }

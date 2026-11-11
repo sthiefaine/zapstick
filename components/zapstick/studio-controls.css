@@ -1,0 +1,5 @@
+.studio-inline-settings{margin-top:22px;min-width:0}
+.studio-inline-settings>.field+.field{margin-top:10px}
+.clipboard-permission{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 4px;color:var(--muted);font-size:13px;line-height:1.5}
+.clipboard-permission>p{margin:0;min-width:0}
+.clipboard-cancel{flex:0 0 auto;min-height:44px;padding:9px 13px;border:1px solid var(--control-border);border-radius:10px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:650}

@@ -45,7 +45,7 @@ test('locale normalization and links use canonical language codes',()=>{
  assert.equal(config.localizedPath('/legal','de'),'/de/legal');
 });
 test('every literal translation call in the app has a translation source',()=>{
- const files=['app/page.tsx','components/zapstick/collections-board.tsx','components/zapstick/share-zapstick.tsx','components/zapstick/media-import-card.tsx','components/language-switcher.tsx','components/zapstick/text-style-controls.tsx','components/zapstick/overlay-stage.tsx','components/zapstick/studio.tsx','components/zapstick/animation-timeline.tsx','components/zapstick/privacy-settings.tsx','components/zapstick/privacy-document.tsx'];
+ const files=['app/page.tsx','components/zapstick/collections-board.tsx','components/zapstick/share-zapstick.tsx','components/zapstick/animated-downloads.tsx','components/zapstick/media-import-card.tsx','components/language-switcher.tsx','components/zapstick/text-style-controls.tsx','components/zapstick/overlay-stage.tsx','components/zapstick/studio.tsx','components/zapstick/animation-timeline.tsx','components/zapstick/privacy-settings.tsx','components/zapstick/privacy-document.tsx'];
  for(const file of files){const source=ts.createSourceFile(file,fs.readFileSync(path.join(root,file),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);function walk(node){if(ts.isCallExpression(node)&&ts.isIdentifier(node.expression)&&node.expression.text==='t'&&ts.isStringLiteral(node.arguments[0])){const key=node.arguments[0].text;assert.ok(Object.hasOwn(messages.UI_TRANSLATIONS.fr,key)||Object.hasOwn(privacyTranslations.en,key),`${file}: ${key}`);}ts.forEachChild(node,walk);}walk(source);}
 });
 
@@ -57,6 +57,6 @@ test('theme bootstrap respects the manual theme and updates all theme-color tags
   runInNewContext(config.PREFERENCES_INIT_SCRIPT,{localStorage:{getItem:()=>JSON.stringify({theme:preference,reduceMotion:true})},matchMedia:()=>({matches:true}),document:{documentElement:root,querySelectorAll:()=>metaElements}});
   const expected=preference==='light'?'light':'dark';
   assert.equal(root.dataset.theme,expected);assert.equal(root.style.colorScheme,expected);assert.equal(root.dataset.reducedMotion,'true');
-  for(const item of metas){assert.equal(item.media,false);assert.equal(item.content,expected==='light'?'#f4f8ed':'#122019');}
+  for(const item of metas){assert.equal(item.media,false);assert.equal(item.content,expected==='light'?'#fafafa':'#121212');}
  }
 });

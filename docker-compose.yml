@@ -20,7 +20,15 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
     ports:
-      - "${ZAPSTICK_PORT:-3000}:3000"
+      - "127.0.0.1:${ZAPSTICK_PORT:-3000}:3000"
+    expose:
+      - "3000"
+    labels:
+      - "traefik.http.middlewares.zapstick-l7-rate.ratelimit.average=10"
+      - "traefik.http.middlewares.zapstick-l7-rate.ratelimit.period=1s"
+      - "traefik.http.middlewares.zapstick-l7-rate.ratelimit.burst=80"
+      - "traefik.http.middlewares.zapstick-l7-inflight.inflightreq.amount=64"
+      - "coolify.traefik.middlewares=zapstick-l7-rate,zapstick-l7-inflight"
     restart: unless-stopped
     read_only: true
     tmpfs:

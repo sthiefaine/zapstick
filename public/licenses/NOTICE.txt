@@ -1,5 +1,11 @@
 Zapstick — third-party notices
 
+gifenc 1.0.3
+Copyright (c) 2017 Matt DesLauriers. MIT License.
+License text: /licenses/gifenc-MIT.txt
+Source: https://github.com/mattdesl/gifenc
+GIF encoding runs locally in an on-demand worker. No encoder CDN is used.
+
 dnd-kit Core 6.3.1, Sortable 10.0.0, Utilities 3.2.2
 Copyright (c) 2021, Claudéric Demers. MIT License.
 License text: /licenses/dnd-kit-MIT.txt
