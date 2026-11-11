@@ -1,0 +1,13 @@
+.share{display:flex;align-items:center;flex-direction:column;gap:11px;margin:18px auto 0;width:100%;max-width:360px;min-width:0}
+.button{display:flex;align-items:center;justify-content:center;gap:9px;min-height:46px;max-width:100%;padding:11px 18px;border:1.5px solid var(--control-border,var(--ink));border-radius:15px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:700;line-height:1.5;box-shadow:0 2px 0 var(--hard-shadow,var(--ink));transition:transform .14s ease,background .14s ease,box-shadow .14s ease}
+.button:hover{background:var(--accent);color:var(--accent-text);transform:translateY(-1px)}
+.button:active{transform:translateY(2px);box-shadow:none}
+.button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.button:focus-visible,.manual input:focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+.feedback{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;line-height:1.6;color:var(--muted,var(--ink));text-align:center}
+.manual{display:flex;align-items:stretch;flex-direction:column;gap:8px;width:100%;font-size:12px;line-height:1.6;color:var(--ink)}
+.manual input{width:100%;min-width:0;min-height:46px;padding:10px 12px;border:1.5px solid var(--control-border,var(--ink));border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;user-select:all}
+@media(prefers-reduced-motion:reduce){.button{transition:none}.button:hover,.button:active{transform:none}}
+[data-reduced-motion=true] .button{transition:none}
+[data-reduced-motion=true] .button:hover,[data-reduced-motion=true] .button:active{transform:none}
+@media(forced-colors:active){.button,.manual input{background:Canvas;color:CanvasText;border-color:ButtonText;box-shadow:none}.button:hover{background:Highlight;color:HighlightText}}

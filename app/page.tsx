@@ -1,4 +1,6 @@
 'use client';
+import dynamic from 'next/dynamic';
+import {moveToFolder} from '@/lib/stickers/folders';
 import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Download, FolderPlus, Heart, HelpCircle, ImagePlus, Layers, LayoutGrid, Link2, LoaderCircle, MoreHorizontal, Pencil, Plus, Search, Settings2, ShieldCheck, Trash2, Undo2, Upload, X, Play, HardDrive, ExternalLink, CheckSquare, Sticker as StickerIcon } from 'lucide-react';
 import { type Sticker, type Pack, type Collection, initialCollection, colors } from '@/lib/stickers/types';
@@ -10,13 +12,14 @@ import { PrivacySettings } from '@/components/zapstick/privacy-settings';
 import { clearLocalData } from '@/lib/stickers/store';
 import { Studio } from '@/components/zapstick/studio';
 import { Media, mediaBlob } from '@/components/zapstick/media';
+const CollectionsBoard=dynamic(()=>import('@/components/zapstick/collections-board').then(module=>module.CollectionsBoard));
 type View = 'create' | 'collection' | 'packs' | 'settings' | 'help';
 const uid = () => crypto.randomUUID();
 const message = (e: unknown) => e instanceof Error ? e.message : 'Une erreur est survenue.';
 const filename = (value: string) => value.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker';
 export default function Home() {
     const { t, locale, theme, setTheme, resetPreferences,reduceMotion,setReduceMotion } = usePreferences();
-    const [studioResetKey,setStudioResetKey]=useState(0);
+    const [studioResetKey,setStudioResetKey]=useState(0),[creationFolderId,setCreationFolderId]=useState('');
     const [collection, setCollection] = useState<Collection>(initialCollection), [ready, setReady] = useState(false), [storageError, setStorageError] = useState(''), [saveStatus, setSaveStatus] = useState("Enregistré sur cet appareil");
     const [view, setView] = useState<View>('create'), [draft, setDraft] = useState<Sticker | null>(null), [detailId, setDetailId] = useState<string | null>(null), [packId, setPackId] = useState<string | null>(null);
     const [query, setQuery] = useState(''), [showSearch, setShowSearch] = useState(false), [filter, setFilter] = useState('all'), [selectMode, setSelectMode] = useState(false), [selection, setSelection] = useState<string[]>([]), [assigning, setAssigning] = useState(false);
@@ -46,7 +49,7 @@ export default function Home() {
     useEffect(() => { if (!undo)
         return; const t = setTimeout(() => setUndo(null), 12000); return () => clearTimeout(t); }, [undo]);
     function navigate(next: View) { if (busy || studioBusy)
-        return; setView(next); setDetailId(null); setPackId(null); setSelectMode(false); setSelection([]); setAssigning(false); setPackTarget(null); setEditingPack(false); setQuery(''); setFilter('all'); setShowSearch(false); window.scrollTo({ top: 0, behavior: 'instant' }); }
+        return; if(next==='create')setCreationFolderId(''); setView(next); setDetailId(null); setPackId(null); setSelectMode(false); setSelection([]); setAssigning(false); setPackTarget(null); setEditingPack(false); setQuery(''); setFilter('all'); setShowSearch(false); window.scrollTo({ top: 0, behavior: 'instant' }); }
     function back() { if (busy || studioBusy)
         return; if (detailId) {
         setDetailId(null);
@@ -58,7 +61,7 @@ export default function Home() {
         setPackId(null);
         return;
     } navigate('create'); }
-    function add(s: Sticker) { setUndo(null); setCollection(c => ({ ...c, stickers: [s, ...c.stickers] })); }
+    function add(s: Sticker) { setUndo(null); setCollection(c => ({ ...c, stickers: [{...s,folderId:creationFolderId&&c.folders?.some(folder=>folder.id===creationFolderId)?creationFolderId:s.folderId??''}, ...c.stickers] })); }
     function favorite(id: string) { setCollection(c => ({ ...c, stickers: c.stickers.map(s => s.id === id ? { ...s, favorite: !s.favorite } : s) })); }
     function deleteItems(ids: string[]) { const previous = stickers.filter(s => ids.includes(s.id)); setCollection(c => ({ ...c, stickers: c.stickers.filter(s => !ids.includes(s.id)) })); setDetailId(null); setSelection([]); setSelectMode(false); setUndo({ text: ids.length > 1 ? t('{count} éléments supprimés', { count: ids.length }) : t("Élément supprimé"), revert: () => setCollection(c => ({ ...c, stickers: [...c.stickers, ...previous.filter(s => !c.stickers.some(x => x.id === s.id))] })) }); }
     function deletePack(p: Pack) { const ids = stickers.filter(s => s.packId === p.id).map(s => s.id); setCollection(c => ({ ...c, packs: c.packs.filter(x => x.id !== p.id), stickers: c.stickers.map(s => s.packId === p.id ? { ...s, packId: '' } : s) })); setPackId(null); setEditingPack(false); setUndo({ text: t("Pack supprimé · médias conservés"), revert: () => setCollection(c => ({ ...c, packs: c.packs.some(x => x.id === p.id) ? c.packs : [...c.packs, p], stickers: c.stickers.map(s => ids.includes(s.id) && !s.packId ? { ...s, packId: p.id } : s) })) }); }
@@ -79,7 +82,7 @@ export default function Home() {
     } return true; }
     async function edit(s: Sticker) { setBusy(t("Ouverture du média…")); try {
         const blob = await mediaBlob(s);
-        setDraft({ ...s, id: uid(), blob });
+        setDraft({ ...s, id: uid(), blob });setCreationFolderId(s.folderId??'');
         setView('create');
         setDetailId(null);
         setPackId(null);
@@ -132,7 +135,8 @@ export default function Home() {
   <main className="app-main" id="main-content" tabIndex={-1}>
    {storageError ? <div className="inline-error storage-alert" role="alert">{t(storageError)}<button onClick={() => navigate('settings')}>{t("Sauvegarder")}</button></div> : null}
    {!ready ? <div className="opening-state"><LoaderCircle size={24} className="spin"/><span>{t("Ouverture de la collection…")}</span></div> : <Studio key={studioResetKey} draft={draft} active={view === 'create'} packs={packs} stickers={stickers} onDraft={setDraft} onSave={add} onError={setToast} onCollection={() => navigate('collection')} onWorking={setStudioBusy}/>}
-   {ready && (view === 'collection' || view === 'packs' && packId) && !detail ? <section className="screen collection-screen">
+   {ready&&view==='collection'&&!packTarget?<CollectionsBoard collection={collection} onChange={setCollection} hidden={!!detail} onOpen={setDetailId} onCreate={folderId=>{navigate('create');setCreationFolderId(folderId);}} onFavorite={favorite} onDelete={deleteItems} onExport={exportItems} onNotify={setToast} onUndo={setUndo} disabled={!!busy||studioBusy}/>:null}
+   {ready && (view === 'collection' && packTarget || view === 'packs' && packId) && !detail ? <section className="screen collection-screen">
     <div className="screen-title"><div><h1>{currentPack?.name ?? t("Collection")}<span className="title-count">{currentPack ? visible.length : stickers.length}</span></h1></div><div className="title-buttons">{currentPack ? <><button className="round-button accent" aria-label={t("Ajouter des stickers au pack")} onClick={() => fillPack(currentPack)}><Plus size={20}/></button><button className="round-button" aria-label={t("Modifier le pack")} onClick={() => setEditingPack(currentPack)}><Pencil size={18}/></button></> : <button className="round-button" aria-label={t("Rechercher un sticker")} aria-expanded={showSearch} onClick={() => setShowSearch(p => !p)}><Search size={19}/></button>}<button className={`round-button ${selectMode ? 'is-active' : ''}`} aria-label={selectMode ? t("Terminer la sélection") : t("Sélectionner des stickers")} onClick={() => { setSelectMode(p => !p); setSelection([]); setAssigning(false); }}><CheckSquare size={19}/></button></div></div>
     {editingPack && currentPack ? <PackForm pack={editingPack} onCancel={() => setEditingPack(false)} onSave={p => { setCollection(c => ({ ...c, packs: c.packs.map(x => x.id === p.id ? p : x) })); setEditingPack(false); }} onDelete={() => deletePack(currentPack)}/> : null}
     {showSearch ? <div className="collection-search"><Search size={17}/><input autoFocus aria-label={t("Rechercher dans la collection")} placeholder={t("Chercher un sticker")} value={query} onChange={e => setQuery(e.target.value)}/>{query ? <button aria-label={t("Effacer la recherche")} onClick={() => setQuery('')}><X size={15}/></button> : null}</div> : null}
@@ -144,7 +148,7 @@ export default function Home() {
     {selectMode && selection.length ? <div className="selection-actions"><button onClick={() => packTarget ? assign(selection, packTarget) : setAssigning(p => !p)}><FolderPlus size={20}/><span>{packTarget ? t("Ajouter") : t("Ranger")}</span></button><button disabled={!!busy || studioBusy} onClick={() => exportItems(stickers.filter(s => selection.includes(s.id)))}><Download size={20}/><span>{t("Exporter")}</span></button><button onClick={() => deleteItems(selection)}><Trash2 size={19}/><span>{t("Supprimer")}</span></button><button aria-label={t("Fermer la sélection")} onClick={() => { setSelectMode(false); setSelection([]); setAssigning(false); }}><X size={19}/></button></div> : null}
    </section> : null}
    {ready && detail && (view === 'collection' || view === 'packs') ? <section className="screen detail-screen"><div className="screen-title"><div><h1>{detail.kind === 'animated' ? t("Sticker animé") : t("Ton sticker")}</h1></div><button className={`round-button ${detail.favorite ? 'is-favorite' : ''}`} aria-label={detail.favorite ? t("Retirer des favoris") : t("Ajouter aux favoris")} onClick={() => favorite(detail.id)}><Heart size={20} fill={detail.favorite ? 'currentColor' : 'none'}/></button></div><div className="detail-stage checker"><Media sticker={detail}/>{detail.kind === 'animated' ? <span className="stage-format"><Play size={9} fill="currentColor"/>{t("ANIMÉ")}</span> : null}</div><input className="sticker-name" aria-label={t("Nom du sticker")} maxLength={120} value={detail.name} onChange={e => setCollection(c => ({ ...c, stickers: c.stickers.map(s => s.id === detail.id ? { ...s, name: e.target.value } : s) }))} onBlur={() => { if (!detail.name.trim())
-        setCollection(c => ({ ...c, stickers: c.stickers.map(s => s.id === detail.id ? { ...s, name: t("Mon sticker") } : s) })); }}/><div className="sticker-specs"><span>{detail.isSticker ? '512 × 512 · WebP' : detail.mime.split('/')[1].toUpperCase()}</span><span>{detail.blob ? `${Math.round(detail.blob.size / 1024)} ${t("Ko")}` : ''}</span></div><div className="two-actions"><button className="button primary" disabled={!!busy || studioBusy} onClick={() => exportItems([detail])}><Download size={18}/>{t("Télécharger")}</button><button className="button secondary" disabled={!!busy || studioBusy} onClick={() => edit(detail)}><Pencil size={18}/>{detail.isSticker ? t("Modifier") : t("Créer")}</button></div><label className="pack-select-row"><FolderPlus size={17}/>{t("Ranger")}<select aria-label={t("Pack du sticker")} value={detail.packId} onChange={e => assign([detail.id], e.target.value)}><option value="">{t("Sans pack")}</option>{packs.filter(p => p.kind === detail.kind).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><ChevronDown size={14}/></label><div className="detail-bottom"><button onClick={async () => { try {
+        setCollection(c => ({ ...c, stickers: c.stickers.map(s => s.id === detail.id ? { ...s, name: t("Mon sticker") } : s) })); }}/><div className="sticker-specs"><span>{detail.isSticker ? '512 × 512 · WebP' : detail.mime.split('/')[1].toUpperCase()}</span><span>{detail.blob ? `${Math.round(detail.blob.size / 1024)} ${t("Ko")}` : ''}</span></div><div className="two-actions"><button className="button primary" disabled={!!busy || studioBusy} onClick={() => exportItems([detail])}><Download size={18}/>{t("Télécharger")}</button><button className="button secondary" disabled={!!busy || studioBusy} onClick={() => edit(detail)}><Pencil size={18}/>{detail.isSticker ? t("Modifier") : t("Créer")}</button></div><label className="pack-select-row"><FolderPlus size={17}/>{t('Collection du sticker')}<select aria-label={t('Collection du sticker')} value={detail.folderId??''} onChange={e=>{setUndo(null);setCollection(value=>moveToFolder(value,[detail.id],e.target.value));}}><option value="">{t('À ranger')}</option>{(collection.folders??[]).map(folder=><option key={folder.id} value={folder.id}>{folder.name}</option>)}</select><ChevronDown size={14}/></label><label className="pack-select-row"><Layers size={17}/>{t("Pack du sticker")}<select aria-label={t("Pack du sticker")} value={detail.packId} onChange={e => assign([detail.id], e.target.value)}><option value="">{t("Sans pack")}</option>{packs.filter(p => p.kind === detail.kind).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><ChevronDown size={14}/></label><div className="detail-bottom"><button onClick={async () => { try {
         download(await mediaBlob(detail), `${filename(detail.name)}.${detail.mime.split('/')[1].replace('svg+xml', 'svg')}`);
     }
     catch (e) {

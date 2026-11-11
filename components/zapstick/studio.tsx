@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, type PointerEvent as ReactPointerEvent } from 'react';
-import { ClipboardPaste, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Check, Download, ImagePlus, LoaderCircle, Plus, Type, Palette, SlidersHorizontal, RotateCw, Play, Pause, Move, RefreshCw, X, FolderPlus, Smile } from 'lucide-react';
+import { ClipboardPaste, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Check, Download, LoaderCircle, Plus, Type, Palette, SlidersHorizontal, RotateCw, Play, Pause, Move, RefreshCw, X, FolderPlus, Smile } from 'lucide-react';
 import { defaults, loadImage, type EditOptions } from '@/lib/stickers/convert';
 import type { Sticker, Pack } from '@/lib/stickers/types';
 import { resolveImport, downloadRemote, type RemoteMedia } from '@/lib/stickers/import';
@@ -14,6 +14,8 @@ import type { AnimationPreview } from '@/lib/stickers/animation-preview';
 import {TextStyleControls} from './text-style-controls';
 import {OverlayStage} from './overlay-stage';
 import {BackgroundRemovalControl} from './background-removal-control';
+import {MediaImportCard} from './media-import-card';
+import {ShareZapstick} from './share-zapstick';
 import type {EmojiOverlay,TextStyle,OverlaySelection} from '@/lib/stickers/overlays';
 const message = (e: unknown) => e instanceof Error ? e.message : 'Impossible de charger ce média.';
 const accepted = 'image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime';
@@ -235,12 +237,13 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
         } setDuration(d); setOptions(p => p.animated ? ({ ...p, ...normalizeTrim(d, p.start, p.duration) }) : ({...p,start:Math.min(Math.max(0,p.start),Math.max(0,d-.001))})); }} onTimeUpdate={e => { if (playing && isAnimated && e.currentTarget.currentTime >= Math.min(duration, o.start + o.duration) && duration > 0)
             e.currentTarget.currentTime = o.start; setPlayhead(e.currentTarget.currentTime); }} onEnded={e => { if (playing && isAnimated) { e.currentTarget.currentTime = o.start; e.currentTarget.play().catch(() => {}); } }} onError={() => setError(t("Vidéo illisible dans ce navigateur."))}/> : draft.mime === 'image/gif' && animationPreview?.drawAt ? <GifAnimationCanvas preview={animationPreview} playing={playing && isAnimated} active={active && !result} start={o.start} length={o.duration} seek={seekRequest} onTimeUpdate={setPlayhead} onError={reason => setError(message(reason))} label={draft.name} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }}/> : <img className="stage-media" src={staticFrame || src} alt={draft.name} draggable={false} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }} onError={() => setError(t("Cette image ne peut pas être lue."))}/>}
      <OverlayStage {...overlayControls} onSelect={id=>{setOverlaySelection(id);if(id){setTool(id==='text'?'text':'emoji');setPlaying(false);}}}/>
-    </> : <button className="stage-pick" onClick={() => file.current?.click()} disabled={disabled}><span className="blank-sticker" aria-hidden="true"><ImagePlus size={39} strokeWidth={1.4}/><span className="sticker-fold"/></span><strong>{t("Sélectionner un média")}</strong></button>}
+    </> : <MediaImportCard onChoose={() => file.current?.click()} disabled={disabled} dragActive={dragging}/>}
     {loading || progress >= 0 ? <div className="stage-loading" role="status"><LoaderCircle className="spin" size={27}/><strong>{progress >= 0 ? t("Création du sticker…") : t(loading)}</strong>{progress >= 0 ? <><div className="progress-track"><span style={{ width: `${Math.max(4, progress)}%` }}/></div><small>{progress} %</small></> : null}</div> : null}
    </div>
    {draft && !result ? <><span className="stage-format">{isAnimated ? <><Play size={9} fill="currentColor"/>{t("ANIMÉ")}</> : t("FIXE")}</span>{canAnimate && isAnimated ? <button className="stage-play" aria-label={playing ? t("Mettre en pause") : t("Lire l’animation")} onClick={togglePlayback}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button> : null}</> : null}
    {result ? <span className="success-seal"><Check size={20}/></span> : null}
   </div>
+  {!draft ? <ShareZapstick disabled={disabled}/> : null}
   {error ? <div className="inline-error" role="alert">{t(error)}<button aria-label={t("Fermer le message")} onClick={() => setError('')}><X size={16}/></button></div> : null}
   {result ? <div className="completed-actions"><p>{result.kind === 'animated' ? t("Sticker animé") : t("Sticker fixe")} <span>·</span> {Math.round((result.blob?.size ?? 0) / 1024)} {t("Ko")}</p><button className="button primary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t("Télécharger")}</button><div className="two-actions"><button className="button secondary" onClick={reset}><Plus size={17}/>{t("Un autre")}</button><button className="button secondary" onClick={onCollection}>{t("Ma collection")}<ArrowRight size={16}/></button></div></div> : draft ? <>
    <span id="sticker-keyboard-help" className="sr-only">{t("Utilise les flèches pour déplacer le sticker ; + et − pour zoomer.")}</span><p className="gesture-hint"><Move size={12}/>{t("Déplace au doigt · pince pour zoomer")}</p>{draft.kind === 'animated' && !canAnimate ? <p className="subtle-note">{t("Cette variante sera fixe. Utilise le GIF ou la vidéo d’origine pour garder l’animation.")}</p> : null}

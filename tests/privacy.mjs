@@ -34,10 +34,11 @@ function moduleURL(source) {
   return `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 }
 const typesURL = moduleURL(compile(await readFile(new URL('../lib/stickers/types.ts', import.meta.url), 'utf8')));
+const foldersURL = moduleURL(compile(await readFile(new URL('../lib/stickers/folders.ts', import.meta.url), 'utf8')));
 const backgroundCoreURL=moduleURL(compile(await readFile(new URL('../lib/stickers/background-removal-core.ts',import.meta.url),'utf8')));
 const backgroundURL=moduleURL(compile(await readFile(new URL('../lib/stickers/background-removal.ts',import.meta.url),'utf8')).replaceAll("'./background-removal-core'",`'${backgroundCoreURL}'`));
 const storeSource = compile(await readFile(new URL('../lib/stickers/store.ts', import.meta.url), 'utf8'))
-  .replace("from './types'", `from '${typesURL}'`).replace("import('./background-removal')",`import('${backgroundURL}')`);
+  .replace("from './types'", `from '${typesURL}'`).replace("from './folders'", `from '${foldersURL}'`).replace("import('./background-removal')",`import('${backgroundURL}')`);
 const {saveCollection, loadCollection, clearLocalData} = await import(moduleURL(storeSource));
 
 function collection(id = 'private-upload') {

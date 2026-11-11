@@ -1,4 +1,10 @@
-Zapstick — local background removal
+Zapstick — third-party notices
+
+dnd-kit Core 6.3.1, Sortable 10.0.0, Utilities 3.2.2
+Copyright (c) 2021, Claudéric Demers. MIT License.
+License text: /licenses/dnd-kit-MIT.txt
+Source: https://github.com/clauderic/dnd-kit
+Classic drag-and-drop API, bundled and served locally with Zapstick.
 
 ONNX Runtime Web 1.31.1
 Copyright (c) Microsoft Corporation. MIT License.

@@ -4,6 +4,7 @@ const nextConfig:NextConfig={
  ...(coolify?{output:'standalone',distDir:'.next-coolify',typescript:{tsconfigPath:'tsconfig.coolify.json'}}:{}),
  agentRules:false,
  devIndicators:false,
+ allowedDevOrigins:['localhost','127.0.0.1'],
  poweredByHeader:false,
  async headers(){return [{source:'/(.*)',headers:[{key:'X-Content-Type-Options',value:'nosniff'},{key:'Referrer-Policy',value:'no-referrer'}]}];},
 };

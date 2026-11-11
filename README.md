@@ -20,7 +20,9 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 - Accessibilité : navigation au clavier, commandes alternatives aux gestes, focus visible, contraste et mode de réduction des animations.
 - Confidentialité et mentions légales de Clairdev, export et effacement local de la collection et des préférences.
 - Métadonnées de partage Open Graph/Twitter, image de partage, URL canoniques, hreflang, sitemap et indexation activée explicitement pour un domaine public HTTPS.
-- Collection persistante dans IndexedDB, favoris, recherche et filtres. Appui long pour la sélection multiple.
+- Collection persistante dans IndexedDB, favoris, recherche et filtres. Collections de rangement personnalisées, sélection et déplacement groupés, renommage et suppression annulable sans perte de médias.
+- Glisser-déposer des stickers entre collections, ordre manuel des stickers et des collections, poignées tactiles et navigation au clavier. Le rangement et l’ordre sont inclus dans les sauvegardes ; les anciennes sauvegardes restent compatibles. Import multiple de fichiers depuis la collection ou par dépôt de fichiers.
+- Partage de Zapstick avec message d’invitation : partage natif, copie du lien ou lien sélectionnable. Carte d’import animée brièvement, avec respect de la réduction des animations.
 - Déplacement du visuel au doigt et zoom à deux doigts, avec commandes de cadrage alternatives.
 - Suppressions annulables pendant 12 secondes.
 - Packs fixes ou animés : création, renommage, couleur, ajout/retrait et suppression sans perte des médias.
