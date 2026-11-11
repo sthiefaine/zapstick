@@ -33,7 +33,7 @@ La collection est propre au navigateur et à l’origine du site : aucun compte,
 
 L’import X dépend d’un service tiers et du caractère public du post. Les pages Giphy/Tenor ne sont pas résolues : utiliser un lien direct vers leur média ou importer le fichier localement. Le GIF fourni en exemple par l’utilisateur est en réalité servi en MP4 par X.
 
-L’installation directe de packs WhatsApp requiert une intégration mobile native. Le site exporte les fichiers à importer dans une application de stickers compatible ; un ZIP ne peut pas s’installer directement dans WhatsApp. Aucune installation sur un téléphone réel n’a été vérifiée. Les packs WhatsApp attendent 3 à 30 stickers du même type.
+WhatsApp permet de créer un sticker directement à partir de la galerie : télécharger le sticker, l’enregistrer dans la galerie du téléphone, puis ouvrir une discussion WhatsApp → Stickers → Créer et sélectionner le média. Aucune application de stickers supplémentaire n’est nécessaire pour ce parcours. Les ZIP servent à regrouper les fichiers à décompresser ; ils ne sont pas installés automatiquement par Zapstick. La disponibilité des formats et la conservation des animations dépendent du téléphone et de la version de WhatsApp. Ce parcours n’a pas été testé sur un téléphone réel. Les packs Zapstick sont limités à 30 éléments du même type.
 
 Modifier un WebP animé dans l’atelier crée une variante fixe ; l’original animé reste exportable. GIF et MP4 peuvent être convertis en animation. Le navigateur doit prendre en charge l’encodage Canvas WebP et le décodage du format source.
 
@@ -41,4 +41,4 @@ Modifier un WebP animé dans l’atelier crée une variante fixe ; l’original 
 
 React 19 / Vinext / Vite, hébergé sur un Worker Cloudflare. Aucun endpoint serveur d’import : FxTwitter et les médias sont appelés directement par le navigateur avec des requêtes CORS sans identifiants. IndexedDB conserve les objets Blob ; aucun fichier utilisateur n’est stocké dans le dépôt.
 
-Références : [spécifications WhatsApp](https://github.com/WhatsApp/stickers/tree/main/Android), [API FxTwitter](https://docs.fxembed.com/api/introduction/).
+Références : [création depuis la galerie dans WhatsApp](https://faq.whatsapp.com/1056840314992666), [spécifications WhatsApp](https://github.com/WhatsApp/stickers/tree/main/Android), [API FxTwitter](https://docs.fxembed.com/api/introduction/).
