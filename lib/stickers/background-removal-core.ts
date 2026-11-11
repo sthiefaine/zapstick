@@ -4,7 +4,8 @@ export const BACKGROUND_MODEL_BYTES=4574861;
 export const BACKGROUND_MODEL_SHA256='309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8';
 export const BACKGROUND_MAX_EDGE=1024;
 export const BACKGROUND_MAX_PIXELS=16_000_000;
-export type BackgroundErrorCode='unsupported'|'invalid-image'|'too-large'|'animated'|'download'|'model'|'timeout'|'cancelled'|'busy';
+export const BACKGROUND_ANIMATION_LIMITS={edge:512,durationMs:6000,maxFps:8,maxFrames:48,inputBytes:12*1024*1024,encodedBytes:12*1024*1024,timeoutMs:360_000} as const;
+export type BackgroundErrorCode='unsupported'|'invalid-image'|'too-large'|'animated'|'download'|'model'|'timeout'|'cancelled'|'busy'|'invalid-animation'|'animation-too-large'|'encoding';
 export type BackgroundProgress={stage:'preparing'|'downloading'|'processing';percent?:number};
 export class BackgroundRemovalError extends Error{
  constructor(public readonly code:BackgroundErrorCode){super(code);this.name='BackgroundRemovalError';}
@@ -40,8 +41,30 @@ export function prepareBackgroundTensor(rgba:Uint8ClampedArray|Uint8Array){
  for(let i=0;i<count;i++)for(let c=0;c<3;c++)result[c*count+i]=(rgba[4*i+c]/maximum-mean[c])/std[c];
  return result;
 }
-export function backgroundAlpha(values:Float32Array){
+export function backgroundAlpha(values:Float32Array,target?:Uint8ClampedArray){
  let min=Infinity,max=-Infinity;for(const value of values){if(!Number.isFinite(value))throw new BackgroundRemovalError('model');min=Math.min(min,value);max=Math.max(max,value);}
  if(max-min<1e-6)throw new BackgroundRemovalError('model');
- const rgba=new Uint8ClampedArray(values.length*4);for(let i=0;i<values.length;i++){rgba[i*4]=255;rgba[i*4+1]=255;rgba[i*4+2]=255;rgba[i*4+3]=Math.round(255*(values[i]-min)/(max-min));}return rgba;
+ const rgba=target??new Uint8ClampedArray(values.length*4);if(rgba.length!==values.length*4)throw new BackgroundRemovalError('model');
+ for(let i=0;i<values.length;i++){rgba[i*4]=255;rgba[i*4+1]=255;rgba[i*4+2]=255;rgba[i*4+3]=Math.round(255*(values[i]-min)/(max-min));}return rgba;
+}
+
+export type BackgroundAnimationSample={sourceIndex:number;durationMs:number};
+/** Uniform time slots cap inference at8fps; adjacent slots selecting the same
+ * source frame are merged. Integer cumulative endpoints retain the exact loop
+ * duration. The final state is sampled too, including a short last source frame. */
+export function planBackgroundAnimation(animation:{width:number;height:number;frames:readonly {durationMs:number}[]}){
+ if(animation.width!==BACKGROUND_ANIMATION_LIMITS.edge||animation.height!==BACKGROUND_ANIMATION_LIMITS.edge||animation.frames.length<2)throw new BackgroundRemovalError('invalid-animation');
+ const ends:number[]=[];let durationMs=0;
+ for(const frame of animation.frames){if(!Number.isInteger(frame.durationMs)||frame.durationMs<=0)throw new BackgroundRemovalError('invalid-animation');durationMs+=frame.durationMs;ends.push(durationMs);}
+ if(durationMs>BACKGROUND_ANIMATION_LIMITS.durationMs||animation.frames.length>300)throw new BackgroundRemovalError('animation-too-large');
+ const slots=Math.min(BACKGROUND_ANIMATION_LIMITS.maxFrames,Math.floor(durationMs*BACKGROUND_ANIMATION_LIMITS.maxFps/1000));
+ if(slots<2)throw new BackgroundRemovalError('invalid-animation');
+ const samples:BackgroundAnimationSample[]=[];let sourceIndex=0,previousEnd=0;
+ for(let slot=0;slot<slots;slot++){
+  const time=slot===slots-1?durationMs-.001:slot*durationMs/slots;
+  while(sourceIndex<ends.length-1&&ends[sourceIndex]<=time)sourceIndex++;
+  const end=Math.round((slot+1)*durationMs/slots),duration=end-previousEnd;previousEnd=end;
+  const previous=samples[samples.length-1];if(previous?.sourceIndex===sourceIndex)previous.durationMs+=duration;else samples.push({sourceIndex,durationMs:duration});
+ }
+ return {durationMs,samples};
 }

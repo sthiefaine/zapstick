@@ -1,0 +1,14 @@
+.decor{position:absolute;inset:0;z-index:2;pointer-events:none}
+.reactions{position:absolute;inset:0;overflow:hidden;border-radius:14px;pointer-events:none}
+.reaction{position:absolute;width:clamp(45px,17%,60px);height:clamp(45px,17%,60px);display:grid;place-items:center;pointer-events:none;user-select:none}
+.reaction img{width:100%;height:100%;object-fit:contain;border-radius:8px;pointer-events:none}
+.reaction0{left:5%;top:7%;transform:rotate(-12deg)}
+.reaction1{right:5%;top:8%;transform:rotate(11deg)}
+.reaction2{left:3%;top:41%;transform:rotate(8deg)}
+.reaction3{right:4%;top:39%;transform:rotate(-9deg)}
+.reaction4{left:9%;bottom:9%;transform:rotate(-7deg)}
+.reaction5{right:9%;bottom:10%;transform:rotate(10deg)}
+.motion{position:absolute;right:5px;bottom:3px;width:44px;height:44px;display:grid;place-items:center;pointer-events:auto;border-radius:50%;color:var(--muted);background:var(--surface);border:1px solid var(--line)}
+.motion:hover{color:var(--ink);border-color:var(--control-border)}
+.motion:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.reaction{transform:none}}

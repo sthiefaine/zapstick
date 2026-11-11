@@ -435,3 +435,13 @@ h1{font-family:var(--font-sans);font-size:30px;font-weight:800;letter-spacing:-1
 .background-removal-status{font-size:12px;color:var(--ink);line-height:1.6;margin-top:10px}
 .background-removal-status:empty{display:none}
 .background-restore{margin-bottom:16px}
+
+/* Playback stays reachable above movable text and emoji layers. */
+.stage-play{z-index:6}
+
+/* The active destination owns the accent, including on the home screen. */
+.bottom-nav>button:not(.active):first-child>svg,.bottom-nav>button:not(.active):last-child>svg{background:var(--surface);color:var(--ink)}
+.bottom-nav>button.active:first-child>svg,.bottom-nav>button.active:last-child>svg{background:var(--accent);color:var(--accent-text)}
+
+/* Open tools leave more room for their controls on short mobile screens. */
+.studio.has-active-tool:not(.studio-complete) .stage-shell{width:min(100%,clamp(200px,30svh,290px));margin-top:16px}

@@ -47,6 +47,7 @@ function tinyGif() {
  const frame = (delay, pixel) => [33,249,4,0,delay,0,0,0,44,0,0,0,0,1,0,1,0,0,2,2,pixel ? 76 : 68,1,0];
  return new Blob([new Uint8Array([...header, ...frame(5, 0), ...frame(15, 1), 59])], { type: 'image/gif' });
 }
+function repeatedGif(count){const header=[71,73,70,56,57,97,1,0,1,0,128,0,0,255,0,0,0,0,255],frame=[33,249,4,0,10,0,0,0,44,0,0,0,0,1,0,1,0,0,2,2,68,1,0];return new Blob([new Uint8Array([...header,...Array.from({length:count},()=>frame).flat(),59])],{type:'image/gif'});}
 test('local GIF preview reads the real duration, seeks forward and backward and disposes canvases', async () => {
  const originalDocument = globalThis.document, originalImageData = globalThis.ImageData, canvases = [];
  class FakeImageData { constructor(data, width, height) { this.data = data; this.width = width; this.height = height; } }
@@ -64,5 +65,18 @@ test('local GIF preview reads the real duration, seeks forward and backward and 
   await preview.drawAt(target, .01); assert.deepEqual(target.pixel, [255,0,0,255]);
   preview.dispose(); assert.ok(canvases.slice(0, 3).every(item => item.width === 0 && item.height === 0));
   await assert.rejects(createAnimationPreview(tinyGif(), AbortSignal.abort()), { name: 'AbortError' });
+  const long=await createAnimationPreview(repeatedGif(301),new AbortController().signal,{thumbnails:false});assert.equal(long.duration,30.1);long.dispose();
+  const still=await createAnimationPreview(repeatedGif(1),new AbortController().signal,{thumbnails:false});assert.equal(still.duration,.1);still.dispose();
  } finally { globalThis.document = originalDocument; globalThis.ImageData = originalImageData; }
+});
+test('GIF preflight bounds metadata allocations before parsing thousands of tiny frames',async()=>{
+ const{createAnimationPreview}=loadTS('lib/stickers/animation-preview.ts');await assert.rejects(createAnimationPreview(repeatedGif(10_001),new AbortController().signal,{thumbnails:false}),/volumineuse/);
+ const{inspectGifAnimation}=loadTS('lib/stickers/gif-export-core.ts');assert.throws(()=>inspectGifAnimation(new Uint8Array()),/format/);
+ assert.throws(()=>inspectGifAnimation(new Uint8Array(Buffer.from('GIF89a'))),/format/);
+ await assert.rejects(async()=>inspectGifAnimation(new Uint8Array(await repeatedGif(301).arrayBuffer())),/volumineuse/);
+});
+test('GIF frame rectangles are rejected before decompressing a spoofed large patch',async()=>{
+ const{createAnimationPreview}=loadTS('lib/stickers/animation-preview.ts'),bytes=new Uint8Array(await tinyGif().arrayBuffer());
+ const marker=bytes.indexOf(44);bytes[marker+5]=0x88;bytes[marker+6]=0x13;bytes[marker+7]=0x88;bytes[marker+8]=0x13;
+ await assert.rejects(createAnimationPreview(new Blob([bytes],{type:'image/gif'}),new AbortController().signal),/illisible/);
 });

@@ -27,6 +27,7 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 - Suppressions annulables pendant 12 secondes.
 - Packs fixes ou animés : création, renommage, couleur, ajout/retrait et suppression sans perte des médias.
 - Import local PNG/JPEG/WebP/GIF/MP4/WebM, jusqu’à 20 Mo.
+- Accueil décoré de six GIF de chats, singe et chiens, servis localement et dotés de posters/pause. Ils rejoignent une collection Mèmes une seule fois ; suppressions, sauvegardes restaurées et effacement sont respectés.
 - Import des publications X publiques par FxTwitter API v2 ; liens directs de médias X, Giphy et Tenor.
 - Bouton « Coller et importer » : lecture du presse-papiers au clic et import immédiat du lien. Nécessite HTTPS ou localhost et l’autorisation du navigateur ; le collage manuel reste disponible.
 - Atelier avec aperçu animé, déplacement, zoom, rotation et choix du fond. Texte déplaçable avec trois polices, couleurs et fond ; jusqu’à huit émojis déplaçables et redimensionnables, depuis la grille ou le clavier du téléphone.
@@ -47,7 +48,7 @@ Le détourage télécharge ses poids depuis Hugging Face et son CDN uniquement l
 
 Pour la galerie Android, les animations sont téléchargées en GIF. Le WebP animé reste le format conservé dans la collection et peut être téléchargé séparément. Un fichier GIF garde plusieurs images dans le téléchargement ; WhatsApp peut l’envoyer comme GIF. La création d’un **sticker animé** depuis la galerie dépend de la version de WhatsApp et n’est pas garantie par Zapstick. Les images fixes peuvent être choisies via WhatsApp → Stickers → Créer. Les ZIP doivent être décompressés. Le parcours n’a pas été vérifié sur un téléphone réel ; les packs Zapstick contiennent jusqu’à 30 éléments du même type.
 
-Modifier un WebP animé dans l’atelier crée une variante fixe ; l’original animé reste exportable. GIF et MP4 peuvent être convertis en animation. Le navigateur doit prendre en charge l’encodage Canvas WebP et le décodage du format source.
+GIF, vidéo et WebP animé sont éditables avec aperçu, découpe, textes et émojis. Le détourage local traite aussi l’extrait animé choisi et permet de rétablir son fond avant de créer le sticker. Le navigateur doit prendre en charge l’encodage Canvas WebP et le décodage du format source.
 
 ## Architecture
 

@@ -10,6 +10,7 @@ import {usePreferences} from '@/components/preferences-provider';
 import type {Collection,CollectionFolder,Sticker} from '@/lib/stickers/types';
 import {createFolder,updateFolder,deleteFolder,moveToFolder,reorderStickers,reorderFolders} from '@/lib/stickers/folders';
 import {Media} from './media';
+import {inferMediaKind} from '@/lib/stickers/media-kind';
 import './collections-board.css';
 
 type Undo={text:string;revert:()=>void};
@@ -24,11 +25,11 @@ export function CollectionsBoard({collection,onChange,onOpen,onCreate,onFavorite
  const [folderId,setFolderId]=useState<string|null>(null),[query,setQuery]=useState(''),[searching,setSearching]=useState(false),[filter,setFilter]=useState('all');
  const [selecting,setSelecting]=useState(false),[selected,setSelected]=useState<string[]>([]),[moving,setMoving]=useState(false),[form,setForm]=useState<CollectionFolder|null|false>(false);
  const [drag,setDrag]=useState<DragData|null>(null),[dragIds,setDragIds]=useState<string[]>([]),[mounted,setMounted]=useState(false),[external,setExternal]=useState(false);
- const fileInput=useRef<HTMLInputElement>(null);
+ const fileInput=useRef<HTMLInputElement>(null),importRequest=useRef(0),alive=useRef(true);
  const folders=collection.folders??[],currentFolder=folders.find(folder=>folder.id===folderId);
  const visible=useMemo(()=>collection.stickers.filter(sticker=>(folderId===null||(sticker.folderId??'')===folderId)&&(filter!=='favorites'||sticker.favorite)&&(filter!=='animated'||sticker.kind==='animated')&&(filter!=='static'||sticker.kind==='static')&&(!query||sticker.name.toLocaleLowerCase(locale).includes(query.toLocaleLowerCase(locale)))),[collection.stickers,folderId,filter,query,locale]);
  const sensors=useSensors(useSensor(MouseSensor,{activationConstraint:{distance:8}}),useSensor(TouchSensor,{activationConstraint:{delay:250,tolerance:5}}),useSensor(KeyboardSensor,{coordinateGetter:sortableKeyboardCoordinates}));
- useEffect(()=>{setMounted(true);},[]);
+ useEffect(()=>{alive.current=true;setMounted(true);return()=>{alive.current=false;importRequest.current++;};},[]);
  useEffect(()=>{if(folderId&&!folders.some(folder=>folder.id===folderId))setFolderId(null);},[folderId,folders]);
  useEffect(()=>{setSelected([]);setSelecting(false);setMoving(false);},[folderId,filter,query]);
  useEffect(()=>{setSelected(items=>items.filter(id=>collection.stickers.some(sticker=>sticker.id===id)));},[collection.stickers]);
@@ -42,15 +43,19 @@ export function CollectionsBoard({collection,onChange,onOpen,onCreate,onFavorite
   onChange(value=>deleteFolder(value,folder.id));setForm(false);setFolderId(null);
   onUndo({text:t('Collection supprimée · stickers conservés'),revert:()=>onChange(value=>{if(value.folders?.some(item=>item.id===folder.id))return value;let next=createFolder(value,folder);const target=(value.folders??[])[index]?.id??null;next=reorderFolders(next,folder.id,target);return moveToFolder(next,next.stickers.filter(sticker=>members.includes(sticker.id)&&!sticker.folderId).map(sticker=>sticker.id),folder.id);})});
  }
- function importFiles(files:File[]){
+ async function importFiles(files:File[]){
   setExternal(false);if(disabled||!files.length)return;
   if(files.length>30){onNotify(t('Importe jusqu’à 30 fichiers à la fois.'));return;}
   if(files.reduce((sum,file)=>sum+file.size,0)>100*1024*1024){onNotify(t('L’import est limité à 100 Mo à la fois.'));return;}
   if(files.some(file=>file.size>20*1024*1024)){onNotify(t('Choisis un fichier de moins de 20 Mo.'));return;}
   if(files.some(file=>!accepted.includes(file.type))){onNotify(t('Formats acceptés : JPG, PNG, WebP, GIF et vidéo MP4 / WebM.'));return;}
   const target=folderId&&folders.some(folder=>folder.id===folderId)?folderId:'';
-  const imported:Sticker[]=files.map((file,index)=>({id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,'').slice(0,120)||t('Mon sticker'),packId:'',folderId:target,kind:file.type==='image/gif'||file.type.startsWith('video/')?'animated':'static',mime:file.type,blob:file,favorite:false,createdAt:Date.now()+files.length-index,isSticker:false}));
-  onUndo(null);onChange(value=>({...value,stickers:[...imported,...value.stickers]}));onNotify(t('{count} médias importés',{count:imported.length}));
+  const request=importRequest.current;
+  try{
+   const imported:Sticker[]=await Promise.all(files.map(async(file,index)=>({id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,'').slice(0,120)||t('Mon sticker'),packId:'',folderId:target,kind:await inferMediaKind(file),mime:file.type,blob:file,favorite:false,createdAt:Date.now()+files.length-index,isSticker:false})));
+   if(!alive.current||request!==importRequest.current)return;
+   onUndo(null);onChange(value=>({...value,stickers:[...imported.map(sticker=>({...sticker,folderId:target&&value.folders?.some(folder=>folder.id===target)?target:''})),...value.stickers]}));onNotify(t('{count} médias importés',{count:imported.length}));
+  }catch(error){if(alive.current&&request===importRequest.current)onNotify(t(error instanceof Error?error.message:'Une erreur est survenue.'));}
  }
  const collisions:CollisionDetection=args=>{
   const kind=args.active.data.current?.kind;

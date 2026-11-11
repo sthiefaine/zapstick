@@ -56,7 +56,8 @@ export function isGifBytes(bytes: Uint8Array): boolean { return bytes.length >= 
 
 /** Validate a GIF without inflating pixels or allocating an object per block.
  * Existing GIFs can then be returned losslessly with their original loop/delays. */
-export function inspectGifAnimation(bytes: Uint8Array): {width: number; height: number; frames: number; durationMs: number} {
+export type GifInspectionOptions = {allowStill?: boolean; maxFrames?: number; maxDurationMs?: number; maxTotalPixels?: number};
+export function inspectGifAnimation(bytes: Uint8Array, options: GifInspectionOptions = {}): {width: number; height: number; frames: number; durationMs: number} {
   if (!isGifBytes(bytes)) throw new GifExportError('format');
   if (bytes.length > GIF_EXPORT_LIMITS.inputBytes) throw new GifExportError('too-large');
   const read16 = (at: number) => bytes[at] | bytes[at + 1] << 8;
@@ -68,7 +69,7 @@ export function inspectGifAnimation(bytes: Uint8Array): {width: number; height: 
   }
   while (at < bytes.length) {
     const marker = bytes[at++];
-    if (marker === 0x3b) { if (frames < 2) throw new GifExportError('not-animated');return {width, height, frames, durationMs}; }
+    if (marker === 0x3b) { if (frames < 2 && !options.allowStill) throw new GifExportError('not-animated');return {width, height, frames, durationMs}; }
     if (marker === 0x21) {
       requireBytes(1);const label = bytes[at++];
       if (label === 0xf9) {
@@ -82,7 +83,7 @@ export function inspectGifAnimation(bytes: Uint8Array): {width: number; height: 
       if (packed & 128) { const paletteBytes = 3 * 2 ** ((packed & 7) + 1);requireBytes(paletteBytes);at += paletteBytes; }
       requireBytes(1);const codeSize = bytes[at++];if (codeSize < 1 || codeSize > 8) throw new GifExportError('invalid');subBlocks();
       frames++;durationMs += pendingDelay;pendingDelay = 100;
-      if (frames > GIF_EXPORT_LIMITS.frames || width * height * frames > GIF_EXPORT_LIMITS.totalPixels || durationMs > GIF_EXPORT_LIMITS.durationMs) throw new GifExportError('too-large');
+      if (frames > (options.maxFrames ?? GIF_EXPORT_LIMITS.frames) || width * height * frames > (options.maxTotalPixels ?? GIF_EXPORT_LIMITS.totalPixels) || durationMs > (options.maxDurationMs ?? GIF_EXPORT_LIMITS.durationMs)) throw new GifExportError('too-large');
     } else throw new GifExportError('invalid');
   }
   throw new GifExportError('invalid');

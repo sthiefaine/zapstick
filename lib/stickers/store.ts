@@ -4,6 +4,7 @@ const KEY = 'collection';
 let connection: Promise<IDBDatabase> | undefined;
 let operations: Promise<void> = Promise.resolve();
 let writeGeneration = 0;
+let starterMemesSuppressed = false;
 
 // Serializing operations makes erasure ordered with reads and pending writes.
 // A reset invalidates queued save calls before they can put stale Blob records back.
@@ -37,6 +38,17 @@ export function loadCollection(): Promise<Collection> {
     });
   });
 }
+/** The public library receives these six local media once, including upgrades.
+ * A marker travels with backups; clearing local data suppresses onboarding. */
+export async function loadCollectionWithStarterMemes(localize?:(source:string)=>string):Promise<Collection>{
+ const generation=writeGeneration,value=await loadCollection();
+ if(value.starterMemesVersion===1)return value;
+ const {withStarterMemes}=await import('./starter-memes');
+ if(generation!==writeGeneration)return {...initialCollection(),starterMemesVersion:1};
+ const updated=withStarterMemes(value,localize,starterMemesSuppressed);
+ await saveCollection(updated);
+ return generation===writeGeneration?updated:{...initialCollection(),starterMemesVersion:1};
+}
 export function saveCollection(value: Collection): Promise<void> {
   const generation = writeGeneration;
   return ordered(async () => {
@@ -55,6 +67,7 @@ export function saveCollection(value: Collection): Promise<void> {
 /** Erase all local media records and Zapstick preferences, without deleting downloaded files. */
 export function clearLocalData(): Promise<void> {
   writeGeneration++;
+  starterMemesSuppressed=true;
   return ordered(async () => {
     const db = await database();
     await new Promise<void>((resolve, reject) => {
@@ -82,7 +95,19 @@ export function clearLocalData(): Promise<void> {
 export function download(blob:Blob,name:string){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 export async function createBackup(collection:Collection):Promise<Blob> {
   const value=normalizeFolders(collection);
-  const stickers=await Promise.all(value.stickers.map(async s=>{if(!s.blob)return s;const data=await new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result as string);r.onerror=()=>reject(r.error);r.readAsDataURL(s.blob!);});return {...s,blob:undefined,data};}));
+  const stickers=await Promise.all(value.stickers.map(async s=>{
+    let blob=s.blob;
+    if(!blob&&s.src?.startsWith('/memes/')){
+      const {HOME_MEMES}=await import('./home-memes');
+      if(!HOME_MEMES.some(meme=>meme.src===s.src))throw new Error('Le média est introuvable.');
+      const response=await fetch(s.src,{credentials:'same-origin',signal:AbortSignal.timeout(15000)});
+      if(!response.ok)throw new Error('Impossible de charger ce média.');
+      blob=await response.blob();
+      if(blob.size>20*1024*1024||blob.type!=='image/gif')throw new Error('Format de média non pris en charge.');
+    }
+    if(!blob)return s;
+    const data=await new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result as string);r.onerror=()=>reject(r.error);r.readAsDataURL(blob!);});return {...s,src:undefined,blob:undefined,data};
+  }));
   return new Blob([JSON.stringify({...value,stickers})],{type:'application/json'});
 }
 export async function backup(collection:Collection) {
@@ -101,5 +126,5 @@ export async function restore(file:File):Promise<Collection>{
     stickerIds.add(s.id);let blob:Blob|undefined;let src:string|undefined;
     if(s.data){if(typeof s.data!=='string'||!s.data.startsWith(`data:${s.mime};base64,`))throw new Error('Média invalide.');blob=await(await fetch(s.data)).blob();if(blob.size>20*1024*1024)throw new Error('Un média dépasse 20 Mo.');}else if(typeof s.src==='string'&&/^\/stickers\/\d{1,2}\.svg$/.test(s.src)){src=s.src;}else throw new Error('Média manquant dans la sauvegarde.');
     return {id:s.id,name:s.name,packId:s.packId,...(s.folderId!==undefined?{folderId:folderIds.has(s.folderId)?s.folderId:''}:{}),kind:s.kind,mime:s.mime,favorite:s.favorite,createdAt:s.createdAt,isSticker:s.isSticker,sourceUrl:typeof s.sourceUrl==='string'&&s.sourceUrl.startsWith('https://')?s.sourceUrl:undefined,blob,src};
-  }));return normalizeFolders(removeExamples({version:1,packs:data.packs,...(data.folders!==undefined?{folders:data.folders}:{}),stickers}));
+  }));return normalizeFolders(removeExamples({version:1,starterMemesVersion:1,packs:data.packs,...(data.folders!==undefined?{folders:data.folders}:{}),stickers}));
 }

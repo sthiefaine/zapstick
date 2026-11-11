@@ -11,7 +11,7 @@ export async function prepareStickerDownload(blob:Blob,{animated,isSticker,forma
  if(!(isSticker&&blob.type==='image/webp')&&!(animated&&format==='gallery'&&blob.type==='image/gif')){
   const {convert,defaults}=await import('./convert');
   checkDownloadSignal(signal);
-  const converted=await convert(blob,{...defaults,animated,duration:6},percent=>{checkDownloadSignal(signal);onProgress?.(animated&&format==='gallery'?Math.round(percent*.4):percent);});
+  const converted=await convert(blob,{...defaults,animated,duration:6},percent=>{checkDownloadSignal(signal);onProgress?.(animated&&format==='gallery'?Math.round(percent*.4):percent);},signal);
   output=converted.blob;animated=converted.animated;
  }
  checkDownloadSignal(signal);

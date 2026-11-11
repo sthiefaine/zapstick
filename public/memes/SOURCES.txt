@@ -1,0 +1,80 @@
+Zapstick — local reaction media
+Retrieved from public Tenor pages on 2026-11-11 at the user’s request.
+
+All six GIFs and static WebP posters are served by Zapstick. No Tenor request,
+embed, remote script, analytics call or audio plays when the home page opens.
+The uploader names below are the attribution displayed by Tenor. They are not
+confirmation of original authorship. No Creative Commons or public-domain
+license is asserted for these user-requested Tenor reactions; original rights
+remain with their respective owners. Source links are retained for attribution.
+
+Local derivatives: original animation, no added audio, resized without cropping
+(longest side 160px), palette reduced to 96 colors, approximately 10 fps.
+Posters contain only the first local GIF frame. Loop is infinite; the home-page
+pause button and reduced-motion preference replace GIFs with still posters.
+
+dancing-cat
+  Source: https://tenor.com/fr/view/lumedoallumenaria-dancing-cat-ai-ai-cat-tiktok-dancing-ai-cat-tiktok-cat-gif-15837622393601447268
+  Tenor uploader: Kikitajuegosvirtuales
+  Original GIF: https://media1.tenor.com/m/28qJp9li1WQAAAAC/lumedoallumenaria-dancing-cat-ai.gif
+  Local GIF: /memes/dancing-cat.gif (497127 bytes)
+  Poster: /memes/dancing-cat.webp
+  Source time range: 0–3200 ms
+  Local dimensions / frames: 160×160 / 32
+  Original SHA-256: f6377574f882e2748d7871c3e332c6ea86cdbd9680d920162c4f11e93c68c527
+  Local SHA-256: cd4c7357fb92d7a8734afb22ae5f612bcd46a24db59b8189d2768ff39582a159
+
+jumping-cat
+  Source: https://tenor.com/fr/view/cat-jump-happy-jumping-for-joy-jumping-gif-23625303
+  Tenor uploader: FineDandy
+  Original GIF: https://media1.tenor.com/m/DpJdyKQKgYkAAAAC/cat-jump.gif
+  Local GIF: /memes/jumping-cat.gif (117675 bytes)
+  Poster: /memes/jumping-cat.webp
+  Source time range: 0–2000 ms
+  Local dimensions / frames: 160×160 / 20
+  Original SHA-256: 8151a1e2589192038ff5f8b77a46cf0c9e91e054521cb11007ac2b441accf9e1
+  Local SHA-256: 93630573f0167ae20d7d31ebc37d9d1d1c2edc3c09ba801afd4db5adbe14f8e7
+
+working-cat
+  Source: https://tenor.com/view/work-cat-typing-computer-cute-gif-8373772
+  Tenor uploader: jgillespieswanwick
+  Original GIF: https://media1.tenor.com/m/cSZp25bpjjoAAAAC/work-cat.gif
+  Local GIF: /memes/working-cat.gif (115614 bytes)
+  Poster: /memes/working-cat.webp
+  Source time range: 0–950 ms
+  Local dimensions / frames: 160×120 / 10
+  Original SHA-256: 77efce49006bfde96a0275f3c3229136df2ea3cbbee9c2dd857812bded6582f5
+  Local SHA-256: a8b92ea62cfaf028dcbfb355d4509d1c40cfcf34ef9ce28a9ae5b16243b6703e
+
+cooking-monkey
+  Source: https://tenor.com/view/cook-monkey-monkey-turn-bake-monkey-monkey-bake-monkey-cook-gif-272961148911171409
+  Tenor uploader: ebubbe
+  Original GIF: https://media1.tenor.com/m/A8nAt_5VN1EAAAAC/cook-monkey-monkey-turn.gif
+  Local GIF: /memes/cooking-monkey.gif (208201 bytes)
+  Poster: /memes/cooking-monkey.webp
+  Source time range: 1800–4200 ms
+  Local dimensions / frames: 90×160 / 24
+  Original SHA-256: 34cda38c4d39bdb2aa19c639624d30160f97b3ca47d42593406c07b5ac6bf658
+  Local SHA-256: 5c2bb36188fdb33de087b19e8585150104ec910998fbc3d2cc2ccbd2cdde26b4
+
+side-eye-dog
+  Source: https://tenor.com/view/side-eye-sus-dog-gif-11510602255708878692
+  Tenor uploader: honored_onegojo
+  Original GIF: https://media1.tenor.com/m/n73fxApWd2QAAAAC/side-eye-sus.gif
+  Local GIF: /memes/side-eye-dog.gif (281650 bytes)
+  Poster: /memes/side-eye-dog.webp
+  Source time range: 0–2200 ms
+  Local dimensions / frames: 160×120 / 22
+  Original SHA-256: 39261d0e16bde2a39f61e3628d2379d5abca18ad886faa24d52bc40603c2868c
+  Local SHA-256: 96814d6c592f98fd078b5d9264f8b1b010255c5ac5ac474748eab5b40803cbe2
+
+happy-dog
+  Source: https://tenor.com/view/happy-dog-dance-dancing-dog-gif-12310143
+  Tenor uploader: latinmixedit
+  Original GIF: https://media1.tenor.com/m/ALbi8JqP9EUAAAAC/happy-dog-dance.gif
+  Local GIF: /memes/happy-dog.gif (284725 bytes)
+  Poster: /memes/happy-dog.webp
+  Source time range: 0–2400 ms
+  Local dimensions / frames: 160×160 / 20
+  Original SHA-256: 76f251b04650e952cda41bea9b11412d00424fa53eedc697c9f42b82bf731041
+  Local SHA-256: 57641752a3f8e4b68936a0321bd2733fecdfb8e16c785f01a576eb1ccba51931

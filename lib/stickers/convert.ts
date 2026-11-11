@@ -1,47 +1,101 @@
+import {muxWebp} from './webp-mux';
+import {inferMediaKind} from './media-kind';
+import type {AnimationPreview} from './animation-preview';
 import {paintOverlays,type OverlayOptions} from './overlays';
 export type EditOptions=OverlayOptions & {zoom:number;rotation:number;text:string;background:string;animated:boolean;duration:number;start:number;offsetX?:number;offsetY?:number};
 export const defaults:EditOptions={zoom:1,rotation:0,text:'',background:'transparent',animated:true,duration:3,start:0,offsetX:0,offsetY:0};
 function canvas(){const c=document.createElement('canvas');c.width=c.height=512;return c;}
 export function paint(c:HTMLCanvasElement,source:CanvasImageSource,w:number,h:number,o:EditOptions){const ctx=c.getContext('2d')!;ctx.clearRect(0,0,512,512);if(o.background!=='transparent'){ctx.fillStyle=o.background;ctx.fillRect(0,0,512,512);}const ratio=Math.min(512/w,512/h)*o.zoom;ctx.save();ctx.translate(256+(o.offsetX??0),256+(o.offsetY??0));ctx.rotate(o.rotation*Math.PI/180);ctx.drawImage(source,-w*ratio/2,-h*ratio/2,w*ratio,h*ratio);ctx.restore();paintOverlays(ctx,o);}
-export async function loadImage(url:string):Promise<HTMLImageElement>{return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{if(i.width*i.height>40_000_000){reject(new Error('Cette image est trop grande (40 mégapixels maximum).'));return;}resolve(i);};i.onerror=()=>reject(new Error('Image illisible. Essaie un PNG, JPEG, WebP ou GIF.'));i.src=url;});}
-export function loadVideo(url:string):Promise<HTMLVideoElement>{return new Promise((resolve,reject)=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.onloadeddata=()=>{if(!Number.isFinite(v.duration)||v.duration<=0){reject(new Error('Durée vidéo invalide.'));return;}resolve(v);};v.onerror=()=>reject(new Error('Cette vidéo ne peut pas être décodée par ton navigateur.'));v.src=url;});}
-export async function seek(v:HTMLVideoElement,time:number){if(Math.abs(v.currentTime-time)<0.001&&v.readyState>=2)return;await new Promise<void>((resolve,reject)=>{const t=setTimeout(()=>{v.onseeked=null;reject(new Error('La lecture vidéo prend trop de temps.'));},8000);v.onseeked=()=>{clearTimeout(t);v.onseeked=null;resolve();};v.currentTime=time;});}
-async function webp(c:HTMLCanvasElement,quality:number):Promise<Blob>{const b=await new Promise<Blob|null>(r=>c.toBlob(r,'image/webp',quality));if(!b||b.type!=='image/webp')throw new Error('L’export WebP nécessite un navigateur récent, comme Chrome, Edge ou Safari.');return b;}
-function u24(n:number){return new Uint8Array([n&255,(n>>>8)&255,(n>>>16)&255]);}
-function concat(parts:Uint8Array[]){const b=new Uint8Array(parts.reduce((s,p)=>s+p.length,0));let i=0;for(const p of parts){b.set(p,i);i+=p.length;}return b;}
-function chunk(type:string,data:Uint8Array){const size=new Uint8Array(4);new DataView(size.buffer).setUint32(0,data.length,true);return concat([new TextEncoder().encode(type),size,data,...(data.length%2?[new Uint8Array(1)]:[])]);}
-export function muxWebp(frames:{bytes:Uint8Array;duration:number}[]):Blob{
- const vp8x=concat([new Uint8Array([0x12,0,0,0]),u24(511),u24(511)]);const anim=new Uint8Array(6);const parts=[chunk('VP8X',vp8x),chunk('ANIM',anim)];
- for(const f of frames){const sub:Uint8Array[]=[];for(let at=12;at+8<=f.bytes.length;){const name=String.fromCharCode(...f.bytes.slice(at,at+4));const size=new DataView(f.bytes.buffer,f.bytes.byteOffset+at+4,4).getUint32(0,true);if(size>f.bytes.length-at-8)throw new Error('Image WebP invalide.');if(['ALPH','VP8 ','VP8L'].includes(name))sub.push(f.bytes.slice(at,at+8+size+(size%2)));at+=8+size+(size%2);}parts.push(chunk('ANMF',concat([u24(0),u24(0),u24(511),u24(511),u24(Math.max(8,Math.round(f.duration))),new Uint8Array([2]),...sub])));}
- const content=concat([new TextEncoder().encode('WEBP'),...parts]);const size=new Uint8Array(4);new DataView(size.buffer).setUint32(0,content.length,true);return new Blob([concat([new TextEncoder().encode('RIFF'),size,content]) as BlobPart],{type:'image/webp'});
+function checkSignal(signal?:AbortSignal):void{if(signal?.aborted)throw signal.reason instanceof Error?signal.reason:new DOMException('Aborted','AbortError');}
+function withSignal<T>(promise:Promise<T>,signal?:AbortSignal):Promise<T>{
+ if(!signal)return promise;
+ return new Promise((resolve,reject)=>{
+  const abort=()=>{cleanup();reject(signal.reason instanceof Error?signal.reason:new DOMException('Aborted','AbortError'));};
+  const cleanup=()=>signal.removeEventListener('abort',abort);
+  signal.addEventListener('abort',abort,{once:true});
+  promise.then(value=>{cleanup();resolve(value);},error=>{cleanup();reject(error);});
+  if(signal.aborted)abort();
+ });
 }
-export async function convert(blob:Blob,o:EditOptions,onProgress:(n:number)=>void):Promise<{blob:Blob;animated:boolean}>{
+export async function loadImage(url:string,signal?:AbortSignal):Promise<HTMLImageElement>{
+ checkSignal(signal);
+ return new Promise((resolve,reject)=>{
+  const image=new Image();let settled=false;
+  const timer=setTimeout(()=>finish(new Error('Impossible de charger ce média.')),10000);
+  const abort=()=>finish(signal?.reason instanceof Error?signal.reason:new DOMException('Aborted','AbortError'));
+  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);image.onload=image.onerror=null;signal?.removeEventListener('abort',abort);if(error){image.removeAttribute('src');reject(error);}else resolve(image);}
+  image.onload=()=>finish(image.width*image.height>40_000_000?new Error('Cette image est trop grande (40 mégapixels maximum).'):undefined);
+  image.onerror=()=>finish(new Error('Image illisible. Essaie un PNG, JPEG, WebP ou GIF.'));
+  signal?.addEventListener('abort',abort,{once:true});image.src=url;
+ });
+}
+export async function loadVideo(url:string,signal?:AbortSignal):Promise<HTMLVideoElement>{
+ checkSignal(signal);
+ return new Promise((resolve,reject)=>{
+  const video=document.createElement('video');video.muted=true;video.playsInline=true;video.preload='auto';let settled=false;
+  const timer=setTimeout(()=>finish(new Error('La lecture vidéo prend trop de temps.')),10000);
+  const abort=()=>finish(signal?.reason instanceof Error?signal.reason:new DOMException('Aborted','AbortError'));
+  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);video.onloadeddata=video.onerror=null;signal?.removeEventListener('abort',abort);if(error){video.pause();video.removeAttribute('src');video.load();reject(error);}else resolve(video);}
+  video.onloadeddata=()=>finish(!Number.isFinite(video.duration)||video.duration<=0?new Error('Durée vidéo invalide.'):undefined);
+  video.onerror=()=>finish(new Error('Cette vidéo ne peut pas être décodée par ton navigateur.'));
+  signal?.addEventListener('abort',abort,{once:true});video.src=url;
+ });
+}
+export async function seek(video:HTMLVideoElement,time:number,signal?:AbortSignal){
+ checkSignal(signal);if(Math.abs(video.currentTime-time)<.001&&video.readyState>=2)return;
+ await new Promise<void>((resolve,reject)=>{
+  let settled=false;const previousSeek=video.onseeked,previousError=video.onerror;
+  const timer=setTimeout(()=>finish(new Error('La lecture vidéo prend trop de temps.')),8000);
+  const abort=()=>{video.pause();finish(signal?.reason instanceof Error?signal.reason:new DOMException('Aborted','AbortError'));};
+  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);video.onseeked=previousSeek;video.onerror=previousError;signal?.removeEventListener('abort',abort);if(error)reject(error);else resolve();}
+  video.onseeked=()=>finish();video.onerror=()=>finish(new Error('Cette vidéo ne peut pas être décodée par ton navigateur.'));
+  signal?.addEventListener('abort',abort,{once:true});try{video.currentTime=time;}catch(error){finish(error instanceof Error?error:new Error('Cette vidéo ne peut pas être lue.'));}
+ });
+}
+async function webp(canvas:HTMLCanvasElement,quality:number,signal?:AbortSignal):Promise<Blob>{
+ checkSignal(signal);const blob=await withSignal(new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/webp',quality)),signal);
+ if(!blob||blob.type!=='image/webp')throw new Error('L’export WebP nécessite un navigateur récent, comme Chrome, Edge ou Safari.');return blob;
+}
+export {muxWebp} from './webp-mux';
+export async function convert(blob:Blob,o:EditOptions,onProgress:(n:number)=>void,signal?:AbortSignal):Promise<{blob:Blob;animated:boolean}>{
+ checkSignal(signal);const controller=new AbortController(),relay=()=>controller.abort(signal?.reason);signal?.addEventListener('abort',relay,{once:true});
+ const timer=setTimeout(()=>controller.abort(new Error('La préparation de l’animation prend trop de temps. Essaie un média plus court.')),90000),operation=controller.signal;
  const url=URL.createObjectURL(blob),c=canvas();
+ let video:HTMLVideoElement|undefined,preview:AnimationPreview|undefined,frame:HTMLCanvasElement|undefined;
  try{
- const isVideo=blob.type.startsWith('video/'),isGif=blob.type==='image/gif';
- if(!o.animated||(!isVideo&&!isGif)){
-  if(isVideo){const v=await loadVideo(url);await seek(v,Math.min(o.start,v.duration-0.01));paint(c,v,v.videoWidth,v.videoHeight,o);v.removeAttribute('src');v.load();}else if(isGif&&o.start>0){const{createAnimationPreview}=await import('./animation-preview');const preview=await createAnimationPreview(blob,new AbortController().signal,{thumbnails:false}),frame=document.createElement('canvas');frame.width=frame.height=0;try{await preview.drawAt!(frame,Math.min(o.start,Math.max(0,preview.duration-.001)));paint(c,frame,frame.width,frame.height,o);}finally{preview.dispose();frame.width=frame.height=0;}}else{const i=await loadImage(url);paint(c,i,i.naturalWidth,i.naturalHeight,o);}
-  for(const q of [.9,.75,.55,.35,.18]){const result=await webp(c,q);if(result.size<=100*1024)return{blob:result,animated:false};}throw new Error('L’image dépasse 100 Ko. Réduis le zoom ou simplifie le fond.');
+  const isVideo=blob.type.startsWith('video/'),animatedImage=!isVideo&&await withSignal(inferMediaKind(blob),operation)==='animated';
+  let duration=0,frameAt:(time:number)=>Promise<{source:CanvasImageSource;w:number;h:number}>;
+  if(isVideo){
+   video=await loadVideo(url,operation);duration=video.duration;
+   frameAt=async(time)=>{await seek(video!,Math.min(Math.max(0,time),Math.max(0,duration-.001)),operation);return{source:video!,w:video!.videoWidth,h:video!.videoHeight};};
+  }else if(animatedImage){
+   const{createAnimationPreview}=await withSignal(import('./animation-preview'),operation);
+   preview=await createAnimationPreview(blob,operation,{thumbnails:false});duration=preview.duration;
+   frame=document.createElement('canvas');frame.width=frame.height=0;
+   frameAt=async(time)=>{await preview!.drawAt!(frame!,Math.min(Math.max(0,time),Math.max(0,duration-.001)));return{source:frame!,w:frame!.width,h:frame!.height};};
+  }else{
+   const image=await loadImage(url,operation);frameAt=async()=>({source:image,w:image.naturalWidth,h:image.naturalHeight});
+  }
+  if(!o.animated||(!isVideo&&!animatedImage)){
+   const source=await frameAt(Number.isFinite(o.start)?o.start:0);paint(c,source.source,source.w,source.h,o);
+   for(const quality of [.9,.75,.55,.35,.18]){const result=await webp(c,quality,operation);if(result.size<=100*1024)return{blob:result,animated:false};}
+   throw new Error('L’image dépasse 100 Ko. Réduis le zoom ou simplifie le fond.');
+  }
+  const start=Math.min(Math.max(0,Number.isFinite(o.start)?o.start:0),Math.max(0,duration-.001)),length=Math.min(o.duration,6,duration-start);
+  if(!Number.isFinite(length)||length<=0)throw new Error('Choisis une durée d’animation valide.');
+  for(let pass=0;pass<3;pass++){
+   const fps=[12,8,5][pass],quality=[.68,.42,.22][pass],count=Math.max(2,Math.ceil(length*fps)),frames:{bytes:Uint8Array;duration:number}[]=[];
+   for(let index=0;index<count;index++){
+    checkSignal(operation);const source=await frameAt(start+(index/count)*length);paint(c,source.source,source.w,source.h,o);
+    frames.push({bytes:new Uint8Array(await withSignal((await webp(c,quality,operation)).arrayBuffer(),operation)),duration:Math.round((index+1)*length*1000/count)-Math.round(index*length*1000/count)});
+    onProgress(Math.round(((pass+index/count)/3)*100));
+   }
+   checkSignal(operation);const result=muxWebp(frames,{loopCount:preview?.loopCount});if(result.size<=500*1024){onProgress(100);checkSignal(operation);return{blob:result,animated:true};}
+  }
+  throw new Error('L’animation dépasse 500 Ko. Essaie une durée plus courte ou « Image fixe ».');
+ }catch(error){checkSignal(operation);throw error;}finally{
+  clearTimeout(timer);signal?.removeEventListener('abort',relay);preview?.dispose();if(frame)frame.width=frame.height=0;
+  if(video){video.pause();video.removeAttribute('src');video.load();}
+  c.width=c.height=0;URL.revokeObjectURL(url);
  }
- let frameAt:(time:number)=>Promise<{source:CanvasImageSource;w:number;h:number}>;let duration=0;let cleanup=()=>{};
- if(isVideo){const v=await loadVideo(url);duration=v.duration;frameAt=async(t)=>{await seek(v,Math.min(t,v.duration-.01));return{source:v,w:v.videoWidth,h:v.videoHeight};};cleanup=()=>{v.removeAttribute('src');v.load();};}
- else{
-  const {parseGIF,decompressFrames}=await import('gifuct-js');const gif=parseGIF(await blob.arrayBuffer());const w=gif.lsd.width,h=gif.lsd.height;
-  if(w*h>1920*1080||gif.frames.length*w*h>80_000_000)throw new Error('Ce GIF est trop volumineux à animer. Essaie un GIF plus court ou choisis « Image fixe ».');
-  const frames=decompressFrames(gif,true);if(!frames.length)throw new Error('GIF vide.');
-  const surface=document.createElement('canvas');surface.width=w;surface.height=h;const ctx=surface.getContext('2d')!;const rendered:{source:HTMLCanvasElement;end:number}[]=[];let elapsed=0;
-  let previous:typeof frames[0]|undefined;let snapshot:ImageData|undefined;
-  for(const frame of frames){if(previous?.disposalType===2)ctx.clearRect(previous.dims.left,previous.dims.top,previous.dims.width,previous.dims.height);else if(previous?.disposalType===3&&snapshot)ctx.putImageData(snapshot,0,0);snapshot=frame.disposalType===3?ctx.getImageData(0,0,w,h):undefined;
-   const patch=document.createElement('canvas');patch.width=frame.dims.width;patch.height=frame.dims.height;patch.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(frame.patch),frame.dims.width,frame.dims.height),0,0);ctx.drawImage(patch,frame.dims.left,frame.dims.top);
-   const copy=document.createElement('canvas');copy.width=w;copy.height=h;copy.getContext('2d')!.drawImage(surface,0,0);elapsed+=Math.max(20,frame.delay||100);rendered.push({source:copy,end:elapsed});previous=frame;
-  }duration=elapsed/1000;frameAt=async(t)=>({source:(rendered.find(f=>f.end>t*1000)??rendered[rendered.length-1]).source,w,h});
- }
- try{
-  const start=Math.min(Math.max(0,o.start),Math.max(0,duration-.1)),length=Math.min(o.duration,6,duration-start);if(length<=0)throw new Error('Choisis une durée d’animation valide.');
-  for(let pass=0;pass<3;pass++){const fps=[12,8,5][pass],quality=[.68,.42,.22][pass];const count=Math.max(2,Math.ceil(length*fps)),frames:{bytes:Uint8Array;duration:number}[]=[];
-   for(let i=0;i<count;i++){const f=await frameAt(start+(i/count)*length);paint(c,f.source,f.w,f.h,o);frames.push({bytes:new Uint8Array(await(await webp(c,quality)).arrayBuffer()),duration:length*1000/count});onProgress(Math.round(((pass+i/count)/3)*100));}
-   const result=muxWebp(frames);if(result.size<=500*1024){onProgress(100);return{blob:result,animated:true};}
-  }throw new Error('L’animation dépasse 500 Ko. Essaie une durée plus courte ou « Image fixe ».');
- }finally{cleanup();}
- }finally{URL.revokeObjectURL(url);}
 }
