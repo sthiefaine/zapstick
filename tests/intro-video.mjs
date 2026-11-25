@@ -41,6 +41,8 @@ test('the film loads no MP4 or captions before a click and uses the matching loc
   assert.equal(html.includes('<track'),false);
   assert.ok(html.includes(`/videos/zapstick-intro-${film}.jpg`));
   assert.ok(html.includes('Lire le film de présentation de Zapstick'));
+  assert.ok(html.includes('44 s'));assert.equal(html.includes('2 min'),false);
+  assert.ok(html.includes('.jpg?v=3'));
   assert.equal((html.match(/Découvrir Zapstick/g)??[]).length,1);
  }
 });
@@ -60,12 +62,14 @@ test('captions are available after play but stay off by default in every film la
  }finally{simulateStarted=false;booleanStates=0;}
 });
 
-test('all three WebVTT tracks follow the localized storyboard continuously from zero to two minutes',()=>{
+test('all three WebVTT tracks follow the localized storyboard continuously across the focused film under 45 seconds',()=>{
  const storyboard=JSON.parse(fs.readFileSync(path.join(root,'scripts/intro/storyboard.json'),'utf8'));
- assert.equal(storyboard.duration,120);
+ assert.equal(storyboard.duration,44);assert.ok(storyboard.duration<=45);
  assert.equal(storyboard.fps,30);assert.equal(storyboard.bpm,120);
- assert.equal(storyboard.scenes.length,15);
- assert.deepEqual(storyboard.scenes.flatMap(scene=>scene.cuts),Array.from({length:60},(_,i)=>i*2));
+ assert.deepEqual(storyboard.scenes.map(scene=>scene.id),['link','animation','original','second','excerpt','export','outro']);
+ assert.equal(storyboard.scenes[0].art,2,'the first shot opens on the X import');
+ for(const scene of storyboard.scenes)assert.equal(scene.end-scene.start,scene.shots.length*2);
+ assert.deepEqual(storyboard.scenes.flatMap(scene=>scene.cuts),Array.from({length:22},(_,i)=>i*2));
  const seconds=value=>{const [h,m,s]=value.split(':').map(Number);return h*3600+m*60+s;};
  for(const locale of ['fr','en','pt-BR']){
   const content=fs.readFileSync(path.join(root,`public/videos/zapstick-intro-${locale.toLowerCase()}.vtt`),'utf8');
@@ -78,6 +82,6 @@ test('all three WebVTT tracks follow the localized storyboard continuously from 
    assert.ok(text.includes(scene.text[locale].title));assert.ok(text.includes(scene.text[locale].body));end=to;
    assert.ok(scene.text[locale].body.length>15,'optional captions describe the action');
   }
-  assert.equal(end,120);
+  assert.equal(end,44);
  }
 });

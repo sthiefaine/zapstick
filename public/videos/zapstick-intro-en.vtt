@@ -1,77 +1,37 @@
 WEBVTT
 
-hook
-00:00:00.000 --> 00:00:08.000
-[Rhythmic music and impacts]
-YOUR REACTIONS
-Cat and dog memes bounce and flip around the Zapstick mark.
-
-import
-00:00:08.000 --> 00:00:16.000
-IMPORT
-Choose a photo, GIF or video. The media appears in the preview.
-
 link
-00:00:16.000 --> 00:00:24.000
-ONE LINK
-Paste a public link to import its media, then start customizing it.
-
-text
-00:00:24.000 --> 00:00:32.000
-YOUR WORDS
-Add your words, choose their style and drag the text directly on the preview.
-
-emoji
-00:00:32.000 --> 00:00:40.000
-REACT
-Pick an emoji, move it and adjust its size on the animated sticker.
-
-background
-00:00:40.000 --> 00:00:48.000
-NO BACKGROUND
-Remove the media background, then try colored backdrops.
+00:00:00.000 --> 00:00:08.000
+[Rhythmic music, impacts and audio demos]
+AN X LINK
+Paste a public X link and import its video to create your sticker.
 
 animation
-00:00:48.000 --> 00:00:56.000
-THE MOMENT
-Move the timeline handles to choose the moment you want to keep.
+00:00:08.000 --> 00:00:16.000
+ANIMATED STICKER
+Choose the moment with the trim handles and turn it into a looping animated sticker.
 
 original
-00:00:56.000 --> 00:01:04.000
+00:00:16.000 --> 00:00:22.000
 ORIGINAL SOUND
-If the video contains sound, its original audio is selected on import.
+The video’s sound is selected on import. Hear the cat typing on the keyboard.
 
 second
-00:01:04.000 --> 00:01:12.000
+00:00:22.000 --> 00:00:30.000
 TWO SOUNDS
-The second sound starts after the first. When you shorten the first, the second follows it.
+Add audio from a file, a link or your microphone. The second track follows the first.
 
 excerpt
-00:01:12.000 --> 00:01:20.000
-AT 5 S
-Choose the second sound’s excerpt starting at five seconds. Its position after the first sound stays the same.
-
-collections
-00:01:20.000 --> 00:01:28.000
-ALL SORTED
-Create a collection and drag stickers into it. You can also rearrange the cards.
-
-favorites
-00:01:28.000 --> 00:01:36.000
-YOUR FAVORITES
-Tap the heart to find your favorite stickers quickly.
+00:00:30.000 --> 00:00:36.000
+YOUR EXCERPT
+Drag the selection to choose your audio excerpt, even five seconds into the source.
 
 export
-00:01:36.000 --> 00:01:44.000
-READY TO GO
-Download an animated GIF without sound, or an MP4 video with sound.
+00:00:36.000 --> 00:00:40.000
+SAVE IT
+Save your animation as a GIF or download an MP4 video with audio.
 
-party
-00:01:44.000 --> 00:01:52.000
-AGAIN!
-The memes mix and bounce: a reaction for every mood.
-
-signature
-00:01:52.000 --> 00:02:00.000
-ZAPSTICK
-Zapstick. Create your next reaction.
+outro
+00:00:40.000 --> 00:00:44.000
+CREATE WITH ZAPSTICK
+An X link, an animation, your sounds: create your next sticker on Zapstick.

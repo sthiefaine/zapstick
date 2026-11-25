@@ -1,7 +1,7 @@
-Zapstick — presentation films, V2
+Zapstick — presentation films, V3
 
 Three localized editions: French, English and Brazilian Portuguese.
-Duration: 120 seconds each. Original instrumental and sound design; no voice-over.
+Duration: 44 seconds each; 22 two-second shots. No voice-over.
 Video: 1280 x 720, 30 fps, H.264 BT.709 limited-range yuv420p, AAC stereo.
 
 Graphics, localized storyboard and kinetic animation created for Zapstick.
@@ -10,13 +10,25 @@ Meme visuals reuse the locally curated files in /memes/.
 Their source URLs and uploader credits are listed in /memes/SOURCES.txt.
 The underlying meme visuals retain their owners' rights.
 
-The soundtrack is an original procedural composition made for these films:
-120 BPM, fifteen eight-second chapters, synthesized instruments and percussion,
-with original whooshes, impacts, plops and typing aligned to the animation.
-No sampled recording, downloaded music or synthetic voice is used.
+The music is an original procedural composition made for these films:
+120 BPM, synthesized instruments and percussion, with original whooshes,
+impacts, plops and typing aligned to the animation. No sampled music or
+synthetic voice is used.
+
+Two short audio demonstrations reuse the credited local home-page files:
+- /memes/sound/working-cat.mp4, 16.30-19.15s in the film.
+  IBM M2 sound, Anonimski, 17 May 2014, CC0 1.0.
+  https://commons.wikimedia.org/wiki/File:IBM_M2_sound.ogg
+  https://creativecommons.org/publicdomain/zero/1.0/
+- /memes/sound/side-eye-dog.mp4, 26.15-29.75s in the film.
+  Dun dun duuun! (Shock Horror (A)), copyc4t, 15 February 2012, CC BY 4.0.
+  https://commons.wikimedia.org/wiki/File:Dun_dun_duuun!.ogg
+  https://freesound.org/people/copyc4t/sounds/146434/
+  https://creativecommons.org/licenses/by/4.0/
+Changes for this film: short excerpts, loudness adjustment, fades and mixing
+with ducked original music. Audio licenses apply to these recordings only.
 
 The vector editor scenes illustrate Zapstick's workflow; they are not recordings
 of a personal collection or a messaging account.
-
-Reproducible source files are in scripts/intro/ in the Zapstick repository:
-storyboard.json, music.py, render.mjs and create-captions.mjs.
+Reproducible sources: scripts/intro/storyboard.json, music.py, render.mjs,
+and create-captions.mjs in the Zapstick repository.

@@ -1,77 +1,37 @@
 WEBVTT
 
-hook
-00:00:00.000 --> 00:00:08.000
-[Música rítmica e impactos]
-SUAS REAÇÕES
-Memes de gatos e cachorros saltam e giram ao redor da marca Zapstick.
-
-import
-00:00:08.000 --> 00:00:16.000
-IMPORTE
-Escolha uma foto, um GIF ou um vídeo. O arquivo aparece na prévia.
-
 link
-00:00:16.000 --> 00:00:24.000
-UM LINK
-Cole um link público para importar o arquivo e começar a personalizá-lo.
-
-text
-00:00:24.000 --> 00:00:32.000
-SUAS PALAVRAS
-Adicione suas palavras, escolha o estilo e arraste o texto diretamente na prévia.
-
-emoji
-00:00:32.000 --> 00:00:40.000
-REAJA
-Escolha um emoji, mova-o e ajuste seu tamanho na figurinha animada.
-
-background
-00:00:40.000 --> 00:00:48.000
-SEM FUNDO
-Remova o fundo do arquivo e experimente fundos coloridos.
+00:00:00.000 --> 00:00:08.000
+[Música rítmica, impactos e exemplos de som]
+UM LINK DO X
+Cole um link público do X e importe o vídeo para criar sua figurinha.
 
 animation
-00:00:48.000 --> 00:00:56.000
-O MOMENTO
-Mova as alças da linha do tempo para escolher o momento que deseja manter.
+00:00:08.000 --> 00:00:16.000
+FIGURINHA ANIMADA
+Escolha o trecho com as alças e transforme-o em uma figurinha animada em loop.
 
 original
-00:00:56.000 --> 00:01:04.000
+00:00:16.000 --> 00:00:22.000
 SOM ORIGINAL
-Se o vídeo tiver som, o áudio original já vem selecionado ao importar.
+O som do vídeo já vem selecionado ao importar. Ouça o gato digitando no teclado.
 
 second
-00:01:04.000 --> 00:01:12.000
+00:00:22.000 --> 00:00:30.000
 DOIS SONS
-O segundo som começa depois do primeiro. Ao encurtar o primeiro, o segundo acompanha a mudança.
+Adicione um som de um arquivo, de um link ou do microfone. A segunda faixa vem depois da primeira.
 
 excerpt
-00:01:12.000 --> 00:01:20.000
-AOS 5 S
-Escolha o trecho do segundo som a partir de cinco segundos. A posição dele depois do primeiro som continua a mesma.
-
-collections
-00:01:20.000 --> 00:01:28.000
-TUDO EM ORDEM
-Crie uma coleção e arraste as figurinhas para ela. Você também pode reorganizar os cartões.
-
-favorites
-00:01:28.000 --> 00:01:36.000
-SEUS FAVORITOS
-Toque no coração para encontrar suas figurinhas favoritas rapidamente.
+00:00:30.000 --> 00:00:36.000
+SEU TRECHO
+Arraste a seleção para escolher seu trecho de áudio, até a partir dos cinco segundos do som original.
 
 export
-00:01:36.000 --> 00:01:44.000
-PRONTINHO
-Baixe um GIF animado sem som ou um vídeo MP4 com som.
+00:00:36.000 --> 00:00:40.000
+SALVE
+Salve sua animação em GIF ou baixe um vídeo MP4 com som.
 
-party
-00:01:44.000 --> 00:01:52.000
-MAIS!
-Os memes se misturam e saltam: uma reação para cada humor.
-
-signature
-00:01:52.000 --> 00:02:00.000
-ZAPSTICK
-Zapstick. Crie sua próxima reação.
+outro
+00:00:40.000 --> 00:00:44.000
+CRIE COM ZAPSTICK
+Um link do X, uma animação, seus sons: crie sua próxima figurinha no Zapstick.

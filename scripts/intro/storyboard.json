@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "duration": 120,
+  "version": 3,
+  "duration": 44,
   "fps": 30,
   "bpm": 120,
   "locales": [
@@ -9,385 +9,222 @@
     "pt-BR"
   ],
   "style": {
-    "format": "Full-frame kinetic film with four two-second shots per eight-second chapter. Large short words move as objects; no explanatory body copy and no slide panels.",
+    "format": "44-second full-frame kinetic film. 22 two-second shots, focused on importing X links, animated stickers and audio. No explanatory body copy burned into the image.",
     "palette": "Pale green, sky-blue, coral, yellow, black, white. Official logo and public meme assets only.",
-    "sound": "120 BPM original instrumental with synchronized impacts at cuts + 0.12 seconds."
+    "sound": "120 BPM original instrumental with synchronized impacts and two audible sticker demonstrations from the credited local home-page media."
   },
   "scenes": [
     {
-      "id": "hook",
+      "id": "link",
+      "art": 2,
       "start": 0,
       "end": 8,
-      "text": {
-        "fr": {
-          "title": "TES RÉACTIONS",
-          "body": "Des mèmes de chats et de chiens rebondissent et se retournent autour de la marque Zapstick."
-        },
-        "en": {
-          "title": "YOUR REACTIONS",
-          "body": "Cat and dog memes bounce and flip around the Zapstick mark."
-        },
-        "pt-BR": {
-          "title": "SUAS REAÇÕES",
-          "body": "Memes de gatos e cachorros saltam e giram ao redor da marca Zapstick."
-        }
-      },
+      "shots": [
+        0,
+        1,
+        2,
+        3
+      ],
       "cuts": [
         0,
         2,
         4,
         6
-      ]
-    },
-    {
-      "id": "import",
-      "start": 8,
-      "end": 16,
+      ],
       "text": {
         "fr": {
-          "title": "IMPORTE",
-          "body": "Choisis une photo, un GIF ou une vidéo. Le média apparaît dans l’aperçu."
+          "title": "UN LIEN X",
+          "body": "Colle un lien X public et récupère sa vidéo pour créer ton sticker."
         },
         "en": {
-          "title": "IMPORT",
-          "body": "Choose a photo, GIF or video. The media appears in the preview."
+          "title": "AN X LINK",
+          "body": "Paste a public X link and import its video to create your sticker."
         },
         "pt-BR": {
-          "title": "IMPORTE",
-          "body": "Escolha uma foto, um GIF ou um vídeo. O arquivo aparece na prévia."
+          "title": "UM LINK DO X",
+          "body": "Cole um link público do X e importe o vídeo para criar sua figurinha."
         }
-      },
+      }
+    },
+    {
+      "id": "animation",
+      "art": 6,
+      "start": 8,
+      "end": 16,
+      "shots": [
+        0,
+        1,
+        2,
+        3
+      ],
       "cuts": [
         8,
         10,
         12,
         14
-      ]
-    },
-    {
-      "id": "link",
-      "start": 16,
-      "end": 24,
+      ],
       "text": {
         "fr": {
-          "title": "UN LIEN",
-          "body": "Colle un lien public pour récupérer son média, puis commence à le personnaliser."
+          "title": "STICKER ANIMÉ",
+          "body": "Choisis le passage à garder avec les poignées et transforme-le en sticker animé en boucle."
         },
         "en": {
-          "title": "ONE LINK",
-          "body": "Paste a public link to import its media, then start customizing it."
+          "title": "ANIMATED STICKER",
+          "body": "Choose the moment with the trim handles and turn it into a looping animated sticker."
         },
         "pt-BR": {
-          "title": "UM LINK",
-          "body": "Cole um link público para importar o arquivo e começar a personalizá-lo."
+          "title": "FIGURINHA ANIMADA",
+          "body": "Escolha o trecho com as alças e transforme-o em uma figurinha animada em loop."
         }
-      },
-      "cuts": [
-        16,
-        18,
-        20,
-        22
-      ]
-    },
-    {
-      "id": "text",
-      "start": 24,
-      "end": 32,
-      "text": {
-        "fr": {
-          "title": "TES MOTS",
-          "body": "Ajoute tes mots, choisis leur style et déplace le texte directement sur l’aperçu."
-        },
-        "en": {
-          "title": "YOUR WORDS",
-          "body": "Add your words, choose their style and drag the text directly on the preview."
-        },
-        "pt-BR": {
-          "title": "SUAS PALAVRAS",
-          "body": "Adicione suas palavras, escolha o estilo e arraste o texto diretamente na prévia."
-        }
-      },
-      "cuts": [
-        24,
-        26,
-        28,
-        30
-      ]
-    },
-    {
-      "id": "emoji",
-      "start": 32,
-      "end": 40,
-      "text": {
-        "fr": {
-          "title": "RÉAGIS",
-          "body": "Choisis un émoji, déplace-le et ajuste sa taille sur le sticker animé."
-        },
-        "en": {
-          "title": "REACT",
-          "body": "Pick an emoji, move it and adjust its size on the animated sticker."
-        },
-        "pt-BR": {
-          "title": "REAJA",
-          "body": "Escolha um emoji, mova-o e ajuste seu tamanho na figurinha animada."
-        }
-      },
-      "cuts": [
-        32,
-        34,
-        36,
-        38
-      ]
-    },
-    {
-      "id": "background",
-      "start": 40,
-      "end": 48,
-      "text": {
-        "fr": {
-          "title": "SANS FOND",
-          "body": "Retire le fond du média, puis essaie les fonds colorés."
-        },
-        "en": {
-          "title": "NO BACKGROUND",
-          "body": "Remove the media background, then try colored backdrops."
-        },
-        "pt-BR": {
-          "title": "SEM FUNDO",
-          "body": "Remova o fundo do arquivo e experimente fundos coloridos."
-        }
-      },
-      "cuts": [
-        40,
-        42,
-        44,
-        46
-      ]
-    },
-    {
-      "id": "animation",
-      "start": 48,
-      "end": 56,
-      "text": {
-        "fr": {
-          "title": "LE MOMENT",
-          "body": "Déplace les poignées de la barre de montage pour choisir le moment à garder."
-        },
-        "en": {
-          "title": "THE MOMENT",
-          "body": "Move the timeline handles to choose the moment you want to keep."
-        },
-        "pt-BR": {
-          "title": "O MOMENTO",
-          "body": "Mova as alças da linha do tempo para escolher o momento que deseja manter."
-        }
-      },
-      "cuts": [
-        48,
-        50,
-        52,
-        54
-      ]
+      }
     },
     {
       "id": "original",
-      "start": 56,
-      "end": 64,
+      "art": 7,
+      "start": 16,
+      "end": 22,
+      "shots": [
+        0,
+        1,
+        2
+      ],
+      "cuts": [
+        16,
+        18,
+        20
+      ],
       "text": {
         "fr": {
           "title": "SON ORIGINAL",
-          "body": "Si la vidéo contient du son, son audio d’origine est sélectionné dès l’import."
+          "body": "Le son de la vidéo est sélectionné dès l’import. Écoute le chat taper au clavier."
         },
         "en": {
           "title": "ORIGINAL SOUND",
-          "body": "If the video contains sound, its original audio is selected on import."
+          "body": "The video’s sound is selected on import. Hear the cat typing on the keyboard."
         },
         "pt-BR": {
           "title": "SOM ORIGINAL",
-          "body": "Se o vídeo tiver som, o áudio original já vem selecionado ao importar."
+          "body": "O som do vídeo já vem selecionado ao importar. Ouça o gato digitando no teclado."
         }
-      },
-      "cuts": [
-        56,
-        58,
-        60,
-        62
-      ]
+      }
     },
     {
       "id": "second",
-      "start": 64,
-      "end": 72,
+      "art": 8,
+      "start": 22,
+      "end": 30,
+      "shots": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "cuts": [
+        22,
+        24,
+        26,
+        28
+      ],
       "text": {
         "fr": {
           "title": "DEUX SONS",
-          "body": "Le deuxième son se place après le premier. Quand tu raccourcis le premier, le second le suit."
+          "body": "Ajoute un son depuis un fichier, un lien ou le micro. La deuxième piste se place après la première."
         },
         "en": {
           "title": "TWO SOUNDS",
-          "body": "The second sound starts after the first. When you shorten the first, the second follows it."
+          "body": "Add audio from a file, a link or your microphone. The second track follows the first."
         },
         "pt-BR": {
           "title": "DOIS SONS",
-          "body": "O segundo som começa depois do primeiro. Ao encurtar o primeiro, o segundo acompanha a mudança."
+          "body": "Adicione um som de um arquivo, de um link ou do microfone. A segunda faixa vem depois da primeira."
         }
-      },
-      "cuts": [
-        64,
-        66,
-        68,
-        70
-      ]
+      }
     },
     {
       "id": "excerpt",
-      "start": 72,
-      "end": 80,
+      "art": 9,
+      "start": 30,
+      "end": 36,
+      "shots": [
+        0,
+        1,
+        2
+      ],
+      "cuts": [
+        30,
+        32,
+        34
+      ],
       "text": {
         "fr": {
-          "title": "À 5 S",
-          "body": "Prends le passage du deuxième son à partir de cinq secondes. Sa place après le premier son reste la même."
+          "title": "TON EXTRAIT",
+          "body": "Glisse la sélection pour choisir ton passage audio, même à cinq secondes dans le son d’origine."
         },
         "en": {
-          "title": "AT 5 S",
-          "body": "Choose the second sound’s excerpt starting at five seconds. Its position after the first sound stays the same."
+          "title": "YOUR EXCERPT",
+          "body": "Drag the selection to choose your audio excerpt, even five seconds into the source."
         },
         "pt-BR": {
-          "title": "AOS 5 S",
-          "body": "Escolha o trecho do segundo som a partir de cinco segundos. A posição dele depois do primeiro som continua a mesma."
+          "title": "SEU TRECHO",
+          "body": "Arraste a seleção para escolher seu trecho de áudio, até a partir dos cinco segundos do som original."
         }
-      },
-      "cuts": [
-        72,
-        74,
-        76,
-        78
-      ]
-    },
-    {
-      "id": "collections",
-      "start": 80,
-      "end": 88,
-      "text": {
-        "fr": {
-          "title": "BIEN RANGÉ",
-          "body": "Crée une collection et glisse tes stickers dedans. Tu peux aussi réorganiser les cartes."
-        },
-        "en": {
-          "title": "ALL SORTED",
-          "body": "Create a collection and drag stickers into it. You can also rearrange the cards."
-        },
-        "pt-BR": {
-          "title": "TUDO EM ORDEM",
-          "body": "Crie uma coleção e arraste as figurinhas para ela. Você também pode reorganizar os cartões."
-        }
-      },
-      "cuts": [
-        80,
-        82,
-        84,
-        86
-      ]
-    },
-    {
-      "id": "favorites",
-      "start": 88,
-      "end": 96,
-      "text": {
-        "fr": {
-          "title": "TES FAVORIS",
-          "body": "Touche le cœur pour retrouver rapidement tes stickers favoris."
-        },
-        "en": {
-          "title": "YOUR FAVORITES",
-          "body": "Tap the heart to find your favorite stickers quickly."
-        },
-        "pt-BR": {
-          "title": "SEUS FAVORITOS",
-          "body": "Toque no coração para encontrar suas figurinhas favoritas rapidamente."
-        }
-      },
-      "cuts": [
-        88,
-        90,
-        92,
-        94
-      ]
+      }
     },
     {
       "id": "export",
-      "start": 96,
-      "end": 104,
+      "art": 12,
+      "start": 36,
+      "end": 40,
+      "shots": [
+        1,
+        2
+      ],
+      "cuts": [
+        36,
+        38
+      ],
       "text": {
         "fr": {
-          "title": "C’EST PRÊT",
-          "body": "Télécharge un GIF animé sans son, ou une vidéo MP4 avec son."
+          "title": "ENREGISTRE",
+          "body": "Enregistre ton animation en GIF ou télécharge une vidéo MP4 avec le son."
         },
         "en": {
-          "title": "READY TO GO",
-          "body": "Download an animated GIF without sound, or an MP4 video with sound."
+          "title": "SAVE IT",
+          "body": "Save your animation as a GIF or download an MP4 video with audio."
         },
         "pt-BR": {
-          "title": "PRONTINHO",
-          "body": "Baixe um GIF animado sem som ou um vídeo MP4 com som."
+          "title": "SALVE",
+          "body": "Salve sua animação em GIF ou baixe um vídeo MP4 com som."
         }
-      },
-      "cuts": [
-        96,
-        98,
-        100,
-        102
-      ]
+      }
     },
     {
-      "id": "party",
-      "start": 104,
-      "end": 112,
+      "id": "outro",
+      "art": 14,
+      "start": 40,
+      "end": 44,
+      "shots": [
+        2,
+        3
+      ],
+      "cuts": [
+        40,
+        42
+      ],
       "text": {
         "fr": {
-          "title": "ENCORE !",
-          "body": "Les mèmes se mélangent et rebondissent : à chaque humeur sa réaction."
+          "title": "CRÉE AVEC ZAPSTICK",
+          "body": "Un lien X, une animation, tes sons : crée ton prochain sticker sur Zapstick."
         },
         "en": {
-          "title": "AGAIN!",
-          "body": "The memes mix and bounce: a reaction for every mood."
+          "title": "CREATE WITH ZAPSTICK",
+          "body": "An X link, an animation, your sounds: create your next sticker on Zapstick."
         },
         "pt-BR": {
-          "title": "MAIS!",
-          "body": "Os memes se misturam e saltam: uma reação para cada humor."
+          "title": "CRIE COM ZAPSTICK",
+          "body": "Um link do X, uma animação, seus sons: crie sua próxima figurinha no Zapstick."
         }
-      },
-      "cuts": [
-        104,
-        106,
-        108,
-        110
-      ]
-    },
-    {
-      "id": "signature",
-      "start": 112,
-      "end": 120,
-      "text": {
-        "fr": {
-          "title": "ZAPSTICK",
-          "body": "Zapstick. À toi de créer ta prochaine réaction."
-        },
-        "en": {
-          "title": "ZAPSTICK",
-          "body": "Zapstick. Create your next reaction."
-        },
-        "pt-BR": {
-          "title": "ZAPSTICK",
-          "body": "Zapstick. Crie sua próxima reação."
-        }
-      },
-      "cuts": [
-        112,
-        114,
-        116,
-        118
-      ]
+      }
     }
   ]
 }

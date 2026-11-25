@@ -1,66 +1,54 @@
-# Zapstick presentation film — V2
+# Zapstick presentation film — V3
 
-Three localized, two-minute films are served from `public/videos/`, with matching
-JPEG posters and optional WebVTT tracks:
+Three localized 44-second films live in `public/videos/`, with matching JPEG
+posters and optional WebVTT captions. They use French, English and Brazilian
+Portuguese. Every pose is calculated from its timestamp, so stills, previews and
+final exports share the same animation.
 
-- `zapstick-intro-fr.mp4`
-- `zapstick-intro-en.mp4`
-- `zapstick-intro-pt-br.mp4`
+The 22 two-second shots focus on the core workflow:
 
-The 120-second storyboard contains fifteen eight-second chapters, each split
-into four two-second camera shots. The film fills the frame with animated local
-memes, physical-looking cards, short kinetic words, projected perspective,
-springs, camera moves and gesture close-ups. No static explanatory column or
-body copy is burned into the image. The official Zapstick mark is reused.
+- 0–8 s: paste an X link and import its video.
+- 8–16 s: trim the moment and make a looping animated sticker.
+- 16–22 s: keep the video's original sound; hear the typing demo.
+- 22–30 s: add a second sound from a file, link or microphone and place it after the first.
+- 30–36 s: choose the source audio excerpt by dragging its selection.
+- 36–40 s: export the animation or a video with audio.
+- 40–44 s: Zapstick signature and create call to action.
 
-Every pose is calculated from its timestamp, rather than accumulated between
-frames. The preview, stills, scrubbing and final render therefore use the exact
-same animation. Only public local assets and illustrative UI objects appear;
-there is no recording of a private collection, account or messaging app.
+Full-frame motion, camera moves, spring animation and short kinetic words are
+retained. There is no explanatory column or body text burned into the image.
+Only public local media and illustrative editor objects appear, never a private
+collection or messaging account.
 
 ## Rebuild
 
-Use the project's installed Node dependencies and a local FFmpeg executable.
+Use installed Node dependencies and local FFmpeg:
 
 ```sh
 python3 scripts/intro/music.py
-node scripts/intro/render.mjs --audio /tmp/zapstick-intro-v2-music.wav
+node scripts/intro/render.mjs --audio /tmp/zapstick-intro-v3-music.wav
 node scripts/intro/create-captions.mjs
 ```
 
-To render only one language, add `--locale fr`, `--locale en`, or `--locale pt-BR`.
-
-## Check the rhythm before a full render
+Add `--locale fr`, `--locale en` or `--locale pt-BR` for one edition.
+`node scripts/intro/render.mjs --stills` exports one representative frame per
+shot and refreshes the public posters. Preview files stay in ignored
+`outputs/intro-v3/`; the first 16 seconds can be rendered with:
 
 ```sh
 python3 scripts/intro/music.py --preview
-node scripts/intro/render.mjs --locale fr --preview --audio /tmp/zapstick-intro-v2-preview.wav
-node scripts/intro/render.mjs --locale fr --preview --stills
+node scripts/intro/render.mjs --locale fr --preview --audio /tmp/zapstick-intro-v3-preview.wav
 ```
 
-This writes a real 16-second MP4 and eight representative shot images into the
-ignored `outputs/intro-v2/` directory. It does not replace the public full films.
-Other sections can be inspected without rendering the whole film:
+A later section can be inspected with `--from 22 --duration 8` and the full score.
+The renderer rejects a storyboard longer than 45 seconds.
 
-```sh
-node scripts/intro/render.mjs --locale fr --from 64 --duration 16
-node scripts/intro/render.mjs --stills
-```
+## Delivery
 
-The latter command writes one image per two-second shot for all three languages,
-and refreshes the public posters. There are 60 shots per language.
-
-## Delivery profile
-
-Each complete MP4 contains 3,600 frames at 30 fps, 1280 × 720, H.264 in explicit
-limited-range BT.709 `yuv420p`, AAC stereo music and a front-loaded MP4 index
-(`faststart`). Video targets 650 kbit/s, with an 850 kbit/s ceiling and 80 kbit/s
-audio, aiming below 12 MB for two minutes.
-
-The original soundtrack is 120 BPM, with image cuts every two seconds, impacts
-at each cut plus 0.12 seconds, larger chapter accents, synthesized pop percussion,
-whooshes, plops and typing. No sampled music, voice-over or downloaded recording
-is used. Its reproducible score is in `music.py`.
-
-Existing meme sources and individual-media credits remain in
-`public/memes/SOURCES.txt`; public film credits are in `public/videos/CREDITS.txt`.
+Each MP4 contains 1,320 frames at 30 fps, 1280 × 720, H.264 limited-range BT.709
+`yuv420p`, AAC stereo and a front-loaded MP4 index (`faststart`). Video targets
+650 kbit/s, with an 850 kbit/s ceiling and 80 kbit/s audio (about 4 MB per film).
+The original score is 120 BPM, with impacts on cuts and a resolved ending.
+Music briefly ducks under two existing home-page sticker sounds so the audio
+feature can be heard. Credits and sound licenses are in `public/videos/CREDITS.txt`
+and `public/memes/SOURCES.txt`. No new remote media or synthetic voice is used.

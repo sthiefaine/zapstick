@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Zapstick V2: original, rhythm-led score and synthetic film sound design.
+"""Zapstick V3: original, rhythm-led score and synthetic film sound design.
 
-python3 scripts/intro/music.py --preview  # first 16s, /tmp/zapstick-intro-v2-preview.wav
-python3 scripts/intro/music.py            # /tmp/zapstick-intro-v2-music.wav, exactly120s
+python3 scripts/intro/music.py --preview  # first 16s, /tmp/zapstick-intro-v3-preview.wav
+python3 scripts/intro/music.py            # /tmp/zapstick-intro-v3-music.wav, exactly44s
 python3 scripts/intro/music.py /absolute/output.wav
 
-Stdlib synthesis + installed ffmpeg. No recordings, downloads, samples or voices.
-120 BPM; 15 eight-second chapters; image cuts every2s, impacts at cut +0.12s.
+Stdlib synthesis + installed ffmpeg. No new downloads, sampled music or generated voices.
+120 BPM; 44 seconds; image cuts every2s, impacts at cut +0.12s.
+Two short audio demos reuse the credited home-page media.
 Original D-major-pentatonic phrases, bouncing bass, short chord stabs, drums,
 whooshes, typing and plops. Measured two-pass target -17LUFS, -1.8dBTP ceiling.
 """
@@ -24,12 +25,14 @@ import tempfile
 import wave
 
 RATE = 44100
-DURATION = 120
+ROOT = Path(__file__).resolve().parents[2]
+STORYBOARD = json.loads((ROOT / 'scripts/intro/storyboard.json').read_text())
+DURATION = STORYBOARD['duration']
 BEAT = .5
 BAR = 2
 TAU = math.tau
 SEED = 0x5A70572C
-MAJOR_CUTS = (0, 8, 24, 40, 64, 80, 96, 112)
+MAJOR_CUTS = tuple(scene['start'] for scene in STORYBOARD['scenes'])
 
 
 def hz(midi: int) -> float:
@@ -156,21 +159,20 @@ def compose(duration: int) -> tuple[array.array, array.array]:
         [(0, 81), (.75, 78), (1.5, 76), (2.5, 74)],
     ]
     # Import, tools, audio montage and outro each have a different rhythmic space.
-    light_sections = (3, 6, 7, 9)
     for bar in range(math.ceil(duration / BAR)):
         at = bar * BAR
         section = bar // 4
         within = bar % 4
         root, pitches = chords[within]
-        if section == 14:
+        if at >= DURATION - 4:
             root, pitches = chords[0]
-        light = section in light_sections
+        light = 16 <= at < 20 or 26 <= at < 30
         # Short vacuum before a chapter lands; constant ticking is avoided.
         drop_last = within == 3 and section not in (0, 5, 8, 13)
         beats = (0, 1.5, 2.5, 3.25) if within % 2 == 0 else (0, .75, 2, 3.5)
         if light:
             beats = (0, 2.5)
-        if at >= 118:
+        if at >= DURATION - 2:
             beats = (0,)
         for j, beat in enumerate(beats):
             if drop_last and beat >= 3:
@@ -179,9 +181,9 @@ def compose(duration: int) -> tuple[array.array, array.array]:
                  .104 if not light else .072, -.035, 'bass')
         # Kicks and handclaps make the film move; hats breathe with each section.
         for beat in ((0, 2) if not light else (0,)):
-            if at + beat * BEAT < 118.6:
+            if at + beat * BEAT < DURATION - 1.4:
                 hit(at + beat * BEAT, .135 if not light else .09)
-        if not light and at < 118:
+        if not light and at < DURATION - 2:
             for beat in (1, 3):
                 if not (drop_last and beat == 3):
                     hit(at + beat * BEAT, .052, 'clap', -.07)
@@ -191,7 +193,7 @@ def compose(duration: int) -> tuple[array.array, array.array]:
                         .017 if j % 2 else .013, 'hat', .25)
         # Upbeat chord stabs, a different response from the melodic line.
         for beat in ((.5, 2.5) if light else (.5, 1.75, 2.5, 3.5)):
-            if (drop_last and beat >= 3) or at + beat * BEAT > 118.6:
+            if (drop_last and beat >= 3) or at + beat * BEAT > DURATION - 1.4:
                 continue
             for p, pitch in enumerate(pitches[:3]):
                 note(at + beat * BEAT, pitch + (12 if section in (4, 10, 13) else 0),
@@ -199,10 +201,10 @@ def compose(duration: int) -> tuple[array.array, array.array]:
         phrase = response_phrases[within] if section % 3 == 1 else lead_phrases[within]
         if section in (3, 7, 9):
             phrase = phrase[::2]
-        if section == 14 and within >= 2:
+        if at >= DURATION - 4:
             phrase = [(0, 81), (.75, 78), (1.5, 76), (2.5, 74)]
         for j, (beat, pitch) in enumerate(phrase):
-            if (drop_last and beat >= 3) or at + beat * BEAT > 118.9:
+            if (drop_last and beat >= 3) or at + beat * BEAT > DURATION - 1.1:
                 continue
             velocity = .057 * rng.uniform(.86, 1.07)
             if light:
@@ -213,7 +215,7 @@ def compose(duration: int) -> tuple[array.array, array.array]:
     # Every image cut has a short sonic articulation; major scene turns hit harder.
     for cut in range(0, duration, 2):
         major = cut in MAJOR_CUTS
-        chapter = cut % 8 == 0
+        chapter = cut in MAJOR_CUTS
         if cut:
             whoosh(cut - (.23 if major else .11), .35 if major else .2,
                    .07 if major else .027, -.3 if cut % 4 else .3, major)
@@ -227,21 +229,21 @@ def compose(duration: int) -> tuple[array.array, array.array]:
         else:
             hit(cut + .12, .018 if cut % 4 else .027, 'cut', -.18 if cut % 4 else .18)
     # Gestures: writing, emoji placement, cropping/dragging and saving.
-    for start in (8.5, 10.5, 24.5, 26.5, 28.5, 30.5, 72.5, 74.5):
-        for j in range(5 if start < 32 else 3):
+    for start in (2.5, 4.5, 22.5, 24.5):
+        for j in range(4):
             hit(start + j * .0625, .029 * rng.uniform(.7, 1), 'type', (j % 3 - 1) * .22)
-    for start in (32.5, 34.25, 36.5, 38.75, 88.5, 90.5, 92.5, 94.5):
+    for start in (6.5, 14.5, 20.5, 28.5, 40.5):
         hit(start, .059, 'plop', -.3 if start % 2 else .3)
         note(start + .055, 83 if start < 40 else 81, .15, .025, .25, 'spark')
-    for start in (16.7, 20.7, 40.5, 44.5, 48.5, 52.5, 66.5, 70.5, 80.6, 82.6, 84.6, 86.6):
+    for start in (2.7, 8.5, 10.5, 24.5, 30.5, 32.5, 36.5, 38.5):
         whoosh(start, .22, .045, -.4 if int(start) % 4 else .4)
     # Rises are brief, crescendoing fills, never a prolonged cinematic drone.
-    for start in (7, 23, 39, 63, 79, 95, 111):
+    for start in (7, 15, 21, 29, 35, 39):
         whoosh(start + .15, .93, .072, 0, True)
         for j, pitch in enumerate((74, 76, 78, 81, 83, 86)):
             note(start + .25 + j * .125, pitch, .15, .018 + j * .003, (j - 2.5) * .12, 'spark')
     # The export succeeds and the signature resolves, with a recognisable cadence.
-    for start in (98.12, 118.12):
+    for start in (38.12, DURATION - 1.88):
         hit(start, .14, 'impact')
         for j, pitch in enumerate((62, 66, 69, 74, 78)):
             note(start + j * .035, pitch, .9, .036, (j - 2) * .15, 'lead')
@@ -251,10 +253,36 @@ def compose(duration: int) -> tuple[array.array, array.array]:
         old_left, old_right = left[i - delay], right[i - delay]
         left[i] += old_right * .075
         right[i] += old_left * .075
+    # Duck the music around two real sticker sounds so the audio feature is heard.
+    demos = ((16.3, 'working-cat.mp4', 2.85), (26.15, 'side-eye-dog.mp4', 3.6))
+    for at, filename, length in demos:
+        if at >= duration:
+            continue
+        # Smoothly lower only the music; the source demonstration stays clear.
+        begin, end = max(0, round((at - .12) * RATE)), min(frames, round((at + length + .16) * RATE))
+        for i in range(begin, end):
+            t = i / RATE
+            envelope = min(1, max(0, (t - at + .12) / .12), max(0, (at + length + .16 - t) / .16))
+            gain = 1 - .82 * envelope
+            left[i] *= gain
+            right[i] *= gain
+        raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', str(ROOT / 'public/memes/sound' / filename),
+                              '-vn', '-t', str(length), '-af', 'loudnorm=I=-17:TP=-2:LRA=7',
+                              '-ar', str(RATE), '-ac', '2', '-f', 's16le', 'pipe:1'],
+                             capture_output=True, check=True).stdout
+        samples = array.array('h', raw)
+        if sys.byteorder != 'little':
+            samples.byteswap()
+        start = round(at * RATE)
+        count = min(len(samples) // 2, frames - start)
+        for i in range(count):
+            fade = min(1, i / (.015 * RATE), (count - 1 - i) / (.06 * RATE))
+            left[start + i] += samples[i * 2] / 32768 * .85 * fade
+            right[start + i] += samples[i * 2 + 1] / 32768 * .85 * fade
     for i in range(frames):
         t = i / RATE
         # Eight-millisecond startup avoids clicks while keeping the opening punch.
-        fade = min(1, t / .008, max(0, (duration - t) / (.7 if duration ==120 else .12)))
+        fade = min(1, t / .008, max(0, (duration - t) / (.7 if duration ==DURATION else .12)))
         left[i] *= fade
         right[i] *= fade
     return left, right
@@ -278,12 +306,12 @@ def main() -> None:
     preview = '--preview' in sys.argv
     duration = 16 if preview else DURATION
     paths = [arg for arg in sys.argv[1:] if arg != '--preview']
-    output = Path(paths[0] if paths else f'/tmp/zapstick-intro-v2-{"preview" if preview else "music"}.wav')
+    output = Path(paths[0] if paths else f'/tmp/zapstick-intro-v3-{"preview" if preview else "music"}.wav')
     output.parent.mkdir(parents=True, exist_ok=True)
     if not shutil.which('ffmpeg'):
         raise SystemExit('ffmpeg is required for measured two-pass loudness normalization.')
-    print(f'Rendering Zapstick V2: {duration}s,120 BPM, cuts2s, energetic original score + synthetic gestures.', flush=True)
-    with tempfile.TemporaryDirectory(prefix='zapstick-score-v2-') as temporary:
+    print(f'Rendering Zapstick V3: {duration}s,120 BPM, cuts2s, energetic original score + synthetic gestures.', flush=True)
+    with tempfile.TemporaryDirectory(prefix='zapstick-score-v3-') as temporary:
         raw = Path(temporary) / 'score-raw.wav'
         left, right = compose(duration)
         peak = max(max(map(abs, left)), max(map(abs, right)))

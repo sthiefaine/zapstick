@@ -1,77 +1,37 @@
 WEBVTT
 
-hook
-00:00:00.000 --> 00:00:08.000
-[Musique rythmée et impacts]
-TES RÉACTIONS
-Des mèmes de chats et de chiens rebondissent et se retournent autour de la marque Zapstick.
-
-import
-00:00:08.000 --> 00:00:16.000
-IMPORTE
-Choisis une photo, un GIF ou une vidéo. Le média apparaît dans l’aperçu.
-
 link
-00:00:16.000 --> 00:00:24.000
-UN LIEN
-Colle un lien public pour récupérer son média, puis commence à le personnaliser.
-
-text
-00:00:24.000 --> 00:00:32.000
-TES MOTS
-Ajoute tes mots, choisis leur style et déplace le texte directement sur l’aperçu.
-
-emoji
-00:00:32.000 --> 00:00:40.000
-RÉAGIS
-Choisis un émoji, déplace-le et ajuste sa taille sur le sticker animé.
-
-background
-00:00:40.000 --> 00:00:48.000
-SANS FOND
-Retire le fond du média, puis essaie les fonds colorés.
+00:00:00.000 --> 00:00:08.000
+[Musique rythmée, impacts et exemples sonores]
+UN LIEN X
+Colle un lien X public et récupère sa vidéo pour créer ton sticker.
 
 animation
-00:00:48.000 --> 00:00:56.000
-LE MOMENT
-Déplace les poignées de la barre de montage pour choisir le moment à garder.
+00:00:08.000 --> 00:00:16.000
+STICKER ANIMÉ
+Choisis le passage à garder avec les poignées et transforme-le en sticker animé en boucle.
 
 original
-00:00:56.000 --> 00:01:04.000
+00:00:16.000 --> 00:00:22.000
 SON ORIGINAL
-Si la vidéo contient du son, son audio d’origine est sélectionné dès l’import.
+Le son de la vidéo est sélectionné dès l’import. Écoute le chat taper au clavier.
 
 second
-00:01:04.000 --> 00:01:12.000
+00:00:22.000 --> 00:00:30.000
 DEUX SONS
-Le deuxième son se place après le premier. Quand tu raccourcis le premier, le second le suit.
+Ajoute un son depuis un fichier, un lien ou le micro. La deuxième piste se place après la première.
 
 excerpt
-00:01:12.000 --> 00:01:20.000
-À 5 S
-Prends le passage du deuxième son à partir de cinq secondes. Sa place après le premier son reste la même.
-
-collections
-00:01:20.000 --> 00:01:28.000
-BIEN RANGÉ
-Crée une collection et glisse tes stickers dedans. Tu peux aussi réorganiser les cartes.
-
-favorites
-00:01:28.000 --> 00:01:36.000
-TES FAVORIS
-Touche le cœur pour retrouver rapidement tes stickers favoris.
+00:00:30.000 --> 00:00:36.000
+TON EXTRAIT
+Glisse la sélection pour choisir ton passage audio, même à cinq secondes dans le son d’origine.
 
 export
-00:01:36.000 --> 00:01:44.000
-C’EST PRÊT
-Télécharge un GIF animé sans son, ou une vidéo MP4 avec son.
+00:00:36.000 --> 00:00:40.000
+ENREGISTRE
+Enregistre ton animation en GIF ou télécharge une vidéo MP4 avec le son.
 
-party
-00:01:44.000 --> 00:01:52.000
-ENCORE !
-Les mèmes se mélangent et rebondissent : à chaque humeur sa réaction.
-
-signature
-00:01:52.000 --> 00:02:00.000
-ZAPSTICK
-Zapstick. À toi de créer ta prochaine réaction.
+outro
+00:00:40.000 --> 00:00:44.000
+CRÉE AVEC ZAPSTICK
+Un lien X, une animation, tes sons : crée ton prochain sticker sur Zapstick.

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-/** Deterministic 120-second Zapstick film. SVG scenes → Sharp JPEG frames → H.264.
+/** Deterministic 44-second Zapstick film. SVG scenes → Sharp JPEG frames → H.264.
  * No browser capture, remote request, private collection or generated voice.
- * Run: node scripts/intro/render.mjs --audio /tmp/zapstick-intro-music.wav
+ * Run: node scripts/intro/render.mjs --audio /tmp/zapstick-intro-v3-music.wav
  * Inspect representative frames: node scripts/intro/render.mjs --stills
  */
 import fs from 'node:fs/promises';
@@ -13,12 +13,12 @@ import sharp from 'sharp';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const args=process.argv.slice(2),option=(name,fallback)=>{const at=args.indexOf(name);return at<0?fallback:args[at+1];};
-const W=1280,H=720,FPS=Number(option('--fps','30')),AUDIO=option('--audio','/tmp/zapstick-intro-v2-music.wav');
+const W=1280,H=720,FPS=Number(option('--fps','30')),AUDIO=option('--audio','/tmp/zapstick-intro-v3-music.wav');
 const storyboard=JSON.parse(await fs.readFile(path.join(ROOT,'scripts/intro/storyboard.json'),'utf8'));
-if(storyboard.duration!==120||storyboard.scenes[0].start!==0||storyboard.scenes.at(-1).end!==120||storyboard.scenes.some((s,i)=>s.end<=s.start||(i&&s.start!==storyboard.scenes[i-1].end)))throw new Error('Storyboard must be contiguous and exactly 120 seconds.');
+if(storyboard.duration>45||storyboard.duration<=0||storyboard.scenes[0].start!==0||storyboard.scenes.at(-1).end!==storyboard.duration||storyboard.scenes.some((s,i)=>s.end-s.start!==s.shots.length*2||s.cuts.some((cut,n)=>cut!==s.start+n*2)||(i&&s.start!==storyboard.scenes[i-1].end)))throw new Error('Storyboard must be contiguous, use two-second shots and last at most 45 seconds.');
 const requested=option('--locale','all'),locales=requested==='all'?storyboard.locales:[requested];
 if(locales.some(locale=>!storyboard.locales.includes(locale)))throw new Error('Unknown locale.');
-const OUT=path.join(ROOT,'public/videos'),QA=path.join(ROOT,'outputs/intro-v2');
+const OUT=path.join(ROOT,'public/videos'),QA=path.join(ROOT,'outputs/intro-v3');
 await fs.mkdir(OUT,{recursive:true});await fs.mkdir(QA,{recursive:true});
 const C={green:'#BFE8B0',blue:'#B8DBFF',coral:'#FFB59D',yellow:'#FFE58F',black:'#171717',white:'#FAFAFA',gray:'#D9D9D9'};
 const ACCENTS=[C.green,C.blue,C.coral,C.yellow];
@@ -85,14 +85,14 @@ function clipBlock(x,y,w,color,label,t,cam,extra={}){return place(rr(-w/2,-42,w,
 function folder(label,color,pose,cam){return place(`<path d="M-200-95v-35q0-20 20-20h100l35 35h220q25 0 25 25V120q0 25-25 25h-350q-25 0-25-25Z" fill="${color}" stroke="${C.black}" stroke-width="5"/>`+txt(0,43,label,58,C.black,900,'middle'),{w:400,h:280,...pose},cam);}
 function heart(x,y,s=1,color=C.coral){return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 42C-135-40-69-131 0-62C69-131 135-40 0 42Z" fill="${color}" stroke="${C.black}" stroke-width="6" stroke-linejoin="round"/></g>`;}
 function cutout(t,pose,cam){const id=`cut-${seq++}`,w=pose.w??430,h=w*.75;const p=`M94 6 101 14 110 13 116 7 120 18 125 27 123 36Q147 46 145 73L139 86Q120 99 97 86L88 66 71 51 70 43 82 44 89 40 86 28 90 21Z`;return place(`<defs><clipPath id="${id}"><path transform="translate(${-w/2} ${-h/2}) scale(${w/160} ${h/120})" d="${p}"/></clipPath></defs><image href="${source('working-cat',t)}" x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" clip-path="url(#${id})"/>`,{...pose,w,h},cam);}
-function ruler(y,{join=3,shift=0,labels=true,head=0}={},cam){const w=940,x=-470,first=w*join/6,second=w*.5;let out=place(rr(x,-60,w,120,22,C.white,C.black,4),{x:0,y,w,h:120},cam);out+=clipBlock(x+first/2,y,first,C.blue,'1',head,cam);out+=clipBlock(x+first+second/2,y+shift,Math.min(second,w-first),C.coral,'2',head+.3,cam);if(labels)out+=place(txt(x,117,'0',52)+txt(x+first,117,`${join} s`,52,C.black,900,'middle')+txt(470,117,'6 s',52,C.black,900,'end'),{y,w,h:240},cam);return out;}
+function ruler(y,{join=3,shift=0,labels=true,head=0}={},cam){const w=940,x=-470,first=w*join/6,second=w*.5;let out=place(rr(x,-60,w,120,22,C.white,C.black,4),{x:0,y,w,h:120},cam);out+=clipBlock(x+first/2,y,first,C.blue,'1',head,cam);out+=clipBlock(x+first+second/2,y+shift,Math.min(second,w-first),C.coral,'2',head+.3,cam);if(labels)out+=place(txt(x,117,'0',52)+txt(x+first,117,`${Math.round(join*10)/10} s`,52,C.black,900,'middle')+txt(470,117,'6 s',52,C.black,900,'end'),{y,w,h:240},cam);return out;}
 const WORDS={
- fr:{react:'TES RÉACTIONS',big:'EN GRAND',go:'ÇA PART !',import:'IMPORTE',photo:'PHOTO',gif:'GIF',video:'VIDÉO',moves:'ÇA BOUGE',yours:'À TOI',link:'UN LIEN',paste:'COLLE',pop:'ET HOP !',words:'TES MOTS',type:'ÉCRIS',drag:'GLISSE',style:'TON STYLE',caption:'AU BOULOT !',emoji:'RÉAGIS',bam:'BOUM !',more:'ENCORE !',background:'SANS FOND',color:'EN COULEUR',moment:'LE MOMENT',cut:'COUPE',loop:'EN BOUCLE',original:'SON ORIGINAL',ready:'DÉJÀ LÀ',second:'DEUX SONS',after:'À LA SUITE',follow:'ÇA SUIT',excerpt:'À 5 S',same:'MÊME PLACE',listen:'ÉCOUTE',sorted:'BIEN RANGÉ',reactions:'RÉACTIONS',animals:'ANIMAUX',favorites:'TES FAVORIS',keep:'GARDE-LE',export:'C’EST PRÊT',sound:'MP4 + SON',create:'CRÉE',yes:'OUI !',no:'NON !'},
- en:{react:'YOUR REACTIONS',big:'GO BIG',go:'LET’S GO!',import:'IMPORT',photo:'PHOTO',gif:'GIF',video:'VIDEO',moves:'IT MOVES',yours:'YOUR TURN',link:'ONE LINK',paste:'PASTE',pop:'THERE IT IS!',words:'YOUR WORDS',type:'TYPE',drag:'DRAG',style:'YOUR STYLE',caption:'BACK TO WORK!',emoji:'REACT',bam:'BOOM!',more:'AGAIN!',background:'NO BACKGROUND',color:'ADD COLOR',moment:'THE MOMENT',cut:'TRIM',loop:'ON REPEAT',original:'ORIGINAL SOUND',ready:'ALREADY HERE',second:'TWO SOUNDS',after:'IN SEQUENCE',follow:'IT FOLLOWS',excerpt:'AT 5 S',same:'SAME PLACE',listen:'LISTEN',sorted:'ALL SORTED',reactions:'REACTIONS',animals:'ANIMALS',favorites:'YOUR FAVORITES',keep:'KEEP IT',export:'READY TO GO',sound:'MP4 + SOUND',create:'CREATE',yes:'YES!',no:'NO!'},
- 'pt-BR':{react:'SUAS REAÇÕES',big:'EM GRANDE',go:'BORA!',import:'IMPORTE',photo:'FOTO',gif:'GIF',video:'VÍDEO',moves:'TEM MOVIMENTO',yours:'SUA VEZ',link:'UM LINK',paste:'COLE',pop:'PRONTINHO!',words:'SUAS PALAVRAS',type:'ESCREVA',drag:'ARRASTE',style:'SEU ESTILO',caption:'BORA TRABALHAR!',emoji:'REAJA',bam:'BUM!',more:'MAIS!',background:'SEM FUNDO',color:'COM COR',moment:'O MOMENTO',cut:'CORTE',loop:'EM LOOP',original:'SOM ORIGINAL',ready:'JÁ ESTÁ AQUI',second:'DOIS SONS',after:'EM SEQUÊNCIA',follow:'ELE ACOMPANHA',excerpt:'AOS 5 S',same:'MESMA POSIÇÃO',listen:'OUÇA',sorted:'TUDO EM ORDEM',reactions:'REAÇÕES',animals:'ANIMAIS',favorites:'SEUS FAVORITOS',keep:'GUARDE',export:'PRONTINHO',sound:'MP4 + SOM',create:'CRIE',yes:'SIM!',no:'NÃO!'}
+ fr:{react:'TES RÉACTIONS',big:'EN GRAND',go:'ÇA PART !',import:'IMPORTE',photo:'PHOTO',gif:'GIF',video:'VIDÉO',moves:'ÇA BOUGE',yours:'À TOI',link:'UN LIEN X',paste:'COLLE',fetch:'RÉCUPÈRE',file:'FICHIER',audioLink:'LIEN',mic:'MICRO',pop:'ET HOP !',words:'TES MOTS',type:'ÉCRIS',drag:'GLISSE',style:'TON STYLE',caption:'AU BOULOT !',emoji:'RÉAGIS',bam:'BOUM !',more:'ENCORE !',background:'SANS FOND',color:'EN COULEUR',moment:'STICKER ANIMÉ',cut:'COUPE',loop:'EN BOUCLE',original:'SON ORIGINAL',ready:'DÉJÀ LÀ',second:'DEUX SONS',after:'À LA SUITE',follow:'ÇA SUIT',excerpt:'À 5 S',same:'MÊME PLACE',listen:'ÉCOUTE',sorted:'BIEN RANGÉ',reactions:'RÉACTIONS',animals:'ANIMAUX',favorites:'TES FAVORIS',keep:'GARDE-LE',export:'C’EST PRÊT',sound:'MP4 + SON',create:'CRÉE',yes:'OUI !',no:'NON !'},
+ en:{react:'YOUR REACTIONS',big:'GO BIG',go:'LET’S GO!',import:'IMPORT',photo:'PHOTO',gif:'GIF',video:'VIDEO',moves:'IT MOVES',yours:'YOUR TURN',link:'AN X LINK',paste:'PASTE',fetch:'IMPORT',file:'FILE',audioLink:'LINK',mic:'MIC',pop:'THERE IT IS!',words:'YOUR WORDS',type:'TYPE',drag:'DRAG',style:'YOUR STYLE',caption:'BACK TO WORK!',emoji:'REACT',bam:'BOOM!',more:'AGAIN!',background:'NO BACKGROUND',color:'ADD COLOR',moment:'ANIMATED STICKER',cut:'TRIM',loop:'ON REPEAT',original:'ORIGINAL SOUND',ready:'ALREADY HERE',second:'TWO SOUNDS',after:'IN SEQUENCE',follow:'IT FOLLOWS',excerpt:'AT 5 S',same:'SAME PLACE',listen:'LISTEN',sorted:'ALL SORTED',reactions:'REACTIONS',animals:'ANIMALS',favorites:'YOUR FAVORITES',keep:'KEEP IT',export:'READY TO GO',sound:'MP4 + SOUND',create:'CREATE',yes:'YES!',no:'NO!'},
+ 'pt-BR':{react:'SUAS REAÇÕES',big:'EM GRANDE',go:'BORA!',import:'IMPORTE',photo:'FOTO',gif:'GIF',video:'VÍDEO',moves:'TEM MOVIMENTO',yours:'SUA VEZ',link:'UM LINK DO X',paste:'COLE',fetch:'IMPORTE',file:'ARQUIVO',audioLink:'LINK',mic:'MICROFONE',pop:'PRONTINHO!',words:'SUAS PALAVRAS',type:'ESCREVA',drag:'ARRASTE',style:'SEU ESTILO',caption:'BORA TRABALHAR!',emoji:'REAJA',bam:'BUM!',more:'MAIS!',background:'SEM FUNDO',color:'COM COR',moment:'FIGURINHA ANIMADA',cut:'CORTE',loop:'EM LOOP',original:'SOM ORIGINAL',ready:'JÁ ESTÁ AQUI',second:'DOIS SONS',after:'EM SEQUÊNCIA',follow:'ELE ACOMPANHA',excerpt:'AOS 5 S',same:'MESMA POSIÇÃO',listen:'OUÇA',sorted:'TUDO EM ORDEM',reactions:'REAÇÕES',animals:'ANIMAIS',favorites:'SEUS FAVORITOS',keep:'GUARDE',export:'PRONTINHO',sound:'MP4 + SOM',create:'CRIE',yes:'SIM!',no:'NÃO!'}
 };
 function kineticArt(t,locale){
- seq=0;const chapter=Math.min(14,Math.floor(t/8)),shot=Math.floor(t%8/2),q=t%2,s=phase(q,0,1.75),e=spring(q-.12),d=WORDS[locale],dark=(chapter+shot)%4===0;
+ seq=0;const scene=storyboard.scenes.find(scene=>t<scene.end)??storyboard.scenes.at(-1),chapter=scene.art,shot=scene.shots[Math.min(scene.shots.length-1,Math.floor((t-scene.start)/2))],q=(t-scene.start)%2,s=phase(q,0,1.75),e=spring(q-.12),d=WORDS[locale];
  const bg=[C.black,C.green,C.white,C.blue,C.coral,C.yellow][(chapter*2+shot)%6],ink=bg===C.black?C.white:C.black;
  const cam={x:Math.sin(t*.37)*12,y:Math.cos(t*.43)*8,zoom:1+.07*s,roll:Math.sin(q*1.1+chapter)*.035,pitch:(shot===1?.32:shot===3?-.12:.04)*(1-.6*s)};
  const shake=impact(q-.12)*(chapter%3===0?10:6),roll=impact(q-.12)*.004;
@@ -115,8 +115,8 @@ function kineticArt(t,locale){
   if(shot===3){out+=label(d.yours,{y:-220,size:170});out+=hero('working-cat',{y:80,w:520,rx:.24*Math.sin(q*2),ry:.5*Math.sin(q*2)});out+=place(circle(0,0,66,C.yellow)+check(0,0),{x:270,y:170,z:170,s:.5+.5*e,w:140,h:140},cam);}
  }
  if(chapter===2){
-  title=[d.link,d.paste,d.pop,d.go][shot];out+=label(title,{size:170});
-  if(shot<2){const href=shot===0?'x.com/…':'https://…';out+=place(plate(href,C.white,920,155,95),{y:70,ry:mix(.85,0,e),rz:shot===0?-.08:.05,z:60},cam);if(shot===1)out+=hand(280,105,q-.55,cam);}
+  title=[d.link,d.paste,d.fetch,d.create][shot];out+=label(title,{size:170});
+  if(shot<2){const href='x.com/…';out+=place(plate(href,C.white,920,155,95),{y:70,ry:mix(.85,0,e),rz:shot===0?-.08:.05,z:60},cam);if(shot===1)out+=hand(280,105,q-.55,cam);}
   else{out+=hero('working-cat',{x:shot===3?200*Math.sin(q):0,y:70,w:550,ry:shot===2?mix(Math.PI,0,e):.1,rz:shot===2?-.07:.12});out+=ring();}
  }
  if(chapter===3){
@@ -136,23 +136,23 @@ function kineticArt(t,locale){
  }
  if(chapter===6){
   out+=label([d.moment,d.cut,d.loop,d.go][shot],{size:170});
-  if(shot===0){for(let i=0;i<6;i++)out+=card('jumping-cat',t+i*.17,{x:(i-2.5)*208,y:70,w:205,z:30,rx:.45,ry:.22,rz:-.13},cam);}
-  if(shot===1){const a=ease(phase(q,.2,1.2));for(let i=0;i<6;i++)out+=card('jumping-cat',i*.15,{x:(i-2.5)*170,y:50,w:168,opacity:i<1||i>4?.3:1},cam);for(const x of[-500+170*a,500-170*a])out+=place(rr(-15,-100,30,200,10,C.green,C.black,5),{x,y:50,z:100,w:40,h:200},cam);out+=hand(500-170*a,100,q-.5,cam);}
-  if(shot===2){out+=hero('jumping-cat',{w:520,y:65,rz:.1*Math.sin(q*2)});out+=place(txt(0,55,'↻',170,C.green,900,'middle'),{x:360,y:80,z:70,rz:q*.7,w:200,h:200},cam);}
-  if(shot===3){out+=hero('jumping-cat',{w:520,y:65,ry:mix(Math.PI,0,e)});out+=place(plate('6 s',C.yellow,220,130,84),{x:325,y:220,z:160,rz:.15},cam);}
+  if(shot===0){for(let i=0;i<6;i++)out+=card('working-cat',t+i*.17,{x:(i-2.5)*208,y:70,w:205,z:30,rx:.45,ry:.22,rz:-.13},cam);}
+  if(shot===1){const a=ease(phase(q,.2,1.2));for(let i=0;i<6;i++)out+=card('working-cat',i*.15,{x:(i-2.5)*170,y:50,w:168,opacity:i<1||i>4?.3:1},cam);for(const x of[-500+170*a,500-170*a])out+=place(rr(-15,-100,30,200,10,C.green,C.black,5),{x,y:50,z:100,w:40,h:200},cam);out+=hand(500-170*a,100,q-.5,cam);}
+  if(shot===2){out+=hero('working-cat',{w:520,y:65,rz:.1*Math.sin(q*2)});out+=place(txt(0,55,'↻',170,C.green,900,'middle'),{x:360,y:80,z:70,rz:q*.7,w:200,h:200},cam);}
+  if(shot===3){out+=hero('working-cat',{w:520,y:65,ry:mix(Math.PI,0,e)});out+=place(plate('6 s',C.yellow,220,130,84),{x:325,y:220,z:160,rz:.15},cam);}
  }
  if(chapter===7){
   out+=label([d.original,d.ready,d.listen,d.go][shot],{size:140});
   if(shot===0)out+=hero('working-cat',{x:-200,y:80,w:500,ry:.3});
   if(shot===0)out+=place(speaker(0,0),{x:330,y:100,z:80,s:3+.2*Math.sin(q*12),w:170,h:170},cam);
   if(shot===1){out+=place(speaker(0,0),{x:-350,y:50,z:100,s:3,w:170,h:170},cam);out+=clipBlock(110,65,650,C.blue,'1',q,cam,{ry:mix(-1,0,e)});out+=place(circle(0,0,45,C.green)+check(0,0),{x:400,y:145,z:160,w:90,h:90},cam);}
-  if(shot===2){out+=place(spectrum(-470,0,940,240,q,COLORS[shot]),{y:80,w:960,h:260,ry:.12*Math.sin(q*2)},cam);}
+  if(shot===2){out+=place(spectrum(-470,0,940,240,q,ink),{y:80,w:960,h:260,ry:.12*Math.sin(q*2)},cam);}
   if(shot===3){out+=hero('working-cat',{w:520,y:40,rz:.04});out+=clipBlock(0,250,760,C.blue,'1',q,cam);}
  }
  if(chapter===8){
   out+=label([d.second,d.after,d.follow,d.pop][shot],{size:165});
   const join=shot===2?mix(3,2,ease(phase(q,.3,1.1))):shot===3?mix(2,3,ease(phase(q,.2,1))):3;
-  out+=ruler(65,{join,shift:shot===0?mix(-420,0,e):0,head:q},cam);if(shot===2)out+=hand(-470+940*join/6,110,q-.6,cam);out+=ring();
+  out+=ruler(65,{join,shift:shot===0?mix(-420,0,e):0,head:q},cam);if(shot===0)for(const [i,word] of [d.file,d.audioLink,d.mic].entries())out+=place(plate(word,C.white,265,76,34),{x:(i-1)*300,y:270,z:40,s:Math.max(.01,spring(q-.2-i*.06)),w:265,h:76},cam);if(shot===2)out+=hand(-470+940*join/6,110,q-.6,cam);out+=ring();
  }
  if(chapter===9){
   out+=label([d.excerpt,d.listen,d.same,d.go][shot],{size:180});
@@ -197,19 +197,19 @@ function kineticArt(t,locale){
 function svgFrame(t,locale){return Buffer.from(kineticArt(t,locale));}
 
 async function frame(t,locale){return sharp(svgFrame(t,locale)).jpeg({quality:94,chromaSubsampling:'4:4:4'}).toBuffer();}
-async function poster(locale){const file=path.join(OUT,`zapstick-intro-${locale.toLowerCase()}.jpg`);await sharp(svgFrame(118.7,locale)).jpeg({quality:92}).toFile(file);return file;}
+async function poster(locale){const file=path.join(OUT,`zapstick-intro-${locale.toLowerCase()}.jpg`);await sharp(svgFrame(storyboard.duration-1.3,locale)).jpeg({quality:92}).toFile(file);return file;}
 const LIMITED='scale=in_range=pc:out_range=tv:in_color_matrix=bt601:out_color_matrix=bt709,format=yuv420p';
-const FROM=Number(option('--from','0')),DURATION=Number(option('--duration',args.includes('--preview')?'16':String(120-FROM)));
-if(!Number.isInteger(FPS)||FPS<12||FPS>60||!Number.isFinite(FROM)||!Number.isFinite(DURATION)||FROM<0||DURATION<=0||FROM+DURATION>120)throw new Error('Invalid frame rate or time range.');
+const FROM=Number(option('--from','0')),DURATION=Number(option('--duration',args.includes('--preview')?'16':String(storyboard.duration-FROM)));
+if(!Number.isInteger(FPS)||FPS<12||FPS>60||!Number.isFinite(FROM)||!Number.isFinite(DURATION)||FROM<0||DURATION<=0||FROM+DURATION>storyboard.duration)throw new Error('Invalid frame rate or time range.');
 if(args.includes('--stills')){
  for(const locale of locales){for(let at=FROM;at<FROM+DURATION;at+=2){await sharp(svgFrame(Math.min(at+.7,FROM+DURATION-.01),locale)).png().toFile(path.join(QA,`${locale}-${String(Math.floor(at)).padStart(3,'0')}.png`));}if(!args.includes('--preview'))await poster(locale);}
- console.log(`V2 stills prepared in ${QA}`);process.exit(0);
+ console.log(`V3 stills prepared in ${QA}`);process.exit(0);
 }
 await fs.access(AUDIO);
 for(const locale of locales){
- const ranged=args.includes('--preview')||FROM!==0||DURATION!==120;
+ const ranged=args.includes('--preview')||FROM!==0||DURATION!==storyboard.duration;
  const file=path.join(ranged?QA:OUT,ranged?`preview-${locale.toLowerCase()}.mp4`:`zapstick-intro-${locale.toLowerCase()}.mp4`),total=Math.round(DURATION*FPS);
- console.log(`Rendering v2 ${locale}: ${total} frames at ${FPS} fps, range ${FROM}–${FROM+DURATION}s → ${file}`);
+ console.log(`Rendering v3 ${locale}: ${total} frames at ${FPS} fps, range ${FROM}–${FROM+DURATION}s → ${file}`);
  const ff=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','image2pipe','-framerate',String(FPS),'-vcodec','mjpeg','-i','pipe:0','-ss',String(FROM),'-i',AUDIO,'-map','0:v:0','-map','1:a:0','-vf',LIMITED,'-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709','-t',String(DURATION),'-frames:v',String(total),'-c:v','libx264','-preset','medium','-b:v','650k','-maxrate','850k','-bufsize','1700k','-pix_fmt','yuv420p','-profile:v','high','-c:a','aac','-b:a','80k','-ar','44100','-movflags','+faststart',file],{stdio:['pipe','ignore','pipe']});
  let error='';ff.stderr.on('data',data=>{error+=data;});const finished=once(ff,'close');ff.stdin.on('error',()=>{});
  for(let i=0;i<total;i++){
