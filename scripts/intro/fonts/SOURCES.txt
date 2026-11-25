@@ -1,0 +1,8 @@
+display: lilitaone/LilitaOne-Regular.ttf
+cyrillic: rubik/Rubik[wght].ttf
+japanese: notosansjp/NotoSansJP[wght].ttf
+chinese: notosanssc/NotoSansSC[wght].ttf
+Source: https://github.com/google/fonts/tree/main/ofl
+Subsets are renamed, statically instantiated (where variable) and restricted to the film copy.
+Complete upstream SIL Open Font Licenses are provided for each font.
+Fonts are used only to render the films; visitors do not download font files.

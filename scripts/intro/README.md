@@ -1,54 +1,56 @@
-# Zapstick presentation film — V3
+# Zapstick presentation film — V4
 
-Three localized 44-second films live in `public/videos/`, with matching JPEG
-posters and optional WebVTT captions. They use French, English and Brazilian
-Portuguese. Every pose is calculated from its timestamp, so stills, previews and
-final exports share the same animation.
+Eight 30-second films match all site languages: fr, en, pt-BR, es, de, zh-CN,
+ja and ru. Each has its own local MP4, poster and optional WebVTT captions in
+`public/videos/`. The player no longer falls back to English for five languages.
 
-The 22 two-second shots focus on the core workflow:
+## Editing and audio
 
-- 0–8 s: paste an X link and import its video.
-- 8–16 s: trim the moment and make a looping animated sticker.
-- 16–22 s: keep the video's original sound; hear the typing demo.
-- 22–30 s: add a second sound from a file, link or microphone and place it after the first.
-- 30–36 s: choose the source audio excerpt by dragging its selection.
-- 36–40 s: export the animation or a video with audio.
-- 40–44 s: Zapstick signature and create call to action.
+The 23 shots vary from 0.8 to 2 seconds, with immediate display type, quick cuts,
+short gestures and visual punch-ins. The first section imports an X link, then
+trims an animated sticker. The audio section shows four sources, selection on the
+real source waveform, and sound 2 snapping after sound 1.
 
-Full-frame motion, camera moves, spring animation and short kinetic words are
-retained. There is no explanatory column or body text burned into the image.
-Only public local media and illustrative editor objects appear, never a private
-collection or messaging account.
+The audible demonstration stays on the same animated sticker. Typing plays from
+16.4 to 17.6 s, then the chosen added excerpt plays from 17.6 to 20.8 s without
+restarting at the visual punch-in. Both the score and renderer read source start,
+duration and placement from the storyboard. Actual decoded source waveforms are
+used, rather than random equalizer bars. Music drops under the demonstrations.
+
+The backing score is original, dry and percussive at 150 BPM. Its resolved ending
+is composed for 30 seconds. No narration, synthetic voice or new remote media is
+used. Source audio and visual attributions are in `public/videos/CREDITS.txt` and
+`public/memes/SOURCES.txt`.
+
+## Typography
+
+Lilita One supplies the expressive Latin display face; Rubik Black covers
+Cyrillic, and heavy Noto Sans JP/SC cover Japanese and Simplified Chinese.
+Small renamed font subsets and complete upstream OFL licenses are in `fonts/`.
+HarfBuzz shapes whole phrases into exact SVG glyph outlines in `typography.json`.
+No system font or per-character approximation is used, so missing fallback fonts
+cannot silently replace a script or flatten the display face.
+
+The precomputed outlines are included. Rebuilding films needs only the existing
+Node dependencies and FFmpeg. To change copy, install `fonttools` and `uharfbuzz`
+in a local Python environment, run `prepare-fonts.py`, then `prepare-type.py`.
+These tools check every glyph and preserve complete font license notices.
 
 ## Rebuild
 
-Use installed Node dependencies and local FFmpeg:
-
 ```sh
 python3 scripts/intro/music.py
-node scripts/intro/render.mjs --audio /tmp/zapstick-intro-v3-music.wav
+node scripts/intro/render.mjs --audio /tmp/zapstick-intro-v4-music.wav
 node scripts/intro/create-captions.mjs
 ```
 
-Add `--locale fr`, `--locale en` or `--locale pt-BR` for one edition.
-`node scripts/intro/render.mjs --stills` exports one representative frame per
-shot and refreshes the public posters. Preview files stay in ignored
-`outputs/intro-v3/`; the first 16 seconds can be rendered with:
+`--locale ja` (or any supported locale) renders one edition. `--stills` writes one
+representative PNG per shot and refreshes the public poster. `--preview` renders
+the first 11.2 seconds into ignored `outputs/intro-v4/`. `--from 13.6 --duration
+7.2` with the full score inspects the audio edit and playback.
 
-```sh
-python3 scripts/intro/music.py --preview
-node scripts/intro/render.mjs --locale fr --preview --audio /tmp/zapstick-intro-v3-preview.wav
-```
-
-A later section can be inspected with `--from 22 --duration 8` and the full score.
-The renderer rejects a storyboard longer than 45 seconds.
-
-## Delivery
-
-Each MP4 contains 1,320 frames at 30 fps, 1280 × 720, H.264 limited-range BT.709
-`yuv420p`, AAC stereo and a front-loaded MP4 index (`faststart`). Video targets
-650 kbit/s, with an 850 kbit/s ceiling and 80 kbit/s audio (about 4 MB per film).
-The original score is 120 BPM, with impacts on cuts and a resolved ending.
-Music briefly ducks under two existing home-page sticker sounds so the audio
-feature can be heard. Credits and sound licenses are in `public/videos/CREDITS.txt`
-and `public/memes/SOURCES.txt`. No new remote media or synthetic voice is used.
+Every pose is calculated from time, so stills, previews and the final film agree.
+The film uses public local meme assets and illustrative editor objects, never a
+private collection or messaging account. Output is 1280 × 720, 30 fps, 900 frames,
+H.264 limited-range BT.709 yuv420p, AAC stereo and MP4 faststart. Video targets
+800 kbit/s (1,100 kbit/s ceiling), plus 96 kbit/s audio, about 3.5 MB per edition.

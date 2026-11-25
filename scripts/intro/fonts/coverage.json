@@ -1,0 +1,38 @@
+{
+  "display": {
+    "family": "Zapstick Film Display",
+    "locales": [
+      "fr",
+      "en",
+      "pt-BR",
+      "es",
+      "de"
+    ],
+    "characters": "+,-./0123456789:ABCDEFGHIKLMOPSTUWXYabcdefghijklmnopqrstuvwxyzÀÇÉáäçèéñóöü’…",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/lilitaone/LilitaOne-Regular.ttf"
+  },
+  "cyrillic": {
+    "family": "Zapstick Film Cyrillic",
+    "locales": [
+      "ru"
+    ],
+    "characters": "+,./0123456789:FGIMPXacdikmopstuxzАВГДЗИЛМОПСТФабвгдежзийклмнопрстуфхчшыьюё…",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/rubik/Rubik%5Bwght%5D.ttf"
+  },
+  "japanese": {
+    "family": "Zapstick Film Japanese",
+    "locales": [
+      "ja"
+    ],
+    "characters": "+,./0123456789:FGIMPXacdikmopstuxz…。あいきけすそただてなにのはまみもりをァアイオクスタトニフプベマメリルンー一了付使保元再出分加動声好存完次生番瞬緒聴自読貼込追部間音順",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf"
+  },
+  "chinese": {
+    "family": "Zapstick Film Chinese",
+    "locales": [
+      "zh-CN"
+    ],
+    "characters": "+,./0123456789:FGIMPXacdikmopstuxz…。一上下个了件你依保克入到加动原听启声好存完导已开彩循态成择接播放文更有来次段片玩环留的看粘精纸贴起轮选链音频风麦",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
+  }
+}

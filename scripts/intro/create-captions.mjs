@@ -8,7 +8,7 @@ const timestamp=seconds=>{
  const ms=Math.round(seconds*1000),hours=Math.floor(ms/3600000),minutes=Math.floor(ms/60000)%60,s=Math.floor(ms/1000)%60;
  return `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms%1000).padStart(3,'0')}`;
 };
-const music={fr:'[Musique rythmée, impacts et exemples sonores]',en:'[Rhythmic music, impacts and audio demos]','pt-BR':'[Música rítmica, impactos e exemplos de som]'};
+const music={fr:'[Musique rythmée et exemples sonores]',en:'[Upbeat music and audio demos]','pt-BR':'[Música animada e exemplos de áudio]',es:'[Música rítmica y ejemplos de audio]',de:'[Rhythmische Musik und Hörbeispiele]','zh-CN':'[动感音乐与音效示例]',ja:'[アップテンポな音楽と音声デモ]',ru:'[Ритмичная музыка и звуковые примеры]'};
 for(const locale of storyboard.locales){
  const cues=storyboard.scenes.map(scene=>{
   const text=scene.text[locale];

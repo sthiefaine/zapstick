@@ -1,37 +1,52 @@
 WEBVTT
 
 link
-00:00:00.000 --> 00:00:08.000
-[Musique rythmée, impacts et exemples sonores]
-UN LIEN X
-Colle un lien X public et récupère sa vidéo pour créer ton sticker.
+00:00:00.000 --> 00:00:04.800
+[Musique rythmée et exemples sonores]
+Un lien X. Ton sticker.
+Colle un lien X et récupère sa vidéo.
 
 animation
-00:00:08.000 --> 00:00:16.000
-STICKER ANIMÉ
-Choisis le passage à garder avec les poignées et transforme-le en sticker animé en boucle.
+00:00:04.800 --> 00:00:09.200
+Ça bouge.
+Découpe ton moment et crée un sticker animé.
 
 original
-00:00:16.000 --> 00:00:22.000
-SON ORIGINAL
-Le son de la vidéo est sélectionné dès l’import. Écoute le chat taper au clavier.
+00:00:09.200 --> 00:00:11.200
+Le son d’origine.
+Garde le son de la vidéo.
 
-second
-00:00:22.000 --> 00:00:30.000
-DEUX SONS
-Ajoute un son depuis un fichier, un lien ou le micro. La deuxième piste se place après la première.
+sources
+00:00:11.200 --> 00:00:13.600
+Ajoute ton son.
+Ajoute un fichier, un lien ou le micro.
 
 excerpt
-00:00:30.000 --> 00:00:36.000
-TON EXTRAIT
-Glisse la sélection pour choisir ton passage audio, même à cinq secondes dans le son d’origine.
+00:00:13.600 --> 00:00:15.200
+Choisis le passage.
+Glisse pour choisir le passage audio.
+
+sequence
+00:00:15.200 --> 00:00:16.400
+L’un après l’autre.
+Le son 2 se place après le son 1.
+
+mix
+00:00:16.400 --> 00:00:20.800
+Écoute.
+Écoute le clavier, puis le son ajouté.
+
+done
+00:00:20.800 --> 00:00:22.400
+Ton sticker. Avec du son.
+Une animation, deux sons, ton résultat.
 
 export
-00:00:36.000 --> 00:00:40.000
-ENREGISTRE
-Enregistre ton animation en GIF ou télécharge une vidéo MP4 avec le son.
+00:00:22.400 --> 00:00:26.400
+Enregistre.
+Télécharge le GIF ou le MP4 avec audio.
 
 outro
-00:00:40.000 --> 00:00:44.000
-CRÉE AVEC ZAPSTICK
-Un lien X, une animation, tes sons : crée ton prochain sticker sur Zapstick.
+00:00:26.400 --> 00:00:30.000
+À toi de jouer.
+Crée ton sticker sur Zapstick.

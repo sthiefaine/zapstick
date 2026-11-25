@@ -30,7 +30,7 @@ function load(file){
 const {IntroVideo}=load('components/zapstick/intro-video.tsx');
 
 test('the film loads no MP4 or captions before a click and uses the matching local poster',()=>{
- for(const [locale,film] of [['fr','fr'],['en','en'],['pt-BR','pt-br'],['es','en'],['de','en'],['zh-CN','en'],['ja','en'],['ru','en']]){
+ for(const [locale,film] of [['fr','fr'],['en','en'],['pt-BR','pt-br'],['es','es'],['de','de'],['zh-CN','zh-cn'],['ja','ja'],['ru','ru']]){
   currentLocale=locale;
   booleanStates=0;
   const html=renderToStaticMarkup(React.createElement(IntroVideo,{active:true}));
@@ -41,8 +41,8 @@ test('the film loads no MP4 or captions before a click and uses the matching loc
   assert.equal(html.includes('<track'),false);
   assert.ok(html.includes(`/videos/zapstick-intro-${film}.jpg`));
   assert.ok(html.includes('Lire le film de présentation de Zapstick'));
-  assert.ok(html.includes('44 s'));assert.equal(html.includes('2 min'),false);
-  assert.ok(html.includes('.jpg?v=3'));
+  assert.ok(html.includes('30 s'));assert.equal(html.includes('2 min'),false);
+  assert.ok(html.includes('.jpg?v=4'));
   assert.equal((html.match(/Découvrir Zapstick/g)??[]).length,1);
  }
 });
@@ -50,7 +50,7 @@ test('the film loads no MP4 or captions before a click and uses the matching loc
 test('captions are available after play but stay off by default in every film language',()=>{
  simulateStarted=true;
  try{
-  for(const [locale,film] of [['fr','fr'],['en','en'],['pt-BR','pt-br']]){
+  for(const [locale,film] of [['fr','fr'],['en','en'],['pt-BR','pt-br'],['es','es'],['de','de'],['zh-CN','zh-cn'],['ja','ja'],['ru','ru']]){
    currentLocale=locale;booleanStates=0;
    const html=renderToStaticMarkup(React.createElement(IntroVideo,{active:true}));
    const track=html.match(/<track\b[^>]*>/)?.[0];assert.ok(track);
@@ -62,26 +62,41 @@ test('captions are available after play but stay off by default in every film la
  }finally{simulateStarted=false;booleanStates=0;}
 });
 
-test('all three WebVTT tracks follow the localized storyboard continuously across the focused film under 45 seconds',()=>{
+test('eight localized caption tracks follow the 30-second cut and contain no fallback language',()=>{
  const storyboard=JSON.parse(fs.readFileSync(path.join(root,'scripts/intro/storyboard.json'),'utf8'));
- assert.equal(storyboard.duration,44);assert.ok(storyboard.duration<=45);
- assert.equal(storyboard.fps,30);assert.equal(storyboard.bpm,120);
- assert.deepEqual(storyboard.scenes.map(scene=>scene.id),['link','animation','original','second','excerpt','export','outro']);
- assert.equal(storyboard.scenes[0].art,2,'the first shot opens on the X import');
- for(const scene of storyboard.scenes)assert.equal(scene.end-scene.start,scene.shots.length*2);
- assert.deepEqual(storyboard.scenes.flatMap(scene=>scene.cuts),Array.from({length:22},(_,i)=>i*2));
- const seconds=value=>{const [h,m,s]=value.split(':').map(Number);return h*3600+m*60+s;};
- for(const locale of ['fr','en','pt-BR']){
+ assert.equal(storyboard.duration,30);assert.equal(storyboard.fps,30);assert.equal(storyboard.bpm,150);
+ assert.deepEqual(storyboard.locales,['fr','en','pt-BR','es','de','zh-CN','ja','ru']);
+ assert.equal(storyboard.scenes[0].id,'link');assert.equal(storyboard.shots.length,23);
+ let end=0;for(const shot of storyboard.shots){assert.equal(shot.start,end);assert.ok(shot.end>shot.start);assert.ok(shot.end-shot.start<=2);end=shot.end;}assert.equal(end,30);
+ const seconds=value=>{const[h,m,s]=value.split(':').map(Number);return h*3600+m*60+s;};
+ for(const locale of storyboard.locales){
   const content=fs.readFileSync(path.join(root,`public/videos/zapstick-intro-${locale.toLowerCase()}.vtt`),'utf8');
-  const blocks=content.trim().split(/\n\n+/);assert.equal(blocks.shift(),'WEBVTT');assert.equal(blocks.length,storyboard.scenes.length);
-  let end=0;
-  for(const [index,block] of blocks.entries()){
-   const [id,timing,...text]=block.split('\n'),scene=storyboard.scenes[index];
-   const [from,to]=timing.split(' --> ').map(seconds);
+  const blocks=content.trim().split(/\n\n+/);assert.equal(blocks.shift(),'WEBVTT');assert.equal(blocks.length,storyboard.scenes.length);let end=0;
+  assert.equal(content.includes('undefined'),false);
+  for(const[index,block]of blocks.entries()){
+   const[id,timing,...text]=block.split('\n'),scene=storyboard.scenes[index];const[from,to]=timing.split(' --> ').map(seconds);
    assert.equal(id,scene.id);assert.equal(from,end);assert.equal(from,scene.start);assert.equal(to,scene.end);assert.ok(to>from);
    assert.ok(text.includes(scene.text[locale].title));assert.ok(text.includes(scene.text[locale].body));end=to;
-   assert.ok(scene.text[locale].body.length>15,'optional captions describe the action');
+  }assert.equal(end,30);
+ }
+});
+test('the audible montage follows the chosen excerpt and continues across its punch-in cut',()=>{
+ const{audio,shots}=JSON.parse(fs.readFileSync(path.join(root,'scripts/intro/storyboard.json'),'utf8'));
+ const first=audio.demos.find(d=>d.id==='mix-original'),second=audio.demos.find(d=>d.id==='mix-added');
+ assert.equal(first.duration,audio.firstSeconds);assert.equal(Math.round((first.at+first.duration)*44100),Math.round(second.at*44100));
+ assert.equal(second.start,audio.addedSourceStart);assert.equal(second.duration,audio.addedSeconds);
+ assert.equal(first.duration+second.duration,audio.compositionSeconds);
+ assert.equal(shots.find(s=>s.id==='listen-first').start,first.at);
+ assert.equal(shots.find(s=>s.id==='listen-second').start,second.at);
+ assert.equal(Math.round(shots.find(s=>s.id==='listen-punch').end*44100),Math.round((second.at+second.duration)*44100));
+});
+test('all display text is shaped with bundled font outlines, including CJK and Cyrillic',()=>{
+ const copy=JSON.parse(fs.readFileSync(path.join(root,'scripts/intro/copy.json'),'utf8')),fonts=JSON.parse(fs.readFileSync(path.join(root,'scripts/intro/typography.json'),'utf8'));
+ for(const[locale,labels]of Object.entries(copy)){
+  const font=Object.values(fonts).find(f=>f.locales.includes(locale));assert.ok(font,locale);
+  for(const text of Object.values(labels)){
+   const layout=font.layouts[text];assert.ok(layout,`${locale}: ${text}`);assert.ok(layout.w>0&&layout.h>0);assert.ok(layout.paths.length);
+   for(const[name]of layout.paths){assert.ok(font.glyphs[name]);assert.notEqual(name,'.notdef');}
   }
-  assert.equal(end,44);
  }
 });

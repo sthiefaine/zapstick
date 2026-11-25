@@ -1,37 +1,52 @@
 WEBVTT
 
 link
-00:00:00.000 --> 00:00:08.000
-[Música rítmica, impactos e exemplos de som]
-UM LINK DO X
-Cole um link público do X e importe o vídeo para criar sua figurinha.
+00:00:00.000 --> 00:00:04.800
+[Música animada e exemplos de áudio]
+Um link do X. Sua figurinha.
+Cole um link do X e importe o vídeo.
 
 animation
-00:00:08.000 --> 00:00:16.000
-FIGURINHA ANIMADA
-Escolha o trecho com as alças e transforme-o em uma figurinha animada em loop.
+00:00:04.800 --> 00:00:09.200
+Tá animado.
+Corte seu momento e crie uma figurinha animada.
 
 original
-00:00:16.000 --> 00:00:22.000
-SOM ORIGINAL
-O som do vídeo já vem selecionado ao importar. Ouça o gato digitando no teclado.
+00:00:09.200 --> 00:00:11.200
+O som original.
+Mantenha o som original do vídeo.
 
-second
-00:00:22.000 --> 00:00:30.000
-DOIS SONS
-Adicione um som de um arquivo, de um link ou do microfone. A segunda faixa vem depois da primeira.
+sources
+00:00:11.200 --> 00:00:13.600
+Adicione seu som.
+Adicione um arquivo, link ou microfone.
 
 excerpt
-00:00:30.000 --> 00:00:36.000
-SEU TRECHO
-Arraste a seleção para escolher seu trecho de áudio, até a partir dos cinco segundos do som original.
+00:00:13.600 --> 00:00:15.200
+Escolha o trecho.
+Arraste para escolher o trecho de áudio.
+
+sequence
+00:00:15.200 --> 00:00:16.400
+Um depois do outro.
+O som 2 vem depois do som 1.
+
+mix
+00:00:16.400 --> 00:00:20.800
+Ouça.
+Ouça o teclado e depois o som adicionado.
+
+done
+00:00:20.800 --> 00:00:22.400
+Sua figurinha. Com som.
+Uma animação, dois sons, seu resultado.
 
 export
-00:00:36.000 --> 00:00:40.000
-SALVE
-Salve sua animação em GIF ou baixe um vídeo MP4 com som.
+00:00:22.400 --> 00:00:26.400
+Salve.
+Baixe o GIF ou o MP4 com áudio.
 
 outro
-00:00:40.000 --> 00:00:44.000
-CRIE COM ZAPSTICK
-Um link do X, uma animação, seus sons: crie sua próxima figurinha no Zapstick.
+00:00:26.400 --> 00:00:30.000
+Agora é sua vez.
+Crie sua figurinha no Zapstick.

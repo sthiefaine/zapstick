@@ -1,228 +1,601 @@
 {
-  "version": 3,
-  "duration": 44,
+  "version": 4,
+  "duration": 30,
   "fps": 30,
-  "bpm": 120,
+  "bpm": 150,
   "locales": [
     "fr",
     "en",
-    "pt-BR"
+    "pt-BR",
+    "es",
+    "de",
+    "zh-CN",
+    "ja",
+    "ru"
   ],
   "style": {
-    "format": "44-second full-frame kinetic film. 22 two-second shots, focused on importing X links, animated stickers and audio. No explanatory body copy burned into the image.",
-    "palette": "Pale green, sky-blue, coral, yellow, black, white. Official logo and public meme assets only.",
-    "sound": "120 BPM original instrumental with synchronized impacts and two audible sticker demonstrations from the credited local home-page media."
+    "format": "Fast full-frame mobile motion: 23 varied shots, immediate shaped display type, no explanatory body text.",
+    "palette": "Pale green, white and black, with sky-blue audio 1, coral audio 2 and yellow accents.",
+    "typography": "Lilita One display, Rubik Black Cyrillic, heavy Japanese and Simplified Chinese; local OFL subsets.",
+    "sound": "150 BPM original percussive score. Real source waveforms and audible original → added audio, with music ducked during the demonstration."
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "start": 0,
+      "end": 0.8
+    },
+    {
+      "id": "paste",
+      "start": 0.8,
+      "end": 2
+    },
+    {
+      "id": "fetch",
+      "start": 2,
+      "end": 3.2
+    },
+    {
+      "id": "result",
+      "start": 3.2,
+      "end": 4.8
+    },
+    {
+      "id": "animated",
+      "start": 4.8,
+      "end": 6
+    },
+    {
+      "id": "trim",
+      "start": 6,
+      "end": 7.2
+    },
+    {
+      "id": "loop",
+      "start": 7.2,
+      "end": 8.4
+    },
+    {
+      "id": "animated-result",
+      "start": 8.4,
+      "end": 9.2
+    },
+    {
+      "id": "original",
+      "start": 9.2,
+      "end": 11.2
+    },
+    {
+      "id": "sources",
+      "start": 11.2,
+      "end": 12.4
+    },
+    {
+      "id": "audio-import",
+      "start": 12.4,
+      "end": 13.6
+    },
+    {
+      "id": "excerpt",
+      "start": 13.6,
+      "end": 15.2
+    },
+    {
+      "id": "sequence",
+      "start": 15.2,
+      "end": 16.4
+    },
+    {
+      "id": "listen-first",
+      "start": 16.4,
+      "end": 17.6
+    },
+    {
+      "id": "listen-second",
+      "start": 17.6,
+      "end": 19.2
+    },
+    {
+      "id": "listen-punch",
+      "start": 19.2,
+      "end": 20.8
+    },
+    {
+      "id": "done",
+      "start": 20.8,
+      "end": 22.4
+    },
+    {
+      "id": "download",
+      "start": 22.4,
+      "end": 23.6
+    },
+    {
+      "id": "saved",
+      "start": 23.6,
+      "end": 24.8
+    },
+    {
+      "id": "memes-a",
+      "start": 24.8,
+      "end": 25.6
+    },
+    {
+      "id": "memes-b",
+      "start": 25.6,
+      "end": 26.4
+    },
+    {
+      "id": "create",
+      "start": 26.4,
+      "end": 28
+    },
+    {
+      "id": "signature",
+      "start": 28,
+      "end": 30
+    }
+  ],
+  "audio": {
+    "compositionSeconds": 4.4,
+    "firstSeconds": 1.2,
+    "addedSourceStart": 0.7,
+    "addedSeconds": 3.2,
+    "demos": [
+      {
+        "id": "original",
+        "at": 9.2,
+        "media": "working-cat.mp4",
+        "start": 0,
+        "duration": 1.6
+      },
+      {
+        "id": "mix-original",
+        "at": 16.4,
+        "media": "working-cat.mp4",
+        "start": 0,
+        "duration": 1.2
+      },
+      {
+        "id": "mix-added",
+        "at": 17.6,
+        "media": "side-eye-dog.mp4",
+        "start": 0.7,
+        "duration": 3.2
+      }
+    ]
   },
   "scenes": [
     {
       "id": "link",
-      "art": 2,
       "start": 0,
-      "end": 8,
-      "shots": [
-        0,
-        1,
-        2,
-        3
-      ],
+      "end": 4.8,
       "cuts": [
         0,
+        0.8,
         2,
-        4,
-        6
+        3.2
       ],
       "text": {
         "fr": {
-          "title": "UN LIEN X",
-          "body": "Colle un lien X public et récupère sa vidéo pour créer ton sticker."
+          "title": "Un lien X. Ton sticker.",
+          "body": "Colle un lien X et récupère sa vidéo."
         },
         "en": {
-          "title": "AN X LINK",
-          "body": "Paste a public X link and import its video to create your sticker."
+          "title": "An X link. Your sticker.",
+          "body": "Paste an X link and import its video."
         },
         "pt-BR": {
-          "title": "UM LINK DO X",
-          "body": "Cole um link público do X e importe o vídeo para criar sua figurinha."
+          "title": "Um link do X. Sua figurinha.",
+          "body": "Cole um link do X e importe o vídeo."
+        },
+        "es": {
+          "title": "Un enlace de X. Tu sticker.",
+          "body": "Pega un enlace de X e importa el vídeo."
+        },
+        "de": {
+          "title": "Ein X-Link. Dein Sticker.",
+          "body": "Füge einen X-Link ein und importiere das Video."
+        },
+        "zh-CN": {
+          "title": "一个 X 链接。 你的贴纸。",
+          "body": "粘贴 X 链接，导入视频。"
+        },
+        "ja": {
+          "title": "Xのリンク。 自分だけのスタンプ。",
+          "body": "Xのリンクを貼り付けて動画を読み込む。"
+        },
+        "ru": {
+          "title": "Ссылка из X. Твой стикер.",
+          "body": "Вставь ссылку из X и загрузи видео."
         }
       }
     },
     {
       "id": "animation",
-      "art": 6,
-      "start": 8,
-      "end": 16,
-      "shots": [
-        0,
-        1,
-        2,
-        3
-      ],
+      "start": 4.8,
+      "end": 9.2,
       "cuts": [
-        8,
-        10,
-        12,
-        14
+        4.8,
+        6,
+        7.2,
+        8.4
       ],
       "text": {
         "fr": {
-          "title": "STICKER ANIMÉ",
-          "body": "Choisis le passage à garder avec les poignées et transforme-le en sticker animé en boucle."
+          "title": "Ça bouge.",
+          "body": "Découpe ton moment et crée un sticker animé."
         },
         "en": {
-          "title": "ANIMATED STICKER",
-          "body": "Choose the moment with the trim handles and turn it into a looping animated sticker."
+          "title": "Make it move.",
+          "body": "Trim your moment into an animated sticker."
         },
         "pt-BR": {
-          "title": "FIGURINHA ANIMADA",
-          "body": "Escolha o trecho com as alças e transforme-o em uma figurinha animada em loop."
+          "title": "Tá animado.",
+          "body": "Corte seu momento e crie uma figurinha animada."
+        },
+        "es": {
+          "title": "Dale vida.",
+          "body": "Recorta tu momento y crea un sticker animado."
+        },
+        "de": {
+          "title": "Bring Bewegung rein.",
+          "body": "Schneide den Moment für deinen animierten Sticker zu."
+        },
+        "zh-CN": {
+          "title": "动起来。",
+          "body": "裁剪精彩瞬间，制作动态贴纸。"
+        },
+        "ja": {
+          "title": "動き出す。",
+          "body": "好きな瞬間を切り取って動くスタンプに。"
+        },
+        "ru": {
+          "title": "Оживи его.",
+          "body": "Обрежь момент и создай анимированный стикер."
         }
       }
     },
     {
       "id": "original",
-      "art": 7,
-      "start": 16,
-      "end": 22,
-      "shots": [
-        0,
-        1,
-        2
-      ],
+      "start": 9.2,
+      "end": 11.2,
       "cuts": [
-        16,
-        18,
-        20
+        9.2
       ],
       "text": {
         "fr": {
-          "title": "SON ORIGINAL",
-          "body": "Le son de la vidéo est sélectionné dès l’import. Écoute le chat taper au clavier."
+          "title": "Le son d’origine.",
+          "body": "Garde le son de la vidéo."
         },
         "en": {
-          "title": "ORIGINAL SOUND",
-          "body": "The video’s sound is selected on import. Hear the cat typing on the keyboard."
+          "title": "Original sound.",
+          "body": "Keep the video’s original sound."
         },
         "pt-BR": {
-          "title": "SOM ORIGINAL",
-          "body": "O som do vídeo já vem selecionado ao importar. Ouça o gato digitando no teclado."
+          "title": "O som original.",
+          "body": "Mantenha o som original do vídeo."
+        },
+        "es": {
+          "title": "El sonido original.",
+          "body": "Conserva el sonido original del vídeo."
+        },
+        "de": {
+          "title": "Der Originalton.",
+          "body": "Behalte den Originalton des Videos."
+        },
+        "zh-CN": {
+          "title": "保留原声。",
+          "body": "保留视频原有的声音。"
+        },
+        "ja": {
+          "title": "元の音をそのまま。",
+          "body": "動画の元の音をそのまま使う。"
+        },
+        "ru": {
+          "title": "Исходный звук.",
+          "body": "Сохрани исходный звук видео."
         }
       }
     },
     {
-      "id": "second",
-      "art": 8,
-      "start": 22,
-      "end": 30,
-      "shots": [
-        0,
-        1,
-        2,
-        3
-      ],
+      "id": "sources",
+      "start": 11.2,
+      "end": 13.6,
       "cuts": [
-        22,
-        24,
-        26,
-        28
+        11.2,
+        12.4
       ],
       "text": {
         "fr": {
-          "title": "DEUX SONS",
-          "body": "Ajoute un son depuis un fichier, un lien ou le micro. La deuxième piste se place après la première."
+          "title": "Ajoute ton son.",
+          "body": "Ajoute un fichier, un lien ou le micro."
         },
         "en": {
-          "title": "TWO SOUNDS",
-          "body": "Add audio from a file, a link or your microphone. The second track follows the first."
+          "title": "Add your sound.",
+          "body": "Add a file, a link or your microphone."
         },
         "pt-BR": {
-          "title": "DOIS SONS",
-          "body": "Adicione um som de um arquivo, de um link ou do microfone. A segunda faixa vem depois da primeira."
+          "title": "Adicione seu som.",
+          "body": "Adicione um arquivo, link ou microfone."
+        },
+        "es": {
+          "title": "Añade tu sonido.",
+          "body": "Añade un archivo, enlace o micrófono."
+        },
+        "de": {
+          "title": "Dein Sound dazu.",
+          "body": "Füge eine Datei, einen Link oder dein Mikrofon hinzu."
+        },
+        "zh-CN": {
+          "title": "加上你的声音。",
+          "body": "添加音频文件、链接或麦克风录音。"
+        },
+        "ja": {
+          "title": "好きな音を追加。",
+          "body": "ファイル、リンク、マイクから音を追加。"
+        },
+        "ru": {
+          "title": "Добавь свой звук.",
+          "body": "Добавь файл, ссылку или запись с микрофона."
         }
       }
     },
     {
       "id": "excerpt",
-      "art": 9,
-      "start": 30,
-      "end": 36,
-      "shots": [
-        0,
-        1,
-        2
-      ],
+      "start": 13.6,
+      "end": 15.2,
       "cuts": [
-        30,
-        32,
-        34
+        13.6
       ],
       "text": {
         "fr": {
-          "title": "TON EXTRAIT",
-          "body": "Glisse la sélection pour choisir ton passage audio, même à cinq secondes dans le son d’origine."
+          "title": "Choisis le passage.",
+          "body": "Glisse pour choisir le passage audio."
         },
         "en": {
-          "title": "YOUR EXCERPT",
-          "body": "Drag the selection to choose your audio excerpt, even five seconds into the source."
+          "title": "Pick your excerpt.",
+          "body": "Drag to choose the audio excerpt."
         },
         "pt-BR": {
-          "title": "SEU TRECHO",
-          "body": "Arraste a seleção para escolher seu trecho de áudio, até a partir dos cinco segundos do som original."
+          "title": "Escolha o trecho.",
+          "body": "Arraste para escolher o trecho de áudio."
+        },
+        "es": {
+          "title": "Elige el fragmento.",
+          "body": "Arrastra para elegir el fragmento de audio."
+        },
+        "de": {
+          "title": "Wähle den Ausschnitt.",
+          "body": "Ziehe, um den Audioausschnitt zu wählen."
+        },
+        "zh-CN": {
+          "title": "选择音频片段。",
+          "body": "拖动选区，选择音频片段。"
+        },
+        "ja": {
+          "title": "使いたい部分を。",
+          "body": "選択範囲を動かして音声を切り取る。"
+        },
+        "ru": {
+          "title": "Выбери фрагмент.",
+          "body": "Перетащи выделение, чтобы выбрать фрагмент."
+        }
+      }
+    },
+    {
+      "id": "sequence",
+      "start": 15.2,
+      "end": 16.4,
+      "cuts": [
+        15.2
+      ],
+      "text": {
+        "fr": {
+          "title": "L’un après l’autre.",
+          "body": "Le son 2 se place après le son 1."
+        },
+        "en": {
+          "title": "One after another.",
+          "body": "Sound 2 follows sound 1."
+        },
+        "pt-BR": {
+          "title": "Um depois do outro.",
+          "body": "O som 2 vem depois do som 1."
+        },
+        "es": {
+          "title": "Uno tras otro.",
+          "body": "El sonido 2 va después del sonido 1."
+        },
+        "de": {
+          "title": "Einer nach dem anderen.",
+          "body": "Ton 2 folgt auf Ton 1."
+        },
+        "zh-CN": {
+          "title": "依次播放。",
+          "body": "第二段声音接在第一段之后。"
+        },
+        "ja": {
+          "title": "順番に再生。",
+          "body": "音声2を音声1の後に配置。"
+        },
+        "ru": {
+          "title": "Один за другим.",
+          "body": "Звук 2 следует за звуком 1."
+        }
+      }
+    },
+    {
+      "id": "mix",
+      "start": 16.4,
+      "end": 20.8,
+      "cuts": [
+        16.4,
+        17.6,
+        19.2
+      ],
+      "text": {
+        "fr": {
+          "title": "Écoute.",
+          "body": "Écoute le clavier, puis le son ajouté."
+        },
+        "en": {
+          "title": "Listen.",
+          "body": "Hear the typing, then the added sound."
+        },
+        "pt-BR": {
+          "title": "Ouça.",
+          "body": "Ouça o teclado e depois o som adicionado."
+        },
+        "es": {
+          "title": "Escucha.",
+          "body": "Escucha el teclado y luego el sonido añadido."
+        },
+        "de": {
+          "title": "Hör zu.",
+          "body": "Höre die Tastatur, dann den hinzugefügten Ton."
+        },
+        "zh-CN": {
+          "title": "听听看。",
+          "body": "先听键盘声，再听添加的音效。"
+        },
+        "ja": {
+          "title": "聴いてみて。",
+          "body": "キーボードの音、次に追加した音を聴こう。"
+        },
+        "ru": {
+          "title": "Послушай.",
+          "body": "Послушай клавиатуру, затем добавленный звук."
+        }
+      }
+    },
+    {
+      "id": "done",
+      "start": 20.8,
+      "end": 22.4,
+      "cuts": [
+        20.8
+      ],
+      "text": {
+        "fr": {
+          "title": "Ton sticker. Avec du son.",
+          "body": "Une animation, deux sons, ton résultat."
+        },
+        "en": {
+          "title": "Your sticker. With sound.",
+          "body": "One animation, two sounds, your result."
+        },
+        "pt-BR": {
+          "title": "Sua figurinha. Com som.",
+          "body": "Uma animação, dois sons, seu resultado."
+        },
+        "es": {
+          "title": "Tu sticker. Con sonido.",
+          "body": "Una animación, dos sonidos, tu resultado."
+        },
+        "de": {
+          "title": "Dein Sticker. Mit Sound.",
+          "body": "Eine Animation, zwei Sounds, dein Ergebnis."
+        },
+        "zh-CN": {
+          "title": "你的贴纸。 有声更好玩。",
+          "body": "一段动画，两段声音，你的作品。"
+        },
+        "ja": {
+          "title": "自分のスタンプ。 音も一緒に。",
+          "body": "ひとつのアニメに、ふたつの音。"
+        },
+        "ru": {
+          "title": "Твой стикер. Со звуком.",
+          "body": "Одна анимация, два звука, твой результат."
         }
       }
     },
     {
       "id": "export",
-      "art": 12,
-      "start": 36,
-      "end": 40,
-      "shots": [
-        1,
-        2
-      ],
+      "start": 22.4,
+      "end": 26.4,
       "cuts": [
-        36,
-        38
+        22.4,
+        23.6,
+        24.8,
+        25.6
       ],
       "text": {
         "fr": {
-          "title": "ENREGISTRE",
-          "body": "Enregistre ton animation en GIF ou télécharge une vidéo MP4 avec le son."
+          "title": "Enregistre.",
+          "body": "Télécharge le GIF ou le MP4 avec audio."
         },
         "en": {
-          "title": "SAVE IT",
-          "body": "Save your animation as a GIF or download an MP4 video with audio."
+          "title": "Save it.",
+          "body": "Download a GIF or an MP4 with audio."
         },
         "pt-BR": {
-          "title": "SALVE",
-          "body": "Salve sua animação em GIF ou baixe um vídeo MP4 com som."
+          "title": "Salve.",
+          "body": "Baixe o GIF ou o MP4 com áudio."
+        },
+        "es": {
+          "title": "Guárdalo.",
+          "body": "Descarga el GIF o el MP4 con audio."
+        },
+        "de": {
+          "title": "Speichern.",
+          "body": "Lade ein GIF oder ein MP4 mit Ton herunter."
+        },
+        "zh-CN": {
+          "title": "保存。",
+          "body": "下载 GIF 或带声音的 MP4。"
+        },
+        "ja": {
+          "title": "保存。",
+          "body": "GIFか音声付きMP4をダウンロード。"
+        },
+        "ru": {
+          "title": "Сохрани.",
+          "body": "Скачай GIF или MP4 со звуком."
         }
       }
     },
     {
       "id": "outro",
-      "art": 14,
-      "start": 40,
-      "end": 44,
-      "shots": [
-        2,
-        3
-      ],
+      "start": 26.4,
+      "end": 30,
       "cuts": [
-        40,
-        42
+        26.4,
+        28
       ],
       "text": {
         "fr": {
-          "title": "CRÉE AVEC ZAPSTICK",
-          "body": "Un lien X, une animation, tes sons : crée ton prochain sticker sur Zapstick."
+          "title": "À toi de jouer.",
+          "body": "Crée ton sticker sur Zapstick."
         },
         "en": {
-          "title": "CREATE WITH ZAPSTICK",
-          "body": "An X link, an animation, your sounds: create your next sticker on Zapstick."
+          "title": "Your turn.",
+          "body": "Create your sticker on Zapstick."
         },
         "pt-BR": {
-          "title": "CRIE COM ZAPSTICK",
-          "body": "Um link do X, uma animação, seus sons: crie sua próxima figurinha no Zapstick."
+          "title": "Agora é sua vez.",
+          "body": "Crie sua figurinha no Zapstick."
+        },
+        "es": {
+          "title": "Te toca.",
+          "body": "Crea tu sticker en Zapstick."
+        },
+        "de": {
+          "title": "Du bist dran.",
+          "body": "Erstelle deinen Sticker auf Zapstick."
+        },
+        "zh-CN": {
+          "title": "轮到你了。",
+          "body": "在 Zapstick 制作你的贴纸。"
+        },
+        "ja": {
+          "title": "次はあなたの番。",
+          "body": "Zapstickで自分のスタンプを作ろう。"
+        },
+        "ru": {
+          "title": "Теперь твой ход.",
+          "body": "Создай свой стикер на Zapstick."
         }
       }
     }
