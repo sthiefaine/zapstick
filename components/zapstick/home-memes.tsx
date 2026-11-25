@@ -3,11 +3,11 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {Info,Pause,Play,Volume2,VolumeX} from 'lucide-react';
 import {usePreferences} from '@/components/preferences-provider';
-import {HOME_SOUND_MEMES} from '@/lib/stickers/home-memes';
+import {HOME_MEMES,HOME_SOUND_MEMES} from '@/lib/stickers/home-memes';
 import {registerAudioWork} from '@/lib/stickers/audio';
 import styles from './home-memes.module.css';
 
-/** Two local reactions decorate the import surface. Sound is an explicit,
+/** Six local reactions decorate the import surface. Sound is an explicit,
  * single-play gesture; ordinary loops are always muted. */
 export function HomeMemes({disabled=false}:{disabled?:boolean}) {
   const {t,reduceMotion}=usePreferences();
@@ -51,13 +51,18 @@ export function HomeMemes({disabled=false}:{disabled?:boolean}) {
   const motionLabel=running?t('Mettre les animations en pause'):t('Lire les animations');
   return <div className={styles.decor}>
     <div className={styles.reactions}>
-      {HOME_SOUND_MEMES.map((meme,index)=>{
+      {HOME_MEMES.map((meme,index)=>{
+        const sounding=HOME_SOUND_MEMES.find(item=>item.id===meme.id);
+        if(!sounding)return <span className={`${styles.reaction} ${styles.silent} ${styles[`reaction${index}`]}`} key={meme.id} aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={animated?meme.src:meme.poster} alt="" width={160} height={120} draggable={false} decoding="async"/>
+        </span>;
         const selected=sound===meme.id,showVideo=animated||selected;
         const label=selected?t('Couper le son de {name}',{name:t(meme.name)}):t('Écouter {name}',{name:t(meme.name)});
         return <button type="button" className={`${styles.reaction} ${styles[`reaction${index}`]} ${selected?styles.audible:''}`} key={meme.id} onClick={()=>void hear(meme.id)} aria-label={label} title={label} aria-pressed={selected} disabled={disabled}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={meme.poster} alt="" width={160} height={120} draggable={false} decoding="async" hidden={showVideo}/>
-          <video ref={videoRefs[meme.id]} src={mounted?meme.video:undefined} poster={meme.poster} muted={!selected} loop={!selected} autoPlay={animated} playsInline preload="metadata" hidden={!showVideo} aria-hidden="true" onEnded={event=>{const video=event.currentTarget;video.muted=true;video.loop=true;setSound(null);if(animated)void video.play().catch(()=>{});else video.pause();}}/>
+          <video ref={videoRefs[meme.id]} src={mounted?sounding.video:undefined} poster={meme.poster} muted={!selected} loop={!selected} autoPlay={animated} playsInline preload="metadata" hidden={!showVideo} aria-hidden="true" onEnded={event=>{const video=event.currentTarget;video.muted=true;video.loop=true;setSound(null);if(animated)void video.play().catch(()=>{});else video.pause();}}/>
           <span className={styles.soundBadge} aria-hidden="true">{selected?<VolumeX size={12}/>:<Volume2 size={12}/>}<span>{t('Son')}</span></span>
         </button>;
       })}

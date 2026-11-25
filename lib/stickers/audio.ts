@@ -1,7 +1,12 @@
 export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone'; compositionBound?: boolean };
-export type AudioRecipe = { start: number; offset: number; volume: number; duration?: number };
+export type AudioRecipe = { start: number; offset: number; volume: number; duration?: number; sourcePinned?: boolean };
 export type AudioLayer = { track: AudioTrack; recipe: AudioRecipe };
 export const defaultAudioRecipe: AudioRecipe = { start: 0, offset: 0, volume: 1 };
+/** Original sound follows video trimming until its excerpt is explicitly chosen. */
+export function resolveAudioRecipe(track:AudioTrack|null,recipe:AudioRecipe,visualStart:number):AudioRecipe{
+ if(track?.compositionBound)return{...recipe,offset:recipe.offset-visualStart};
+ return track?.source==='original'&&!recipe.sourcePinned?{...recipe,start:visualStart+recipe.start}:recipe;
+}
 export const MAX_AUDIO_SOURCE_SECONDS = 30;
 const MAX_OUTPUT_SECONDS = 6;
 const unsupported = 'Ce format audio ne peut pas être lu dans ce navigateur.';

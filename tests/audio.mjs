@@ -81,6 +81,28 @@ test('actual sequential PCM changes from the first sound to the second without o
   assert.ok(short.subarray(0, 960).some(sample => sample > .1)); assert.ok(short.subarray(960).some(sample => sample < -.1));
  } finally { globalThis.AudioBuffer = previous; }
 });
+test('an explicitly chosen source passage stays at five seconds when the video is trimmed',()=>{
+ const track={...source(new Float32Array(80000)),source:'original'},recipe={...audio.defaultAudioRecipe,start:5,duration:1};
+ assert.equal(audio.resolveAudioRecipe(track,audio.defaultAudioRecipe,2).start,2);
+ assert.equal(audio.resolveAudioRecipe(track,{...recipe,sourcePinned:true},2).start,5);
+ assert.equal(audio.resolveAudioRecipe({...track,source:'file'},recipe,2).start,5);
+ const saved=audio.resolveAudioRecipe({...track,compositionBound:true},{...recipe,offset:3},1);
+ assert.equal(saved.start,5);assert.equal(saved.offset,2);
+});
+test('the second sound can start five seconds into its source and play immediately after the first',()=>{
+ const previous=globalThis.AudioBuffer;globalThis.AudioBuffer=BufferAudio;
+ try{
+  const rate=8000,first=source(new Float32Array(rate*3).fill(.2));
+  const samples=new Float32Array(rate*10).fill(-.1);samples.fill(.4,rate*5);
+  const second=source(samples);
+  const ordered=audio.arrangeAudioSequence({...audio.defaultAudioRecipe,duration:1.5},{...audio.defaultAudioRecipe,start:5,duration:1.5},3,3,10);
+  assert.equal(ordered[1].start,5);assert.equal(ordered[1].offset,1.5);
+  const out=audio.renderAudioMix([{track:first,recipe:ordered[0]},{track:second,recipe:ordered[1]}],3).getChannelData(0);
+  assert.ok(Math.abs(out[48000]-.2)<.00001);
+  assert.ok(Math.abs(out[96000]-.4)<.00001,'second clip reads its source at five seconds, not at zero');
+  assert.ok(out.every(value=>value>=0),'the earlier negative source samples are absent');
+ }finally{globalThis.AudioBuffer=previous;}
+});
 test('sample rendering preserves silence gaps, fades only audible boundaries and leaves source untouched', () => {
  const previous = globalThis.AudioBuffer; globalThis.AudioBuffer = BufferAudio;
  try {

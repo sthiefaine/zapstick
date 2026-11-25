@@ -1,73 +1,94 @@
 'use client';
-import {useMemo,useRef,type PointerEvent} from 'react';
-import {Mic,Square,Upload,Volume2,VolumeX,RotateCcw,Trash2,LoaderCircle,Video,Plus,ListEnd} from 'lucide-react';
+import {useEffect,useMemo,useRef,useState,type PointerEvent} from 'react';
+import {Mic,Square,Upload,Volume2,VolumeX,Trash2,LoaderCircle,Video,Plus,Play,Pause,Headphones,Scissors} from 'lucide-react';
 import {usePreferences} from '@/components/preferences-provider';
 import {arrangeAudioSequence,planAudioWindow,type AudioTrack,type AudioRecipe} from '@/lib/stickers/audio';
+import {useAudioAudition} from './use-audio-audition';
 import type {SoundSlot,useSoundEditor} from './use-sound-editor';
 import './sound-controls.css';
 
-type Props={editor:ReturnType<typeof useSoundEditor>;recipes:readonly AudioRecipe[];length:number;currentTime:number;disabled:boolean};
-type WaveProps={track:AudioTrack;recipe:AudioRecipe;index:SoundSlot;length:number;currentTime:number;disabled:boolean;onSelect:()=>void;onChange:(recipe:AudioRecipe)=>void};
-function SoundWave({track,recipe,index,length,currentTime,disabled,onSelect,onChange}:WaveProps){
- const {t,locale}=usePreferences(),wave=useRef<HTMLDivElement>(null),drag=useRef<{x:number;offset:number}|null>(null);
+type Props={editor:ReturnType<typeof useSoundEditor>;recipes:readonly AudioRecipe[];length:number;currentTime:number;playing:boolean;disabled:boolean;onTogglePlay:()=>void;onPause:()=>void;onError:(message:string)=>void};
+type ClipProps={track:AudioTrack;recipe:AudioRecipe;index:SoundSlot;length:number;currentTime:number;selected:boolean;disabled:boolean;snap:number;onSelect:()=>void;onMove:(value:number)=>void};
+function SoundTime({value,max,label,disabled,onChange}:{value:number;max:number;label:string;disabled:boolean;onChange:(value:number)=>void}){
+ const [draft,setDraft]=useState(String(Math.round(value*100)/100)),focused=useRef(false);
+ useEffect(()=>{if(!focused.current)setDraft(String(Math.round(value*100)/100));},[value]);
+ return <input type="number" inputMode="decimal" aria-label={label} min={0} max={Math.round(max*100)/100} step="any" value={draft} disabled={disabled} onFocus={()=>{focused.current=true;}} onChange={event=>{const next=event.target.value;setDraft(next);if(next!==''&&Number.isFinite(Number(next)))onChange(Number(next));}} onBlur={()=>{focused.current=false;const next=draft===''||!Number.isFinite(Number(draft))?value:Math.max(0,Math.min(max,Number(draft)));setDraft(String(Math.round(next*100)/100));onChange(next);}}/>;
+}
+function SoundClip({track,recipe,index,length,currentTime,selected,disabled,snap,onSelect,onMove}:ClipProps){
+ const {t}=usePreferences(),lane=useRef<HTMLDivElement>(null),drag=useRef<{x:number;offset:number}|null>(null);
+ const plan=planAudioWindow(track.buffer.length,track.buffer.sampleRate,recipe,length);
  const peaks=useMemo(()=>{
-  const buffer=track.buffer,plan=planAudioWindow(buffer.length,buffer.sampleRate,{start:recipe.start,offset:recipe.offset,volume:recipe.volume,duration:recipe.duration},length),step=Math.max(1,Math.floor(plan.length/48));
-  const channels=Array.from({length:buffer.numberOfChannels},(_,channel)=>buffer.getChannelData(channel));
-  return Array.from({length:48},(_,i)=>{let max=0;for(let j=0;j<step;j+=Math.max(1,Math.floor(step/32))){const at=i*step+j-plan.targetStart;if(at>=0&&at<plan.count)for(const data of channels)max=Math.max(max,Math.abs(data[plan.sourceStart+at]??0)*plan.volume);}return max;});
- },[track,recipe.start,recipe.offset,recipe.volume,recipe.duration,length]);
- const peakMax=Math.max(.01,...peaks),minOffset=-length;
- const seconds=(value:number)=>new Intl.NumberFormat(locale,{minimumFractionDigits:1,maximumFractionDigits:2}).format(value);
- const change=(value:number)=>onChange({...recipe,offset:Math.round(Math.max(-length,Math.min(length,value))*100)/100,duration:recipe.duration??Math.max(0,Math.min(length,track.buffer.duration-recipe.start))});
- function move(e:PointerEvent<HTMLDivElement>){if(!drag.current||!wave.current)return;change(drag.current.offset+(e.clientX-drag.current.x)/wave.current.clientWidth*length);}
- return <div ref={wave} className="sound-wave" role="slider" tabIndex={disabled?-1:0} aria-label={t('Décalage de la piste {number}',{number:index+1})} aria-valuemin={minOffset} aria-valuemax={length} aria-valuenow={recipe.offset} aria-valuetext={`${recipe.offset>0?'+':''}${seconds(recipe.offset)} s`} aria-disabled={disabled} onPointerDown={e=>{if(disabled)return;onSelect();drag.current={x:e.clientX,offset:recipe.offset};e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={move} onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}} onFocus={onSelect} onKeyDown={e=>{if(disabled)return;const step=e.shiftKey?.5:.05;const values:Record<string,number>={ArrowLeft:recipe.offset-step,ArrowDown:recipe.offset-step,ArrowRight:recipe.offset+step,ArrowUp:recipe.offset+step,Home:-length,End:length};if(e.key in values){e.preventDefault();change(values[e.key]);}}}>
-  <div className="sound-wave-bars" aria-hidden="true">{peaks.map((v,i)=><i key={i} style={{height:`${Math.max(5,v/peakMax*82)}%`}}/>)}</div><span className="sound-wave-playhead" aria-hidden="true" style={{left:`${length?Math.max(0,Math.min(100,currentTime/length*100)):0}%`}}/>
+  const data=track.buffer.getChannelData(0),step=Math.max(1,Math.floor(plan.count/32));
+  return Array.from({length:32},(_,i)=>{let peak=0;for(let j=0;j<step;j+=Math.max(1,Math.floor(step/16)))peak=Math.max(peak,Math.abs(data[plan.sourceStart+i*step+j]??0));return peak;});
+ },[track,plan.sourceStart,plan.count]);
+ const max=Math.max(.01,...peaks);
+ function move(value:number){const bounded=Math.max(-length,Math.min(length-.01,value));onMove(Math.round((Math.abs(bounded-snap)<.12?snap:bounded)*100)/100);}
+ function pointerMove(event:PointerEvent<HTMLButtonElement>){if(drag.current&&lane.current)move(drag.current.offset+(event.clientX-drag.current.x)/lane.current.clientWidth*length);}
+ return <div ref={lane} className="sound-lane">
+  <button type="button" className={`sound-clip${selected?' is-selected':''}`} aria-label={t('Déplacer la piste {number}',{number:index+1})} aria-pressed={selected} disabled={disabled} style={{left:`${Math.min(97,plan.targetStart/plan.length*100)}%`,width:`${plan.count/plan.length*100}%`}} onPointerDown={event=>{if(disabled)return;event.preventDefault();onSelect();event.currentTarget.focus({preventScroll:true});event.currentTarget.setPointerCapture(event.pointerId);drag.current={x:event.clientX,offset:recipe.offset};}} onPointerMove={pointerMove} onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}} onLostPointerCapture={()=>{drag.current=null;}} onClick={onSelect} onKeyDown={event=>{const values:Record<string,number>={ArrowLeft:recipe.offset-(event.shiftKey?.5:.05),ArrowRight:recipe.offset+(event.shiftKey?.5:.05),Home:0};if(Object.hasOwn(values,event.key)){event.preventDefault();move(values[event.key]);}}}>
+   <span className="sound-clip-bars" aria-hidden="true">{peaks.map((peak,i)=><i key={i} style={{height:`${Math.max(12,peak/max*78)}%`}}/>)}</span><span className="sound-clip-name">{track.name}</span>
+  </button>
+  <span className="sound-lane-playhead" style={{left:`${Math.max(0,Math.min(100,currentTime/length*100))}%`}} aria-hidden="true"/>
  </div>;
 }
 
-export function SoundControls({editor:e,recipes,length,currentTime,disabled}:Props){
+export function SoundControls({editor:e,recipes,length,currentTime,playing,disabled,onTogglePlay,onPause,onError}:Props){
  const {t,locale}=usePreferences(),file=useRef<HTMLInputElement>(null),fileTarget=useRef<SoundSlot>(0);
  const selected=e.selected,track=e.tracks[selected],recipe=recipes[selected]??e.recipes[selected],capture=e.microphone!=='idle',busy=e.pending||capture,number=selected+1;
- const maxDuration=track?Math.max(0,Math.min(length,track.buffer.duration-Math.max(0,recipe.start))):0,minDuration=Math.min(.05,maxDuration),clipDuration=Math.min(maxDuration,Math.max(minDuration,recipe.duration??maxDuration));
- const offsetDelta=(index:SoundSlot)=>e.recipes[index].offset-(recipes[index]??e.recipes[index]).offset;
- const seconds=(value:number)=>new Intl.NumberFormat(locale,{minimumFractionDigits:1,maximumFractionDigits:2}).format(value);
- const change=(key:keyof AudioRecipe,value:number)=>e.setRecipe({...e.recipes[selected],[key]:value},selected);
- const chooseFile=(index:SoundSlot)=>{e.select(index);fileTarget.current=index;file.current?.click();};
- const changeStart=(value:number)=>{
+ const seconds=(value:number)=>new Intl.NumberFormat(locale,{maximumFractionDigits:2}).format(value);
+ const first=recipes[0]??e.recipes[0],second=recipes[1]??e.recipes[1];
+ const firstEnd=Math.max(0,first.offset+Math.min(first.duration??length,Math.max(0,(e.tracks[0]?.buffer.duration??0)-first.start)));
+ const sequential=!!e.tracks[0]&&!!e.tracks[1]&&firstEnd>0&&Math.abs(second.offset-firstEnd)<.015;
+ const sourceRemaining=track?Math.max(0,track.buffer.duration-Math.max(0,recipe.start)):0;
+ const maxDuration=Math.max(0,Math.min(sourceRemaining,length-(selected===0&&sequential?Math.max(0,recipe.offset)+.05:0)));
+ const clipDuration=Math.min(maxDuration,Math.max(0,recipe.duration??maxDuration));
+ const audition=useAudioAudition(track,recipe,length,playing,onPause,onError);
+ function write(index:SoundSlot,value:AudioRecipe){
+  const effective=recipes[index]??e.recipes[index],base=e.recipes[index];
+  e.setRecipe({...value,start:value.sourcePinned?value.start:value.start-(effective.start-base.start),offset:value.offset+(base.offset-effective.offset)},index);
+ }
+ function changeExcerpt(start:number,duration:number){
   if(!track)return;
-  const available=Math.max(0,Math.min(length,track.buffer.duration-value));
-  e.setRecipe({...e.recipes[selected],start:value,duration:Math.min(recipe.duration??maxDuration,available)},selected);
- };
- const sequence=()=>{
-  const first=e.tracks[0],second=e.tracks[1];if(!first||!second)return;
-  const ordered=arrangeAudioSequence(recipes[0]??e.recipes[0],recipes[1]??e.recipes[1],length,first.buffer.duration,second.buffer.duration);
-  for(const index of [0,1] as const)e.setRecipe({...e.recipes[index],offset:ordered[index].offset+offsetDelta(index),duration:ordered[index].duration},index);
-  e.select(1);
- };
+  const bounded=Math.max(0,Math.min(track.buffer.duration-.01,start));
+  const next={...recipe,start:bounded,duration:Math.max(.01,Math.min(duration,length,track.buffer.duration-bounded)),...(track.source==='original'&&!track.compositionBound?{sourcePinned:true}:{})};
+  write(selected,next);
+  if(selected===0&&sequential){const end=Math.max(0,next.offset+next.duration);write(1,{...second,offset:end});}
+ }
+ const chooseFile=(index:SoundSlot)=>{audition.stop();e.select(index);fileTarget.current=index;file.current?.click();};
+ function sequence(){
+  if(!e.tracks[0]||!e.tracks[1])return;
+  const ordered=arrangeAudioSequence(first,second,length,e.tracks[0].buffer.duration,e.tracks[1].buffer.duration);
+  for(const index of [0,1] as const)write(index,ordered[index]);
+ }
+ const sources=<div className="sound-sources" role="group" aria-label={t('Source de la piste {number}',{number})}>
+  <button type="button" disabled={disabled||busy||!e.hasOriginal} onClick={()=>{audition.stop();e.chooseOriginal();}}><Video size={17}/>{t('Original')}</button>
+  <button type="button" disabled={disabled||busy} onClick={()=>chooseFile(selected)}><Upload size={17}/>{t('Importer un son')}</button>
+  <button type="button" disabled={disabled||busy} onClick={()=>{audition.stop();e.record();}}><Mic size={17}/>{t('Micro')}</button>
+ </div>;
  return <div className="sound-controls">
+  <div className="sound-montage-heading"><button type="button" className="sound-listen-mix" disabled={disabled||busy} onClick={()=>{audition.stop();onTogglePlay();}}>{playing?<Pause size={17}/>:<Play size={17}/>}<span>{playing?t('Mettre en pause'):t('Écouter le montage')}</span></button><span className="sound-total">{seconds(length)} s</span></div>
+  <div className="sound-ruler" aria-hidden="true"><span>0 s</span><span>{seconds(length)} s</span></div>
   <div className="sound-tracks" role="group" aria-label={t('Pistes audio')}>
    {([0,1] as const).map(index=>{
-    const item=e.tracks[index],plan=recipes[index]??e.recipes[index],active=e.selected===index;
+    const item=e.tracks[index],plan=recipes[index]??e.recipes[index],active=selected===index;
     return <div key={index} className={`sound-row${active?' is-selected':''}`}>
-     <button className="sound-row-label" type="button" aria-pressed={active} aria-label={t('Sélectionner la piste {number}',{number:index+1})} disabled={disabled} onClick={()=>e.select(index)}><strong>{t('Piste {number}',{number:index+1})}</strong><span>{item?.name??t('Aucun son')}</span></button>
-     {item?<><SoundWave track={item} recipe={plan} index={index} length={length} currentTime={currentTime} disabled={disabled||busy} onSelect={()=>e.select(index)} onChange={value=>e.setRecipe({...e.recipes[index],offset:value.offset+offsetDelta(index),duration:value.duration},index)}/><button className="sound-row-mute" type="button" aria-label={plan.volume?t('Couper la piste {number}',{number:index+1}):t('Réactiver la piste {number}',{number:index+1})} disabled={disabled||busy} onClick={()=>e.setRecipe({...e.recipes[index],volume:plan.volume?0:1},index)}>{plan.volume?<Volume2 size={18}/>:<VolumeX size={18}/>}</button></>:<button className="sound-add" type="button" disabled={disabled||busy} aria-label={t('Ajouter un son à la piste {number}',{number:index+1})} onClick={()=>chooseFile(index)}><Plus size={18}/>{t('Ajouter un son')}</button>}
+     <button className="sound-row-label" type="button" aria-pressed={active} aria-label={t('Sélectionner la piste {number}',{number:index+1})} disabled={disabled||busy} onClick={()=>{audition.stop();e.select(index);}}>{t('Son {number}',{number:index+1})}</button>
+     {item?<><SoundClip track={item} recipe={plan} index={index} length={length} currentTime={currentTime} selected={active} disabled={disabled||busy} snap={index===1?firstEnd:0} onSelect={()=>e.select(index)} onMove={offset=>write(index,{...plan,offset,duration:plan.duration??Math.min(length,item.buffer.duration-plan.start)})}/><button className="sound-row-mute" type="button" aria-label={plan.volume?t('Couper la piste {number}',{number:index+1}):t('Réactiver la piste {number}',{number:index+1})} disabled={disabled||busy} onClick={()=>write(index,{...plan,volume:plan.volume?0:1})}>{plan.volume?<Volume2 size={17}/>:<VolumeX size={17}/>}</button></>:<button className="sound-add" type="button" disabled={disabled||busy} aria-label={t('Ajouter un son à la piste {number}',{number:index+1})} onClick={()=>{audition.stop();e.select(index);}}><Plus size={17}/>{t('Ajouter un son')}</button>}
     </div>;
    })}
   </div>
-  <div className="sound-sources" role="group" aria-label={t('Source de la piste {number}',{number})}>
-   <button type="button" aria-pressed={track?.source==='original'} disabled={disabled||busy||!e.hasOriginal} onClick={e.chooseOriginal}><Video size={17}/>{t('Original')}</button>
-   <button type="button" aria-pressed={track?.source==='file'} disabled={disabled||busy} onClick={()=>chooseFile(selected)}><Upload size={17}/>{t('Importer un son')}</button>
-   <button type="button" aria-pressed={track?.source==='microphone'} disabled={disabled||busy} onClick={e.record}><Mic size={17}/>{t('Micro')}</button>
-  </div>
+  <p className="sound-drag-help">{t('Glisse les blocs pour placer tes sons.')}</p>
   <input hidden ref={file} type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac,.webm" onChange={event=>{const next=event.target.files?.[0];event.target.value='';if(next)void e.chooseFile(next,fileTarget.current);}}/>
-  {e.pending?<div className="sound-status" role="status"><LoaderCircle size={17} className="spin"/><span>{t('Piste {number}',{number:(e.busySlot??selected)+1})} · {t('Chargement du son…')}</span><button className="quiet-button" onClick={e.cancel}>{t('Annuler')}</button></div>:null}
-  {capture?<div className="sound-recording"><span role="status">{t('Piste {number}',{number:(e.busySlot??selected)+1})} · {e.microphone==='waiting'?t('En attente du microphone…'):<>{t('Enregistrement…')} <strong>{seconds(e.elapsed)} / 6 s</strong></>}</span><button className="button secondary" onClick={e.microphone==='recording'?e.stop:e.cancel}>{e.microphone==='recording'?<><Square size={15}/>{t('Arrêter')}</>:t('Annuler')}</button>{e.microphone==='recording'?<button className="quiet-button" onClick={e.cancel}>{t('Annuler')}</button>:null}</div>:null}
+  {e.pending?<div className="sound-status" role="status"><LoaderCircle size={17} className="spin"/><span>{t('Chargement du son…')}</span><button className="quiet-button" onClick={e.cancel}>{t('Annuler')}</button></div>:null}
+  {capture?<div className="sound-recording"><span role="status">{e.microphone==='waiting'?t('En attente du microphone…'):<>{t('Enregistrement…')} <strong>{seconds(e.elapsed)} / 6 s</strong></>}</span><button className="button secondary" onClick={e.microphone==='recording'?e.stop:e.cancel}>{e.microphone==='recording'?<><Square size={15}/>{t('Arrêter')}</>:t('Annuler')}</button>{e.microphone==='recording'?<button className="quiet-button" onClick={e.cancel}>{t('Annuler')}</button>:null}</div>:null}
   {track?<div className="sound-selected-controls" role="group" aria-label={t('Réglages de la piste {number}',{number})}>
-   {selected===1&&e.tracks[0]?<button type="button" className="sound-sequence" disabled={disabled||busy} onClick={sequence}><ListEnd size={17}/>{t('À la suite de la piste 1')}</button>:null}
-   <div className="sound-offset"><span>{t('Décalage')} <strong>{recipe.offset>0?'+':''}{seconds(recipe.offset)} s</strong></span><div><button type="button" className="sound-action" title={t('Réinitialiser le son')} aria-label={t('Réinitialiser la piste {number}',{number})} disabled={disabled||busy} onClick={()=>e.setRecipe({...e.recipes[selected],offset:offsetDelta(selected),volume:1,duration:undefined,...(track.source!=='original'?{start:0}:{})},selected)}><RotateCcw size={17}/></button><button type="button" className="sound-action" title={t('Retirer le son')} aria-label={t('Retirer le son de la piste {number}',{number})} disabled={disabled||busy} onClick={()=>e.remove(selected)}><Trash2 size={17}/></button></div></div>
-   {track.source!=='original'&&track.buffer.duration>.05?<label className="sound-range"><span>{t('Début de l’extrait')}<output>{seconds(recipe.start)} s</output></span><input aria-label={t('Début de l’extrait de la piste {number}',{number})} type="range" min="0" max={Math.max(0,track.buffer.duration-Math.min(.05,track.buffer.duration))} step=".05" value={recipe.start} disabled={disabled||busy} onChange={event=>changeStart(Number(event.target.value))}/></label>:null}
-   <label className="sound-range sound-duration"><span>{t('Durée')}<output>{seconds(clipDuration)} s</output></span><input aria-label={t('Durée de la piste {number}',{number})} type="range" min={minDuration} max={maxDuration} step={maxDuration<.05?'any':'.05'} value={clipDuration} disabled={disabled||busy||maxDuration<=0} onChange={event=>change('duration',Number(event.target.value))}/></label>
-   <div className="sound-range sound-volume"><Volume2 size={17} aria-hidden="true"/><label className="sr-only" htmlFor={`sound-volume-${selected}`}>{t('Volume de la piste {number}',{number})}</label><input id={`sound-volume-${selected}`} aria-label={t('Volume de la piste {number}',{number})} type="range" min="0" max="1" step=".01" value={recipe.volume} disabled={disabled||busy} onChange={event=>change('volume',Number(event.target.value))}/><output>{Math.round(recipe.volume*100)} %</output></div>
-   {track.source==='microphone'?<button className="quiet-button sound-record-again" disabled={disabled||busy} onClick={e.record}><Mic size={15}/>{t('Refaire')}</button>:null}
-  </div>:!busy?<p className="sound-empty">{t('Choisis un audio de moins de 5 Mo et de 30 secondes maximum.')}</p>:null}
+   <div className="sound-excerpt-heading"><strong><Scissors size={16}/>{t('Extrait à utiliser')}</strong><button type="button" disabled={disabled||busy||!clipDuration} onClick={()=>void audition.toggle()} aria-pressed={audition.listening}>{audition.listening?<Square size={15}/>:<Headphones size={16}/>}<span>{audition.listening?t('Arrêter'):t('Écouter l’extrait')}</span></button></div>
+   <div className="sound-excerpt-fields">
+    <label><span>{t('À partir de')}</span><span className="sound-number"><SoundTime key={`start-${selected}`} label={t('Début de l’extrait de la piste {number}',{number})} value={recipe.start} max={Math.max(0,track.buffer.duration-.01)} disabled={disabled||busy} onChange={value=>changeExcerpt(value,recipe.duration??maxDuration)}/><span>s</span></span></label>
+    <label><span>{t('Pendant')}</span><span className="sound-number"><SoundTime key={`duration-${selected}`} label={t('Durée de la piste {number}',{number})} value={clipDuration} max={maxDuration} disabled={disabled||busy||maxDuration<=0} onChange={value=>changeExcerpt(recipe.start,Math.min(maxDuration,value))}/><span>s</span></span></label>
+   </div>
+   <div className="sound-placement" role="group" aria-label={t('Placer le son')}><button type="button" aria-pressed={Math.abs(recipe.offset)<.015} disabled={disabled||busy} onClick={()=>write(selected,{...recipe,offset:0})}>{t('Au début')}</button>{selected===1&&e.tracks[0]?<button type="button" aria-pressed={sequential} disabled={disabled||busy} onClick={sequence}>{t('Après le son 1')}</button>:null}<output>{t('À {time} s dans le sticker',{time:seconds(recipe.offset)})}</output></div>
+   <details className="sound-more"><summary>{t('Changer le son et régler le volume')}</summary>{sources}<div className="sound-levels" role="group" aria-label={t('Volume de la piste {number}',{number})}>{[.25,.5,1].map(volume=><button key={volume} type="button" aria-pressed={recipe.volume===volume} disabled={disabled||busy} onClick={()=>write(selected,{...recipe,volume})}>{Math.round(volume*100)} %</button>)}<button type="button" className="sound-remove" disabled={disabled||busy} onClick={()=>{audition.stop();e.remove(selected);}}><Trash2 size={16}/>{t('Retirer le son')}</button></div></details>
+  </div>:!busy?<>{sources}<p className="sound-empty">{t('Choisis un audio de moins de 5 Mo et de 30 secondes maximum.')}</p></>:null}
  </div>;
 }

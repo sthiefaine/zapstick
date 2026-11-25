@@ -2,13 +2,14 @@
 
 import {useEffect,useId,useMemo,useRef,useState,type Dispatch,type SetStateAction,type CSSProperties,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
-import {DndContext,DragOverlay,MouseSensor,TouchSensor,KeyboardSensor,useSensor,useSensors,useDroppable,pointerWithin,closestCenter,type CollisionDetection,type DragEndEvent} from '@dnd-kit/core';
+import {DndContext,DragOverlay,MouseSensor,TouchSensor,KeyboardSensor,useSensor,useSensors,useDroppable,type DragEndEvent} from '@dnd-kit/core';
 import {SortableContext,useSortable,rectSortingStrategy,horizontalListSortingStrategy,sortableKeyboardCoordinates} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import {Check,CheckSquare,Download,Folder,FolderOpen,FolderPlus,GripVertical,Heart,ImagePlus,Inbox,MoreHorizontal,Pencil,Play,Plus,Search,Trash2,Upload,X,Volume2} from 'lucide-react';
 import {usePreferences} from '@/components/preferences-provider';
 import type {Collection,CollectionFolder,Sticker} from '@/lib/stickers/types';
 import {createFolder,updateFolder,deleteFolder,moveToFolder,reorderStickers,reorderFolders} from '@/lib/stickers/folders';
+import {collectionCollisions} from '@/lib/stickers/collection-drag';
 import {Media} from './media';
 import {inferMediaKind} from '@/lib/stickers/media-kind';
 import './collections-board.css';
@@ -57,16 +58,11 @@ export function CollectionsBoard({collection,onChange,onOpen,onCreate,onFavorite
    onUndo(null);onChange(value=>({...value,stickers:[...imported.map(sticker=>({...sticker,folderId:target&&value.folders?.some(folder=>folder.id===target)?target:''})),...value.stickers]}));onNotify(t('{count} médias importés',{count:imported.length}));
   }catch(error){if(alive.current&&request===importRequest.current)onNotify(t(error instanceof Error?error.message:'Une erreur est survenue.'));}
  }
- const collisions:CollisionDetection=args=>{
-  const kind=args.active.data.current?.kind;
-  const containers=args.droppableContainers.filter(container=>{const data=container.data.current as DragData|undefined;return data&&(kind==='folder'?data.kind==='folder':data.kind!=='sticker'||!dragIds.includes(data.entityId));});
-  const hits=pointerWithin({...args,droppableContainers:containers});
-  if(hits.length){const exact=hits.filter(hit=>args.droppableContainers.find(container=>container.id===hit.id)?.data.current?.kind!=='tail');return exact.length?exact:hits;}
-  return args.pointerCoordinates?[]:closestCenter({...args,droppableContainers:containers});
- };
  function endDrag(event:DragEndEvent){
   const data=event.active.data.current as DragData|undefined,target=event.over?.data.current as DragData|undefined,ids=dragIds;
   setDrag(null);setDragIds([]);if(!data||!target||event.active.id===event.over?.id)return;
+  if(Math.hypot(event.delta.x,event.delta.y)<4)return;
+  if(target.kind==='sticker'&&ids.includes(target.entityId))return;
   if(data.kind==='folder'&&target.kind==='folder'){
    const from=folders.findIndex(folder=>folder.id===data.entityId),to=folders.findIndex(folder=>folder.id===target.entityId);
    apply(value=>reorderFolders(value,data.entityId,from<to?folders[to+1]?.id??null:target.entityId),'Ordre enregistré');
@@ -84,7 +80,7 @@ export function CollectionsBoard({collection,onChange,onOpen,onCreate,onFavorite
   <input ref={fileInput} type="file" hidden multiple accept={accepted.join(',')} onChange={event=>{importFiles(Array.from(event.target.files??[]));event.target.value='';}}/>
   <div className="screen-title"><h1>{t('Collection')}<span className="title-count">{collection.stickers.length}</span></h1><div className="title-buttons"><button className="round-button" aria-label={t('Rechercher un sticker')} aria-expanded={searching} onClick={()=>setSearching(value=>!value)}><Search size={19}/></button><button className={`round-button ${selecting?'is-active':''}`} aria-label={t(selecting?'Terminer la sélection':'Sélectionner des stickers')} aria-pressed={selecting} onClick={()=>{setSelecting(value=>!value);setSelected([]);setMoving(false);}}><CheckSquare size={19}/></button></div></div>
   {searching?<div className="collection-search"><Search size={17}/><input autoFocus aria-label={t('Rechercher dans la collection')} placeholder={t('Chercher un sticker')} value={query} onChange={event=>setQuery(event.target.value)}/><button aria-label={t('Effacer la recherche')} onClick={()=>setQuery('')}><X size={16}/></button></div>:null}
-  <DndContext id={contextId} sensors={sensors} collisionDetection={collisions} accessibility={{screenReaderInstructions:{draggable:t('Espace pour saisir, flèches pour déplacer, Espace pour déposer, Échap pour annuler.')},announcements:{onDragStart:({active})=>t('{name} saisi.',{name:active.data.current?.label??''}),onDragOver:({over})=>over?t('Au-dessus de {name}.',{name:over.data.current?.label??''}):undefined,onDragEnd:({active})=>t('{name} déposé.',{name:active.data.current?.label??''}),onDragCancel:()=>t('Déplacement annulé.')}}} onDragStart={({active})=>{const data=active.data.current as DragData;setDrag(data);setDragIds(data.kind==='sticker'?(selected.includes(data.entityId)?selected:[data.entityId]):[]);setMoving(false);}} onDragCancel={()=>{setDrag(null);setDragIds([]);}} onDragEnd={endDrag}>
+  <DndContext id={contextId} sensors={sensors} collisionDetection={collectionCollisions} accessibility={{screenReaderInstructions:{draggable:t('Espace pour saisir, flèches pour déplacer, Espace pour déposer, Échap pour annuler.')},announcements:{onDragStart:({active})=>t('{name} saisi.',{name:active.data.current?.label??''}),onDragOver:({over})=>over?t('Au-dessus de {name}.',{name:over.data.current?.label??''}):undefined,onDragEnd:({active})=>t('{name} déposé.',{name:active.data.current?.label??''}),onDragCancel:()=>t('Déplacement annulé.')}}} onDragStart={({active})=>{const data=active.data.current as DragData;setDrag(data);setDragIds(data.kind==='sticker'?(selected.includes(data.entityId)?selected:[data.entityId]):[]);setMoving(false);}} onDragCancel={()=>{setDrag(null);setDragIds([]);}} onDragEnd={endDrag}>
    <div className="folder-zone"><div className="folder-zone-title"><h2>{t('Mes collections')}</h2>{folders.length?<button className="small-icon" aria-label={t('Nouvelle collection')} onClick={()=>setForm(null)} disabled={disabled}><FolderPlus size={21}/></button>:null}</div>
     <div className="folder-scopes"><button className={folderId===null?'selected':''} aria-pressed={folderId===null} onClick={()=>changeFolder(null)}>{t('Tous les stickers')}</button><FolderTarget label={t('À ranger')} count={collection.stickers.filter(sticker=>!sticker.folderId).length} selected={folderId===''} onOpen={()=>changeFolder('')} disabled={disabled}/></div>
     {folders.length?<SortableContext items={folders.map(folder=>folderKey(folder.id))} strategy={horizontalListSortingStrategy}><div className="folder-rail">{folders.map(folder=><FolderTile key={folder.id} folder={folder} count={collection.stickers.filter(sticker=>sticker.folderId===folder.id).length} selected={folderId===folder.id} disabled={disabled} onOpen={()=>changeFolder(folder.id)} onEdit={()=>setForm(folder)}/>)}</div></SortableContext>:form===false?<button className="button secondary library-new-folder" onClick={()=>setForm(null)}><FolderPlus size={18}/>{t('Créer une collection')}</button>:null}
