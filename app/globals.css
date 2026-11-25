@@ -423,6 +423,7 @@ h1{font-family:var(--font-sans);font-size:30px;font-weight:800;letter-spacing:-1
 .language-flag{font-size:21px;line-height:1;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif}
 .header-language select{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;font-size:16px}
 .header-language:focus-within{outline:3px solid var(--focus);outline-offset:4px}
+@media(max-width:370px){.app-header{gap:6px}.app-header .header-actions{gap:4px}.app-header .wordmark{font-size:22px;gap:6px}.app-header .wordmark img{width:28px;height:28px}.header-language{width:48px;min-width:48px}}
 .header-language:has(select:disabled){opacity:.5;cursor:not-allowed}
 .legal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
 .legal-toolbar .legal-back{margin-bottom:0}

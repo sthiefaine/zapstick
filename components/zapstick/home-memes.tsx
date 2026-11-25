@@ -5,6 +5,7 @@ import {Info,Pause,Play,Volume2,VolumeX} from 'lucide-react';
 import {usePreferences} from '@/components/preferences-provider';
 import {HOME_MEMES,HOME_SOUND_MEMES} from '@/lib/stickers/home-memes';
 import {registerAudioWork} from '@/lib/stickers/audio';
+import {claimPeerMedia,registerPeerMedia} from '@/lib/stickers/peer-media';
 import styles from './home-memes.module.css';
 
 /** Six local reactions decorate the import surface. Sound is an explicit,
@@ -13,6 +14,7 @@ export function HomeMemes({disabled=false}:{disabled?:boolean}) {
   const {t,reduceMotion}=usePreferences();
   const [mounted,setMounted]=useState(false),[playing,setPlaying]=useState(false),[visible,setVisible]=useState(true);
   const [sound,setSound]=useState<string|null>(null),[error,setError]=useState('');
+  const [peer]=useState(()=>Symbol('home-memes'));
   const videos=useRef(new Map<string,HTMLVideoElement>()),request=useRef(0);
   const videoRefs=useMemo(()=>Object.fromEntries(HOME_SOUND_MEMES.map(meme=>[meme.id,(node:HTMLVideoElement|null)=>{if(node)videos.current.set(meme.id,node);else{const previous=videos.current.get(meme.id);if(previous){previous.muted=true;previous.pause();previous.removeAttribute('src');previous.load();}videos.current.delete(meme.id);}}])),[]);
   const stopSound=useCallback((pause=false)=>{
@@ -20,6 +22,7 @@ export function HomeMemes({disabled=false}:{disabled?:boolean}) {
     for(const video of videos.current.values()){video.muted=true;video.loop=true;if(pause)video.pause();}
     setSound(null);
   },[]);
+  useEffect(()=>registerPeerMedia(peer,()=>stopSound()),[peer,stopSound]);
   useEffect(()=>{
     const preference=document.documentElement.dataset.reducedMotion;
     const reduced=preference==='true'||(preference===undefined&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -40,6 +43,7 @@ export function HomeMemes({disabled=false}:{disabled?:boolean}) {
     if(disabled)return;
     setError('');
     if(sound===id){stopSound(!animated);return;}
+    claimPeerMedia(peer);
     stopSound(!animated);
     const video=videos.current.get(id);if(!video)return;
     const current=request.current;

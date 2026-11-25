@@ -1,4 +1,8 @@
 .share{display:flex;align-items:center;flex-direction:column;gap:11px;margin:18px auto 0;width:100%;max-width:360px;min-width:0}
+.compact{display:block;position:relative;margin:0;width:44px;max-width:none;flex-shrink:0}
+.iconButton{border-radius:14px;color:var(--ink)}
+.compact .manual{position:absolute;z-index:60;top:calc(100% + 10px);right:-108px;width:min(280px,calc(100vw - 32px));padding:12px;border:1px solid var(--control-border);border-radius:13px;background:var(--surface);box-shadow:0 4px 14px #0002}
+@media(max-width:370px){.compact .manual{right:-100px}}
 .button{display:flex;align-items:center;justify-content:center;gap:9px;min-height:46px;max-width:100%;padding:11px 18px;border:1.5px solid var(--control-border,var(--ink));border-radius:15px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:700;line-height:1.5;box-shadow:0 2px 0 var(--hard-shadow,var(--ink));transition:transform .14s ease,background .14s ease,box-shadow .14s ease}
 .button:hover{background:var(--accent);color:var(--accent-text);transform:translateY(-1px)}
 .button:active{transform:translateY(2px);box-shadow:none}

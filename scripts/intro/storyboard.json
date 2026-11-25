@@ -1,0 +1,144 @@
+{
+  "duration": 120,
+  "locales": ["fr", "en", "pt-BR"],
+  "style": {
+    "format": "Pop animation with a musical soundtrack; no voice-over required.",
+    "palette": "Pale green, black and white with coral, sky-blue and yellow accents. No purple.",
+    "copy": "Show only the active scene's localized title and body. Let the gestures and memes explain the feature.",
+    "sound": "Music and short synchronized effects. Sound examples start only once the viewer has explicitly played the film."
+  },
+  "scenes": [
+    {
+      "id": "intro",
+      "start": 0,
+      "end": 8,
+      "text": {
+        "fr": {"title": "Zapstick", "body": "Tes réactions prennent vie."},
+        "en": {"title": "Zapstick", "body": "Bring your reactions to life."},
+        "pt-BR": {"title": "Zapstick", "body": "Dê vida às suas reações."}
+      },
+      "visual": "Three local cat, monkey and dog memes pop into view on the beat. They fold into sticker shapes around the Zapstick mark, then one opens into the mobile editor. No messaging-app availability claims."
+    },
+    {
+      "id": "import-media",
+      "start": 8,
+      "end": 18,
+      "text": {
+        "fr": {"title": "Commence avec un média", "body": "Photo, GIF ou vidéo."},
+        "en": {"title": "Start with a file", "body": "Photo, GIF or video."},
+        "pt-BR": {"title": "Comece com um arquivo", "body": "Foto, GIF ou vídeo."}
+      },
+      "visual": "Tap the large upload plus. Three compact media cards appear: a photo, a looping cat GIF and a video. Select the photo, then switch to the looping GIF; the live preview visibly animates."
+    },
+    {
+      "id": "import-link",
+      "start": 18,
+      "end": 27,
+      "text": {
+        "fr": {"title": "Un lien suffit", "body": "Colle un lien public."},
+        "en": {"title": "Just paste a link", "body": "Use a public media link."},
+        "pt-BR": {"title": "É só colar o link", "body": "Use um link público."}
+      },
+      "visual": "Zoom into the link input. A short generic public-media URL is pasted using the paste/import control. A small loading pulse resolves into the same animated meme in the editor. Do not display a fake successful private link or invented account flow."
+    },
+    {
+      "id": "place-text",
+      "start": 27,
+      "end": 38,
+      "text": {
+        "fr": {"title": "Tes mots, ton style", "body": "Écris. Glisse. C’est placé."},
+        "en": {"title": "Your words, your style", "body": "Type. Drag. Done."},
+        "pt-BR": {"title": "Suas palavras, seu estilo", "body": "Escreva. Arraste. Pronto."}
+      },
+      "visual": "Add a short localized caption: 'Au boulot !' / 'Back to work!' / 'Bora trabalhar!'. Cycle through two font treatments and a contrasting text background. Drag the caption directly across the preview to the lower edge. The underlying cat animation keeps playing."
+    },
+    {
+      "id": "place-emoji",
+      "start": 38,
+      "end": 48,
+      "text": {
+        "fr": {"title": "La bonne réaction", "body": "Pose ton émoji où tu veux."},
+        "en": {"title": "The perfect reaction", "body": "Drop an emoji anywhere."},
+        "pt-BR": {"title": "A reação certa", "body": "Coloque o emoji onde quiser."}
+      },
+      "visual": "Choose a laughing emoji from the compact palette. Drag it with a visible finger-sized pointer from the center to an upper corner. Briefly enlarge it, then show the caption and emoji together over the moving meme."
+    },
+    {
+      "id": "background",
+      "start": 48,
+      "end": 58,
+      "text": {
+        "fr": {"title": "Change le décor", "body": "Retire le fond. Choisis ta couleur."},
+        "en": {"title": "Change the backdrop", "body": "Remove the background. Pick a color."},
+        "pt-BR": {"title": "Mude o cenário", "body": "Remova o fundo. Escolha sua cor."}
+      },
+      "visual": "Use a clearly separated subject so the cutout is readable. Wipe from the original background to a transparency checkerboard, then apply pale yellow and coral backgrounds. Keep the subject, caption and emoji visible; do not imply universal perfect cutouts."
+    },
+    {
+      "id": "trim-animation",
+      "start": 58,
+      "end": 70,
+      "text": {
+        "fr": {"title": "Le meilleur moment", "body": "Choisis ton extrait. Garde le mouvement."},
+        "en": {"title": "Keep the best moment", "body": "Trim the clip. Keep it moving."},
+        "pt-BR": {"title": "Fique com o melhor momento", "body": "Escolha o trecho. Mantenha a animação."}
+      },
+      "visual": "Open Animation. Reveal the video filmstrip and move its two trim handles to a short funny action. Loop that chosen moment twice in the persistent preview. Show a six-second total composition for the following audio demonstration, without suggesting a 120-second sticker export."
+    },
+    {
+      "id": "original-sound",
+      "start": 70,
+      "end": 80,
+      "text": {
+        "fr": {"title": "Le son est déjà là", "body": "L’audio d’origine, dès l’import."},
+        "en": {"title": "The sound is ready", "body": "Original audio, ready on import."},
+        "pt-BR": {"title": "O som já está aqui", "body": "Áudio original, pronto ao importar."}
+      },
+      "visual": "Use a video that actually contains audio. Open Sound and show Sound 1 already populated by its original soundtrack. A short keyboard-tap sound aligns with the working cat. Show the six-second ruler and a clear first audio block; keep the UI compact."
+    },
+    {
+      "id": "second-sound",
+      "start": 80,
+      "end": 93,
+      "text": {
+        "fr": {"title": "Deux sons, à la suite", "body": "Le deuxième suit le premier."},
+        "en": {"title": "Two sounds. In sequence.", "body": "Sound 2 follows sound 1."},
+        "pt-BR": {"title": "Dois sons, em sequência", "body": "O segundo vem depois do primeiro."}
+      },
+      "visual": "Add an imported audio file to Sound 2. It appears immediately after Sound 1 by default, with the first block spanning 0–3 seconds and the second 3–6 seconds. Use contrasting blue and coral blocks with text labels. Shorten Sound 1 from three to two seconds and show Sound 2 following it automatically, then restore the three-second junction. Do not animate a required click on 'After sound 1' to obtain this default."
+    },
+    {
+      "id": "source-excerpt",
+      "start": 93,
+      "end": 104,
+      "text": {
+        "fr": {"title": "Prends le passage à 5 s", "body": "Le passage change. Sa place reste."},
+        "en": {"title": "Start the excerpt at 5 s", "body": "Change the excerpt. Keep its place."},
+        "pt-BR": {"title": "Comece o trecho em 5 s", "body": "Mude o trecho. Mantenha a posição."}
+      },
+      "visual": "Select Sound 2. Enter 5 in its source-excerpt start field and keep the excerpt duration at three seconds. Show the source range 5–8 seconds, while its composition block stays at 3–6 seconds after Sound 1. Tap the excerpt-listen control, then briefly play the assembled mix. The source start and the timeline placement must be visibly distinct."
+    },
+    {
+      "id": "collections",
+      "start": 104,
+      "end": 113,
+      "text": {
+        "fr": {"title": "Tout à sa place", "body": "Crée tes collections. Glisse tes stickers."},
+        "en": {"title": "Everything in its place", "body": "Make collections. Drag stickers into them."},
+        "pt-BR": {"title": "Cada coisa em seu lugar", "body": "Crie coleções. Arraste suas figurinhas."}
+      },
+      "visual": "Save the result to the local collection. Create a small colored collection named 'Réactions' / 'Reactions' / 'Reações'. Drag the new sticker into it, then reorder two sticker cards. A press and release without displacement leaves the order unchanged. No additional help panels or account screens."
+    },
+    {
+      "id": "export",
+      "start": 113,
+      "end": 120,
+      "text": {
+        "fr": {"title": "C’est prêt", "body": "GIF animé ou vidéo avec son."},
+        "en": {"title": "Ready to go", "body": "Animated GIF or video with sound."},
+        "pt-BR": {"title": "Prontinho", "body": "GIF animado ou vídeo com som."}
+      },
+      "visual": "Present two simple export cards: a visibly looping animated GIF and a video marked with a sound icon. A download tap lands on the beat. Finish with the Zapstick mark and the finished captioned meme. The GIF has no audio; the video does. Do not show or promise conversion inside WhatsApp."
+    }
+  ]
+}

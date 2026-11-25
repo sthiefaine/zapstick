@@ -1,0 +1,17 @@
+Zapstick — introduction films
+
+Three localized editions: French, English and Brazilian Portuguese.
+Duration: 120 seconds each. Instrumental soundtrack; no voice-over.
+
+Graphics, localized storyboard and animation created for Zapstick.
+Official Zapstick mark: /brand/zapstick-mark.svg.
+Meme visuals reuse the locally curated files in /memes/.
+Their source URLs and uploader credits are listed in /memes/SOURCES.txt.
+The underlying meme visuals retain their owners' rights.
+
+The instrumental soundtrack is an original procedural composition made for
+these films: 96 BPM, twelve ten-second phrases, synthesized instruments.
+No sampled recording or downloaded music is used.
+
+Reproducible source files are in scripts/intro/ in the Zapstick repository:
+storyboard.json, music.py, render.mjs and create-captions.mjs.

@@ -8,6 +8,7 @@ import { loadCollectionWithStarterMemes, saveCollection, download, backup, resto
 import type {DownloadFormat} from '@/lib/stickers/download-format';
 import { usePreferences } from '@/components/preferences-provider';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import {ShareZapstick} from '@/components/zapstick/share-zapstick';
 import { PrivacySettings } from '@/components/zapstick/privacy-settings';
 import { clearLocalData } from '@/lib/stickers/store';
 import {SoundDownload} from '@/components/zapstick/sound-download';
@@ -127,7 +128,7 @@ export default function Home() {
     function fillPack(p: Pack) { setView('collection'); setPackId(null); setPackTarget(p.id); setFilter(p.kind); setQuery(''); setSelectMode(true); setSelection([]); setAssigning(false); setEditingPack(false); }
     function toggleSelection(id: string) { setSelection(a => a.includes(id) ? a.filter(x => x !== id) : [...a, id]); }
     return <div className="game-shell">
-  <header className={`app-header ${hasBack ? 'with-back' : ''}`}><div className="header-left">{hasBack ? <button className="round-button header-back" aria-label={t("Retour")} disabled={!!busy || studioBusy} onClick={back}><ArrowLeft size={21}/></button> : null}<button className="wordmark" onClick={goHome} disabled={!!busy||studioBusy} aria-label={t("Zapstick accueil")}><img className="logo-mark" src="/brand/zapstick-mark.svg" alt="" width={29} height={29}/>zapstick</button></div><div className="header-actions"><LanguageSwitcher disabled={!!busy || studioBusy}/><button className={`round-button ${view === 'settings' ? 'is-active' : ''}`} aria-label={t("Réglages et sauvegarde")} onClick={() => navigate('settings')} disabled={!!busy || studioBusy}><Settings2 size={20}/></button></div></header>
+  <header className={`app-header ${hasBack ? 'with-back' : ''}`}><div className="header-left">{hasBack ? <button className="round-button header-back" aria-label={t("Retour")} disabled={!!busy || studioBusy} onClick={back}><ArrowLeft size={21}/></button> : null}<button className="wordmark" onClick={goHome} disabled={!!busy||studioBusy} aria-label={t("Zapstick accueil")}><img className="logo-mark" src="/brand/zapstick-mark.svg" alt="" width={29} height={29}/>zapstick</button></div><div className="header-actions"><ShareZapstick compact disabled={!!busy || studioBusy}/><LanguageSwitcher disabled={!!busy || studioBusy}/><button className={`round-button ${view === 'settings' ? 'is-active' : ''}`} aria-label={t("Réglages et sauvegarde")} onClick={() => navigate('settings')} disabled={!!busy || studioBusy}><Settings2 size={20}/></button></div></header>
   <main className="app-main" id="main-content" tabIndex={-1}>
    {storageError ? <div className="inline-error storage-alert" role="alert">{t(storageError)}<button onClick={() => navigate('settings')}>{t("Sauvegarder")}</button></div> : null}
    {!ready ? <div className="opening-state"><LoaderCircle size={24} className="spin"/><span>{t("Ouverture de la collection…")}</span></div> : <Studio key={studioResetKey} draft={draft} active={view === 'create'} packs={packs} stickers={stickers} onDraft={setDraft} onSave={add} onError={setToast} onCollection={() => navigate('collection')} onHelp={()=>navigate('help')} onWorking={setStudioBusy}/>}
