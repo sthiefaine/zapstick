@@ -9,13 +9,14 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import ts from 'typescript';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),nodeRequire=createRequire(import.meta.url),cache=new Map();
-let currentLocale='fr';
+let currentLocale='fr',simulateStarted=false,booleanStates=0;
 function load(file){
  const absolute=path.resolve(root,file);
  if(cache.has(absolute))return cache.get(absolute).exports;
  const loaded={exports:{}};cache.set(absolute,loaded);
  const code=ts.transpileModule(fs.readFileSync(absolute,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText;
  const require=specifier=>{
+  if(specifier==='react')return {...React,useState:initial=>{const state=React.useState(initial);if(typeof initial==='boolean'&&booleanStates++===0&&simulateStarted)return[true,state[1]];return state;}};
   if(specifier==='@/components/preferences-provider')return{usePreferences:()=>({locale:currentLocale,t:source=>source})};
   if(specifier.endsWith('.module.css'))return{};
   if(!specifier.startsWith('.')&&!specifier.startsWith('@/'))return nodeRequire(specifier);
@@ -31,6 +32,7 @@ const {IntroVideo}=load('components/zapstick/intro-video.tsx');
 test('the film loads no MP4 or captions before a click and uses the matching local poster',()=>{
  for(const [locale,film] of [['fr','fr'],['en','en'],['pt-BR','pt-br'],['es','en'],['de','en'],['zh-CN','en'],['ja','en'],['ru','en']]){
   currentLocale=locale;
+  booleanStates=0;
   const html=renderToStaticMarkup(React.createElement(IntroVideo,{active:true}));
   const video=html.match(/<video\b[^>]*>/)?.[0];assert.ok(video);
   assert.equal(/\ssrc=/.test(video),false,`${locale}: no video source before play`);
@@ -43,9 +45,27 @@ test('the film loads no MP4 or captions before a click and uses the matching loc
  }
 });
 
+test('captions are available after play but stay off by default in every film language',()=>{
+ simulateStarted=true;
+ try{
+  for(const [locale,film] of [['fr','fr'],['en','en'],['pt-BR','pt-br']]){
+   currentLocale=locale;booleanStates=0;
+   const html=renderToStaticMarkup(React.createElement(IntroVideo,{active:true}));
+   const track=html.match(/<track\b[^>]*>/)?.[0];assert.ok(track);
+   assert.match(track,/kind="captions"/);
+   assert.ok(track.includes(`/videos/zapstick-intro-${film}.vtt`));
+   assert.ok(track.includes(`srcLang="${locale}"`));
+   assert.doesNotMatch(track,/\sdefault(?:\s|=|\/?>)/);
+  }
+ }finally{simulateStarted=false;booleanStates=0;}
+});
+
 test('all three WebVTT tracks follow the localized storyboard continuously from zero to two minutes',()=>{
  const storyboard=JSON.parse(fs.readFileSync(path.join(root,'scripts/intro/storyboard.json'),'utf8'));
  assert.equal(storyboard.duration,120);
+ assert.equal(storyboard.fps,30);assert.equal(storyboard.bpm,120);
+ assert.equal(storyboard.scenes.length,15);
+ assert.deepEqual(storyboard.scenes.flatMap(scene=>scene.cuts),Array.from({length:60},(_,i)=>i*2));
  const seconds=value=>{const [h,m,s]=value.split(':').map(Number);return h*3600+m*60+s;};
  for(const locale of ['fr','en','pt-BR']){
   const content=fs.readFileSync(path.join(root,`public/videos/zapstick-intro-${locale.toLowerCase()}.vtt`),'utf8');
@@ -56,6 +76,7 @@ test('all three WebVTT tracks follow the localized storyboard continuously from 
    const [from,to]=timing.split(' --> ').map(seconds);
    assert.equal(id,scene.id);assert.equal(from,end);assert.equal(from,scene.start);assert.equal(to,scene.end);assert.ok(to>from);
    assert.ok(text.includes(scene.text[locale].title));assert.ok(text.includes(scene.text[locale].body));end=to;
+   assert.ok(scene.text[locale].body.length>15,'optional captions describe the action');
   }
   assert.equal(end,120);
  }

@@ -7,6 +7,7 @@ export const DEFAULT_LIMITS=Object.freeze({
  maxUrlBytes:2048,maxHeaderBytes:8192,maxHeaderCount:48,headersTimeoutMs:5000,
  idleTimeoutMs:10_000,ssrTimeoutMs:15_000,assetTimeoutMs:120_000,keepAliveMs:5000,
  maxRequestsPerSocket:100,healthRate:40,healthBurst:80,
+ audioRate:1,audioBurst:4,maxAudioInflight:2,audioTimeoutMs:17_000,
 });
 
 export class TokenBucket{
@@ -40,17 +41,35 @@ function reply(request,response,status,text,extra={}){
  const body=Buffer.from(text+'\n');response.writeHead(status,{'Content-Type':'text/plain; charset=utf-8','Content-Length':body.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Connection':'close',...extra});
  response.once('finish',()=>request.socket.destroy());response.end(request.method==='HEAD'?undefined:body);
 }
+function audioReply(request,response,status,error,extra={}){
+ if(response.destroyed||response.writableEnded)return;
+ const body=Buffer.from(JSON.stringify({error}));response.writeHead(status,{'Content-Type':'application/json','Content-Length':body.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, nofollow','Connection':'close',...extra});
+ response.once('finish',()=>request.socket.destroy());response.end(request.method==='HEAD'?undefined:body);
+}
 function configuredOrigin(candidate){try{const url=new URL(candidate);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?url:undefined;}catch{return undefined;}}
+function targetsApi(pathname){
+ let value=pathname;
+ for(let pass=0;pass<8;pass++){
+  if(value==='/api'||value.startsWith('/api/'))return true;
+  // Next may resolve dot segments or decode path components before routing.
+  // Treat those aliases as API requests before selecting an admission budget.
+  const parts=[];for(const part of value.replace(/\\/g,'/').split('/')){if(part==='..')parts.pop();else if(part&&part!=='.')parts.push(part);}
+  const normal='/'+parts.join('/');if(normal==='/api'||normal.startsWith('/api/'))return true;
+  let next;try{next=decodeURIComponent(value);}catch{return false;}
+  if(next===value)return false;value=next;
+ }
+ return false;
+}
 
 /** Built-in HTTP proxy: all expensive work stays behind admission checks. No IP/request logging. */
 export function createRuntimeGuard({upstreamPort,staticPaths=new Set(),isHealthy=()=>true,limits:custom={},publicUrl,clock=()=>performance.now()}={}){
  const limits={...DEFAULT_LIMITS,...custom};
  for(const [key,value] of Object.entries(limits))if(!Number.isFinite(value)||value<=0)throw new Error(`Invalid guard limit: ${key}`);
  if(!Number.isInteger(upstreamPort)||upstreamPort<1||upstreamPort>65535)throw new Error('Invalid private upstream port.');
- const globalBudget=new TokenBucket(limits.requestRate,limits.requestBurst,clock),ssrBudget=new TokenBucket(limits.ssrRate,limits.ssrBurst,clock),healthBudget=new TokenBucket(limits.healthRate,limits.healthBurst,clock);
+ const globalBudget=new TokenBucket(limits.requestRate,limits.requestBurst,clock),ssrBudget=new TokenBucket(limits.ssrRate,limits.ssrBurst,clock),healthBudget=new TokenBucket(limits.healthRate,limits.healthBurst,clock),audioBudget=new TokenBucket(limits.audioRate,limits.audioBurst,clock);
  const peers=new PeerBudgets({rate:limits.peerRate,burst:limits.peerBurst,maxEntries:limits.maxPeers,ttlMs:limits.peerTtlMs,clock});
  const sockets=new Set(),publicOrigin=configuredOrigin(publicUrl),agent=new http.Agent({keepAlive:true,maxSockets:limits.maxInflight,maxTotalSockets:limits.maxInflight,maxFreeSockets:8,timeout:limits.idleTimeoutMs});
- let inflight=0,ssrInflight=0,publicSockets=0,closing=false;
+ let inflight=0,ssrInflight=0,audioInflight=0,publicSockets=0,closing=false;
  const server=http.createServer({maxHeaderSize:limits.maxHeaderBytes,headersTimeout:limits.headersTimeoutMs,requestTimeout:limits.headersTimeoutMs,connectionsCheckingInterval:Math.min(1000,limits.headersTimeoutMs)},(request,response)=>{
   const url=request.url??'',method=request.method??'';
   if(closing){reply(request,response,503,'Service unavailable.');return;}
@@ -67,22 +86,26 @@ export function createRuntimeGuard({upstreamPort,staticPaths=new Set(),isHealthy
    const ok=isHealthy(),body=Buffer.from(JSON.stringify({status:ok?'ok':'starting',service:'zapstick'}));
    response.writeHead(ok?200:503,{'Content-Type':'application/json','Content-Length':body.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, nofollow'});response.end(method==='HEAD'?undefined:body);return;
   }
-  const address=request.socket.remoteAddress??'unknown',pathname=url.split('?',1)[0],asset=staticPaths.has(pathname);
-  if(!peers.take(address)||!globalBudget.take()||(!asset&&!ssrBudget.take())||inflight>=limits.maxInflight||(!asset&&ssrInflight>=limits.maxSsrInflight)){
-   reply(request,response,429,'Too many requests.',{'Retry-After':'1'});return;
+  const address=request.socket.remoteAddress??'unknown',pathname=url.split('?',1)[0],audio=pathname==='/api/audio',asset=!audio&&staticPaths.has(pathname),audioWork=audio&&method==='GET';
+  try{decodeURIComponent(pathname);}catch{reply(request,response,400,'Invalid request target.');return;}
+  if(targetsApi(pathname)&&!audio){reply(request,response,404,'Not found.');return;}
+  if(audio&&method==='HEAD'){audioReply(request,response,405,'unavailable',{Allow:'GET'});return;}
+  if(!peers.take(address)||!globalBudget.take()||(!asset&&!ssrBudget.take())||inflight>=limits.maxInflight||(!asset&&ssrInflight>=limits.maxSsrInflight)||(audioWork&&(!audioBudget.take()||audioInflight>=limits.maxAudioInflight))){
+   if(audio)audioReply(request,response,429,'busy',{'Retry-After':'1'});else reply(request,response,429,'Too many requests.',{'Retry-After':'1'});return;
   }
   if(method==='OPTIONS'){response.writeHead(204,{Allow:'GET, HEAD, OPTIONS','Cache-Control':'no-store'});response.end();return;}
   if(!isHealthy()){reply(request,response,503,'Service unavailable.',{'Retry-After':'1'});return;}
-  inflight++;if(!asset)ssrInflight++;
+  inflight++;if(!asset)ssrInflight++;if(audioWork)audioInflight++;
+  request.socket.setTimeout(audioWork?limits.audioTimeoutMs:limits.idleTimeoutMs);
   let finished=false,upstream;
-  const timer=setTimeout(()=>{upstream?.destroy();if(response.headersSent)response.destroy();else reply(request,response,504,'Upstream timeout.');},asset?limits.assetTimeoutMs:limits.ssrTimeoutMs);timer.unref();
-  const done=()=>{if(finished)return;finished=true;clearTimeout(timer);inflight--;if(!asset)ssrInflight--;if(!response.writableFinished)upstream?.destroy();};
+  const timer=setTimeout(()=>{upstream?.destroy();if(response.headersSent)response.destroy();else if(audioWork)audioReply(request,response,504,'timeout');else reply(request,response,504,'Upstream timeout.');},audioWork?limits.audioTimeoutMs:asset?limits.assetTimeoutMs:limits.ssrTimeoutMs);timer.unref();
+  const done=()=>{if(finished)return;finished=true;clearTimeout(timer);inflight--;if(!asset)ssrInflight--;if(audioWork)audioInflight--;if(!response.writableFinished)upstream?.destroy();};
   response.once('finish',done);response.once('close',done);
   upstream=http.request({hostname:'127.0.0.1',port:upstreamPort,path:url,method,headers:requestHeaders(request,publicOrigin),agent},incoming=>{
    response.writeHead(incoming.statusCode??502,responseHeaders(incoming.headers));incoming.on('error',()=>response.destroy());incoming.pipe(response);
   });
-  upstream.setTimeout(limits.idleTimeoutMs,()=>upstream.destroy(new Error('Upstream inactivity.')));
-  upstream.on('error',()=>{if(response.headersSent)response.destroy();else reply(request,response,502,'Upstream unavailable.');});
+  upstream.setTimeout(audioWork?limits.audioTimeoutMs:limits.idleTimeoutMs,()=>upstream.destroy(new Error('Upstream inactivity.')));
+  upstream.on('error',()=>{if(response.headersSent)response.destroy();else if(audioWork)audioReply(request,response,502,'unavailable');else reply(request,response,502,'Upstream unavailable.');});
   request.once('aborted',()=>upstream.destroy());upstream.end();
  });
  // Preserve all pairs for the explicit count check; parser bytes remain capped at 8 KiB.
@@ -102,7 +125,7 @@ export function createRuntimeGuard({upstreamPort,staticPaths=new Set(),isHealthy
  const cleanup=setInterval(()=>peers.prune(),Math.min(30_000,limits.peerTtlMs));cleanup.unref();
  let stopPromise;
  return {server,limits,
-  snapshot:()=>({inflight,ssrInflight,peerEntries:peers.entries.size,sockets:sockets.size,publicSockets}),
+  snapshot:()=>({inflight,ssrInflight,audioInflight,peerEntries:peers.entries.size,sockets:sockets.size,publicSockets}),
   close(graceMs=5000){if(stopPromise)return stopPromise;closing=true;clearInterval(cleanup);stopPromise=new Promise(resolve=>{const force=setTimeout(()=>{for(const socket of sockets)socket.destroy();agent.destroy();resolve();},graceMs);force.unref();server.close(()=>{clearTimeout(force);agent.destroy();peers.clear();resolve();});server.closeIdleConnections();});return stopPromise;},
  };
 }

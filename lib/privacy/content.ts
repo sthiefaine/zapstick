@@ -13,7 +13,7 @@ export const privacyConfig = {
 export const privacySections = [
   {
     title: 'Quand tu ajoutes un son',
-    body: 'Le son d’origine d’une vidéo, les fichiers audio importés et les enregistrements sont traités dans ton navigateur, sans envoi au serveur Zapstick. L’accès au microphone est demandé uniquement quand tu appuies sur un bouton d’enregistrement. Le son ajouté à un sticker est conservé sur cet appareil et inclus dans les sauvegardes. L’effacement local arrête le microphone et les lectures audio ; les sauvegardes et fichiers déjà téléchargés restent sur ton appareil jusqu’à leur suppression.',
+    body: 'Le son d’origine d’une vidéo, les fichiers audio importés et les enregistrements sont traités dans ton navigateur, sans envoi au serveur Zapstick. L’accès au microphone est demandé uniquement quand tu appuies sur un bouton d’enregistrement. Le son ajouté à un sticker est conservé sur cet appareil et inclus dans les sauvegardes. L’effacement local arrête le microphone et les lectures audio ; les sauvegardes et fichiers déjà téléchargés restent sur ton appareil jusqu’à leur suppression. Pour un lien audio direct, ton navigateur télécharge le son auprès de son hébergeur, qui reçoit ton adresse IP. Pour MyInstants, le serveur Zapstick récupère la page publique et le fichier audio, puis te le transmet sans l’enregistrer durablement ; MyInstants reçoit alors l’adresse IP du serveur.',
   },
   {
     title: 'Tes fichiers restent sur ton appareil',

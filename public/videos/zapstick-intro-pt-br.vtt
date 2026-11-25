@@ -1,62 +1,77 @@
 WEBVTT
 
-intro
+hook
 00:00:00.000 --> 00:00:08.000
-[Música]
-Zapstick
-Dê vida às suas reações.
+[Música rítmica e impactos]
+SUAS REAÇÕES
+Memes de gatos e cachorros saltam e giram ao redor da marca Zapstick.
 
-import-media
-00:00:08.000 --> 00:00:18.000
-Comece com um arquivo
-Foto, GIF ou vídeo.
+import
+00:00:08.000 --> 00:00:16.000
+IMPORTE
+Escolha uma foto, um GIF ou um vídeo. O arquivo aparece na prévia.
 
-import-link
-00:00:18.000 --> 00:00:27.000
-É só colar o link
-Use um link público.
+link
+00:00:16.000 --> 00:00:24.000
+UM LINK
+Cole um link público para importar o arquivo e começar a personalizá-lo.
 
-place-text
-00:00:27.000 --> 00:00:38.000
-Suas palavras, seu estilo
-Escreva. Arraste. Pronto.
+text
+00:00:24.000 --> 00:00:32.000
+SUAS PALAVRAS
+Adicione suas palavras, escolha o estilo e arraste o texto diretamente na prévia.
 
-place-emoji
-00:00:38.000 --> 00:00:48.000
-A reação certa
-Coloque o emoji onde quiser.
+emoji
+00:00:32.000 --> 00:00:40.000
+REAJA
+Escolha um emoji, mova-o e ajuste seu tamanho na figurinha animada.
 
 background
-00:00:48.000 --> 00:00:58.000
-Mude o cenário
-Remova o fundo. Escolha sua cor.
+00:00:40.000 --> 00:00:48.000
+SEM FUNDO
+Remova o fundo do arquivo e experimente fundos coloridos.
 
-trim-animation
-00:00:58.000 --> 00:01:10.000
-Fique com o melhor momento
-Escolha o trecho. Mantenha a animação.
+animation
+00:00:48.000 --> 00:00:56.000
+O MOMENTO
+Mova as alças da linha do tempo para escolher o momento que deseja manter.
 
-original-sound
-00:01:10.000 --> 00:01:20.000
-O som já está aqui
-Áudio original, pronto ao importar.
+original
+00:00:56.000 --> 00:01:04.000
+SOM ORIGINAL
+Se o vídeo tiver som, o áudio original já vem selecionado ao importar.
 
-second-sound
-00:01:20.000 --> 00:01:33.000
-Dois sons, em sequência
-O segundo vem depois do primeiro.
+second
+00:01:04.000 --> 00:01:12.000
+DOIS SONS
+O segundo som começa depois do primeiro. Ao encurtar o primeiro, o segundo acompanha a mudança.
 
-source-excerpt
-00:01:33.000 --> 00:01:44.000
-Comece o trecho em 5 s
-Mude o trecho. Mantenha a posição.
+excerpt
+00:01:12.000 --> 00:01:20.000
+AOS 5 S
+Escolha o trecho do segundo som a partir de cinco segundos. A posição dele depois do primeiro som continua a mesma.
 
 collections
-00:01:44.000 --> 00:01:53.000
-Cada coisa em seu lugar
-Crie coleções. Arraste suas figurinhas.
+00:01:20.000 --> 00:01:28.000
+TUDO EM ORDEM
+Crie uma coleção e arraste as figurinhas para ela. Você também pode reorganizar os cartões.
+
+favorites
+00:01:28.000 --> 00:01:36.000
+SEUS FAVORITOS
+Toque no coração para encontrar suas figurinhas favoritas rapidamente.
 
 export
-00:01:53.000 --> 00:02:00.000
-Prontinho
-GIF animado ou vídeo com som.
+00:01:36.000 --> 00:01:44.000
+PRONTINHO
+Baixe um GIF animado sem som ou um vídeo MP4 com som.
+
+party
+00:01:44.000 --> 00:01:52.000
+MAIS!
+Os memes se misturam e saltam: uma reação para cada humor.
+
+signature
+00:01:52.000 --> 00:02:00.000
+ZAPSTICK
+Zapstick. Crie sua próxima reação.

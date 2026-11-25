@@ -3,6 +3,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import type {Sticker} from '@/lib/stickers/types';
 import {decodeAudio,defaultAudioRecipe,sequenceAudioRecipes,type AudioTrack,type AudioRecipe} from '@/lib/stickers/audio';
 import {createMicrophoneSession,type MicrophoneState} from '@/lib/stickers/microphone';
+import {importAudioUrl} from '@/lib/stickers/audio-url';
 
 export type SoundSlot=0|1;
 type Pair<T>=[T,T];
@@ -26,16 +27,17 @@ export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>voi
   setTracks(nextTracks);setRecipes(nextRecipes);
  },[]);
  const cancel=useCallback(()=>{operation.current?.controller.abort();operation.current=null;mic.current?.cancel();mic.current=null;setPending(false);setMicrophone('idle');setBusySlot(null);},[]);
- const load=useCallback(async(blob:Blob,name:string,source:AudioTrack['source'],index:SoundSlot)=>{
+ const beginLoad=useCallback(async(resolve:(signal:AbortSignal)=>Promise<AudioTrack>,index:SoundSlot)=>{
   if(operation.current)return;
   const controller=new AbortController();operation.current={controller,index};
   callbacks.current.onPause();setPending(true);setBusySlot(index);
   try{
-   const next=await decodeAudio(blob,{name:name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),source,signal:controller.signal});
+   const next=await resolve(controller.signal);
    if(!controller.signal.aborted)installTrack(next,index);
   }catch(error){if(!controller.signal.aborted)callbacks.current.onError(audioMessage(error));}
   finally{if(operation.current?.controller===controller){operation.current=null;setPending(false);setBusySlot(null);}}
  },[installTrack]);
+ const load=useCallback((blob:Blob,name:string,source:AudioTrack['source'],index:SoundSlot)=>beginLoad(signal=>decodeAudio(blob,{name:name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),source,signal}),index),[beginLoad]);
  useEffect(()=>{
   // Only a new draft identity replaces these sessions. A cutout swaps its visual
   // Blob under the same identity and must keep both audio sources and recipes.
@@ -108,6 +110,7 @@ export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>voi
   track:tracks[selected],recipe:recipes[selected],hasOriginal:originalAvailable[selected],
   chooseOriginal:()=>{const index=selected,blob=original.current[index];if(blob)void load(blob,draft?.name??'Original','original',index);},
   chooseFile:(file:File,index:SoundSlot=selected)=>load(file,file.name.replace(/\.[^.]+$/,'')||'Audio','file',index),
+  chooseUrl:(url:string,index:SoundSlot=selected)=>beginLoad(async signal=>{const{blob,name}=await importAudioUrl(url,signal);return decodeAudio(blob,{name,source:'url',signal});},index),
   remove:(index:SoundSlot=selected)=>{if(operation.current?.index===index)cancel();setTracks(values=>replaceSlot(values,index,null));setRecipes(values=>replaceSlot(values,index,{...defaultAudioRecipe}));},
  };
 }

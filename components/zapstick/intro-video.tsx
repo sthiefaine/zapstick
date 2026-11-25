@@ -21,6 +21,7 @@ function IntroPlayer({language,active}:{language:FilmLanguage;active:boolean}){
  const {t}=usePreferences(),container=useRef<HTMLDivElement>(null),video=useRef<HTMLVideoElement>(null),inView=useRef(true),request=useRef(0);
  const [peer]=useState(()=>Symbol('zapstick-intro')),[started,setStarted]=useState(false),[error,setError]=useState(false);
  const base=`/videos/zapstick-intro-${language}`,captionLocale=language==='pt-br'?'pt-BR':language;
+ const asset=(extension:string)=>`${base}.${extension}?v=2`;
  const pause=useCallback(()=>{request.current++;video.current?.pause();},[]);
  useEffect(()=>{
   const media=video.current,hide=()=>{if(document.hidden)pause();};
@@ -46,24 +47,24 @@ function IntroPlayer({language,active}:{language:FilmLanguage;active:boolean}){
   const current=++request.current;
   setError(false);setStarted(true);claimPeerMedia(peer);
   // Attach the source inside the click gesture. No MP4 is requested on arrival.
-  if(media.getAttribute('src')!==`${base}.mp4`){media.src=`${base}.mp4`;media.load();}
-  media.volume=.65;
+  if(media.getAttribute('src')!==asset('mp4')){media.src=asset('mp4');media.load();}
+  media.volume=.8;
   try{await media.play();}
   catch{if(request.current===current)fail();}
  }
  return <div className={styles.card} ref={container}>
   <div className={styles.frame}>
-   <video ref={video} className={styles.video} hidden={!started} controls playsInline preload="none" poster={`${base}.jpg`} lang={captionLocale} aria-label={t('Film de présentation de Zapstick')} onPlay={()=>{
+   <video ref={video} className={styles.video} hidden={!started} controls playsInline preload="none" poster={asset('jpg')} lang={captionLocale} aria-label={t('Film de présentation de Zapstick')} onPlay={()=>{
     if(!active||document.hidden||!inView.current){pause();return;}
     claimPeerMedia(peer);
    }} onError={fail}>
-    {started?<track kind="captions" src={`${base}.vtt`} srcLang={captionLocale} label={LOCALE_NAMES[captionLocale]} default/>:null}
+    {started?<track kind="captions" src={asset('vtt')} srcLang={captionLocale} label={LOCALE_NAMES[captionLocale]}/>:null}
    </video>
    {!started?<button type="button" className={styles.launch} disabled={!active} onClick={()=>void play()} aria-label={t('Lire le film de présentation de Zapstick')}>
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img className={styles.poster} src={`${base}.jpg`} alt="" width={1280} height={720} loading="lazy" decoding="async"/>
+    <img className={styles.poster} src={asset('jpg')} alt="" width={1280} height={720} loading="lazy" decoding="async"/>
     <span className={styles.play} aria-hidden="true"><Play size={29} fill="currentColor"/></span>
-    <span className={styles.caption}><strong>{t('Découvrir Zapstick')}</strong><span>2 min</span></span>
+    <span className={styles.caption}><strong className="sr-only">{t('Découvrir Zapstick')}</strong><span>2 min</span></span>
    </button>:null}
   </div>
   {error?<p className={styles.error} role="status">{t('Impossible de lire cette vidéo.')}</p>:null}

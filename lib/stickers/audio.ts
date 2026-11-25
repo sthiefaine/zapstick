@@ -1,4 +1,4 @@
-export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone'; compositionBound?: boolean };
+export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone' | 'url'; compositionBound?: boolean };
 export type AudioRecipe = { start: number; offset: number; volume: number; duration?: number; sourcePinned?: boolean; afterPrevious?: boolean };
 export type AudioLayer = { track: AudioTrack; recipe: AudioRecipe };
 export const defaultAudioRecipe: AudioRecipe = { start: 0, offset: 0, volume: 1 };
@@ -9,9 +9,9 @@ export function resolveAudioRecipe(track:AudioTrack|null,recipe:AudioRecipe,visu
 }
 export function resolveAudioRecipes(tracks:readonly [AudioTrack|null,AudioTrack|null],recipes:readonly [AudioRecipe,AudioRecipe],visualStart:number,length:number):[AudioRecipe,AudioRecipe]{
  const resolved=recipes.map((recipe,index)=>resolveAudioRecipe(tracks[index],recipe,visualStart)) as [AudioRecipe,AudioRecipe];
- if(tracks[0]&&tracks[1]&&recipes[1].afterPrevious){
-  const first=resolved[0],available=Math.max(0,tracks[0].buffer.duration-Math.max(0,first.start));
-  resolved[1]={...resolved[1],offset:Math.max(0,first.offset+Math.min(first.duration??length,available))};
+ if(tracks[1]&&recipes[1].afterPrevious){
+  const first=resolved[0],available=tracks[0]?Math.max(0,tracks[0].buffer.duration-Math.max(0,first.start)):0;
+  resolved[1]={...resolved[1],offset:tracks[0]?Math.max(0,first.offset+Math.min(first.duration??length,available)):0};
  }
  return resolved;
 }

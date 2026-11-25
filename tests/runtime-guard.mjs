@@ -77,3 +77,36 @@ test('guarded startup binds Next privately and shutdown forwards the child signa
  for(let index=0;index<31;index++)assert.equal((await request(runtime.port,'/chunk%20%5Blocale%5D.js')).status,200);
  await runtime.close();assert.equal(await readFile(join(directory,'stopped.txt'),'utf8'),'SIGTERM');assert.equal((await runtime.exited).code,0);assert.throws(()=>process.kill(runtime.child.pid,0));
 });
+test('only the exact audio GET endpoint is forwarded, preserving its binary response and no-store headers',async t=>{
+ let reached=0;const {port}=await setup(t,(_req,res)=>{reached++;res.writeHead(200,{'Content-Type':'audio/mpeg','X-Audio-Name':'Caf%C3%A9','Cache-Control':'no-store'});res.end('audio bytes');},{limits:roomy});
+ const response=await request(port,'/api/audio?url=https%3A%2F%2Fwww.myinstants.com%2Fmedia%2Fsounds%2Ftest.mp3');
+ assert.equal(response.status,200);assert.equal(response.headers['content-type'],'audio/mpeg');assert.equal(response.headers['x-audio-name'],'Caf%C3%A9');assert.equal(response.headers['cache-control'],'no-store');
+ assert.equal((await request(port,'/api/audio?url=x',{method:'HEAD'})).status,405);
+ for(const path of ['/api/anything','/api/audio/','/api%2faudio','/foo/../api/audio','/foo/%2e%2e/api/audio','/%61pi/audio','/%2fapi/audio','/foo%2f..%2fapi%2faudio','/foo/%252e%252e%252fapi%252faudio','/foo/%5c..%5capi%5caudio'])assert.equal((await request(port,path)).status,404,path);
+ assert.equal(reached,1);
+});
+test('audio imports have their own rate and concurrency budgets while remaining inside SSR admission',async t=>{
+ const held=[];const {port,guard}=await setup(t,(_req,res)=>{held.push(res);},{clock:()=>0,limits:{...roomy,audioBurst:4,maxAudioInflight:1,maxSsrInflight:2}});
+ const first=request(port,'/api/audio?url=x');await until(()=>held.length===1);assert.equal(guard.snapshot().audioInflight,1);assert.equal(guard.snapshot().ssrInflight,1);
+ const blocked=await request(port,'/api/audio?url=y');assert.equal(blocked.status,429);assert.deepEqual(JSON.parse(blocked.body),{error:'busy'});assert.equal(blocked.headers['cache-control'],'no-store');
+ const page=request(port,'/fr');await until(()=>held.length===2);assert.equal((await request(port,'/en')).status,429);assert.equal((await request(port,'/api/health')).status,200);
+ for(const res of held)res.end('ok');assert.equal((await first).status,200);assert.equal((await page).status,200);await until(()=>guard.snapshot().audioInflight===0);
+});
+test('audio-rate exhaustion cannot be bypassed with forged peers or static classification',async t=>{
+ let reached=0;const {port}=await setup(t,(_req,res)=>{reached++;res.end('ok');},{clock:()=>0,staticPaths:new Set(['/api/audio']),limits:{...roomy,audioRate:1,audioBurst:1}});
+ assert.equal((await request(port,'/api/audio?url=x')).status,200);
+ const denied=await request(port,'/api/audio?url=y',{headers:{'X-Forwarded-For':'198.51.100.40'}});assert.equal(denied.status,429);assert.deepEqual(JSON.parse(denied.body),{error:'busy'});
+ assert.equal((await request(port,'/fr')).status,200);assert.equal((await request(port,'/api/health')).status,200);assert.equal(reached,2);
+});
+test('audio has a bounded dedicated wait instead of the shorter ordinary SSR and socket-idle timers',async t=>{
+ const {port}=await setup(t,(_req,res)=>{setTimeout(()=>res.end('audio'),70);},{limits:{...roomy,ssrTimeoutMs:20,idleTimeoutMs:30,audioTimeoutMs:180}});
+ assert.equal((await request(port,'/api/audio?url=x')).status,200);
+ const stalled=await setup(t,()=>{}, {limits:{...roomy,idleTimeoutMs:500,audioTimeoutMs:50}});
+ const timed=await request(stalled.port,'/api/audio?url=x');assert.equal(timed.status,504);assert.deepEqual(JSON.parse(timed.body),{error:'timeout'});
+});
+test('client disconnection aborts private audio work and releases both audio and SSR slots',async t=>{
+ let reached=0,closed=false;const {port,guard}=await setup(t,(_req,res)=>{reached++;if(reached===1)res.on('close',()=>{closed=true;});else res.end('ok');},{limits:{...roomy,maxAudioInflight:1}});
+ const outgoing=http.get({host:'127.0.0.1',port,path:'/api/audio?url=x',agent:false});outgoing.on('error',()=>{});
+ await until(()=>reached===1);assert.equal(guard.snapshot().audioInflight,1);outgoing.destroy();
+ await until(()=>closed&&guard.snapshot().audioInflight===0);assert.equal(guard.snapshot().ssrInflight,0);assert.equal((await request(port,'/api/audio?url=y')).status,200);
+});

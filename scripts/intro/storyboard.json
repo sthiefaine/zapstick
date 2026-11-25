@@ -1,144 +1,393 @@
 {
+  "version": 2,
   "duration": 120,
-  "locales": ["fr", "en", "pt-BR"],
+  "fps": 30,
+  "bpm": 120,
+  "locales": [
+    "fr",
+    "en",
+    "pt-BR"
+  ],
   "style": {
-    "format": "Pop animation with a musical soundtrack; no voice-over required.",
-    "palette": "Pale green, black and white with coral, sky-blue and yellow accents. No purple.",
-    "copy": "Show only the active scene's localized title and body. Let the gestures and memes explain the feature.",
-    "sound": "Music and short synchronized effects. Sound examples start only once the viewer has explicitly played the film."
+    "format": "Full-frame kinetic film with four two-second shots per eight-second chapter. Large short words move as objects; no explanatory body copy and no slide panels.",
+    "palette": "Pale green, sky-blue, coral, yellow, black, white. Official logo and public meme assets only.",
+    "sound": "120 BPM original instrumental with synchronized impacts at cuts + 0.12 seconds."
   },
   "scenes": [
     {
-      "id": "intro",
+      "id": "hook",
       "start": 0,
       "end": 8,
       "text": {
-        "fr": {"title": "Zapstick", "body": "Tes réactions prennent vie."},
-        "en": {"title": "Zapstick", "body": "Bring your reactions to life."},
-        "pt-BR": {"title": "Zapstick", "body": "Dê vida às suas reações."}
+        "fr": {
+          "title": "TES RÉACTIONS",
+          "body": "Des mèmes de chats et de chiens rebondissent et se retournent autour de la marque Zapstick."
+        },
+        "en": {
+          "title": "YOUR REACTIONS",
+          "body": "Cat and dog memes bounce and flip around the Zapstick mark."
+        },
+        "pt-BR": {
+          "title": "SUAS REAÇÕES",
+          "body": "Memes de gatos e cachorros saltam e giram ao redor da marca Zapstick."
+        }
       },
-      "visual": "Three local cat, monkey and dog memes pop into view on the beat. They fold into sticker shapes around the Zapstick mark, then one opens into the mobile editor. No messaging-app availability claims."
+      "cuts": [
+        0,
+        2,
+        4,
+        6
+      ]
     },
     {
-      "id": "import-media",
+      "id": "import",
       "start": 8,
-      "end": 18,
+      "end": 16,
       "text": {
-        "fr": {"title": "Commence avec un média", "body": "Photo, GIF ou vidéo."},
-        "en": {"title": "Start with a file", "body": "Photo, GIF or video."},
-        "pt-BR": {"title": "Comece com um arquivo", "body": "Foto, GIF ou vídeo."}
+        "fr": {
+          "title": "IMPORTE",
+          "body": "Choisis une photo, un GIF ou une vidéo. Le média apparaît dans l’aperçu."
+        },
+        "en": {
+          "title": "IMPORT",
+          "body": "Choose a photo, GIF or video. The media appears in the preview."
+        },
+        "pt-BR": {
+          "title": "IMPORTE",
+          "body": "Escolha uma foto, um GIF ou um vídeo. O arquivo aparece na prévia."
+        }
       },
-      "visual": "Tap the large upload plus. Three compact media cards appear: a photo, a looping cat GIF and a video. Select the photo, then switch to the looping GIF; the live preview visibly animates."
+      "cuts": [
+        8,
+        10,
+        12,
+        14
+      ]
     },
     {
-      "id": "import-link",
-      "start": 18,
-      "end": 27,
+      "id": "link",
+      "start": 16,
+      "end": 24,
       "text": {
-        "fr": {"title": "Un lien suffit", "body": "Colle un lien public."},
-        "en": {"title": "Just paste a link", "body": "Use a public media link."},
-        "pt-BR": {"title": "É só colar o link", "body": "Use um link público."}
+        "fr": {
+          "title": "UN LIEN",
+          "body": "Colle un lien public pour récupérer son média, puis commence à le personnaliser."
+        },
+        "en": {
+          "title": "ONE LINK",
+          "body": "Paste a public link to import its media, then start customizing it."
+        },
+        "pt-BR": {
+          "title": "UM LINK",
+          "body": "Cole um link público para importar o arquivo e começar a personalizá-lo."
+        }
       },
-      "visual": "Zoom into the link input. A short generic public-media URL is pasted using the paste/import control. A small loading pulse resolves into the same animated meme in the editor. Do not display a fake successful private link or invented account flow."
+      "cuts": [
+        16,
+        18,
+        20,
+        22
+      ]
     },
     {
-      "id": "place-text",
-      "start": 27,
-      "end": 38,
+      "id": "text",
+      "start": 24,
+      "end": 32,
       "text": {
-        "fr": {"title": "Tes mots, ton style", "body": "Écris. Glisse. C’est placé."},
-        "en": {"title": "Your words, your style", "body": "Type. Drag. Done."},
-        "pt-BR": {"title": "Suas palavras, seu estilo", "body": "Escreva. Arraste. Pronto."}
+        "fr": {
+          "title": "TES MOTS",
+          "body": "Ajoute tes mots, choisis leur style et déplace le texte directement sur l’aperçu."
+        },
+        "en": {
+          "title": "YOUR WORDS",
+          "body": "Add your words, choose their style and drag the text directly on the preview."
+        },
+        "pt-BR": {
+          "title": "SUAS PALAVRAS",
+          "body": "Adicione suas palavras, escolha o estilo e arraste o texto diretamente na prévia."
+        }
       },
-      "visual": "Add a short localized caption: 'Au boulot !' / 'Back to work!' / 'Bora trabalhar!'. Cycle through two font treatments and a contrasting text background. Drag the caption directly across the preview to the lower edge. The underlying cat animation keeps playing."
+      "cuts": [
+        24,
+        26,
+        28,
+        30
+      ]
     },
     {
-      "id": "place-emoji",
-      "start": 38,
-      "end": 48,
+      "id": "emoji",
+      "start": 32,
+      "end": 40,
       "text": {
-        "fr": {"title": "La bonne réaction", "body": "Pose ton émoji où tu veux."},
-        "en": {"title": "The perfect reaction", "body": "Drop an emoji anywhere."},
-        "pt-BR": {"title": "A reação certa", "body": "Coloque o emoji onde quiser."}
+        "fr": {
+          "title": "RÉAGIS",
+          "body": "Choisis un émoji, déplace-le et ajuste sa taille sur le sticker animé."
+        },
+        "en": {
+          "title": "REACT",
+          "body": "Pick an emoji, move it and adjust its size on the animated sticker."
+        },
+        "pt-BR": {
+          "title": "REAJA",
+          "body": "Escolha um emoji, mova-o e ajuste seu tamanho na figurinha animada."
+        }
       },
-      "visual": "Choose a laughing emoji from the compact palette. Drag it with a visible finger-sized pointer from the center to an upper corner. Briefly enlarge it, then show the caption and emoji together over the moving meme."
+      "cuts": [
+        32,
+        34,
+        36,
+        38
+      ]
     },
     {
       "id": "background",
+      "start": 40,
+      "end": 48,
+      "text": {
+        "fr": {
+          "title": "SANS FOND",
+          "body": "Retire le fond du média, puis essaie les fonds colorés."
+        },
+        "en": {
+          "title": "NO BACKGROUND",
+          "body": "Remove the media background, then try colored backdrops."
+        },
+        "pt-BR": {
+          "title": "SEM FUNDO",
+          "body": "Remova o fundo do arquivo e experimente fundos coloridos."
+        }
+      },
+      "cuts": [
+        40,
+        42,
+        44,
+        46
+      ]
+    },
+    {
+      "id": "animation",
       "start": 48,
-      "end": 58,
+      "end": 56,
       "text": {
-        "fr": {"title": "Change le décor", "body": "Retire le fond. Choisis ta couleur."},
-        "en": {"title": "Change the backdrop", "body": "Remove the background. Pick a color."},
-        "pt-BR": {"title": "Mude o cenário", "body": "Remova o fundo. Escolha sua cor."}
+        "fr": {
+          "title": "LE MOMENT",
+          "body": "Déplace les poignées de la barre de montage pour choisir le moment à garder."
+        },
+        "en": {
+          "title": "THE MOMENT",
+          "body": "Move the timeline handles to choose the moment you want to keep."
+        },
+        "pt-BR": {
+          "title": "O MOMENTO",
+          "body": "Mova as alças da linha do tempo para escolher o momento que deseja manter."
+        }
       },
-      "visual": "Use a clearly separated subject so the cutout is readable. Wipe from the original background to a transparency checkerboard, then apply pale yellow and coral backgrounds. Keep the subject, caption and emoji visible; do not imply universal perfect cutouts."
+      "cuts": [
+        48,
+        50,
+        52,
+        54
+      ]
     },
     {
-      "id": "trim-animation",
-      "start": 58,
-      "end": 70,
+      "id": "original",
+      "start": 56,
+      "end": 64,
       "text": {
-        "fr": {"title": "Le meilleur moment", "body": "Choisis ton extrait. Garde le mouvement."},
-        "en": {"title": "Keep the best moment", "body": "Trim the clip. Keep it moving."},
-        "pt-BR": {"title": "Fique com o melhor momento", "body": "Escolha o trecho. Mantenha a animação."}
+        "fr": {
+          "title": "SON ORIGINAL",
+          "body": "Si la vidéo contient du son, son audio d’origine est sélectionné dès l’import."
+        },
+        "en": {
+          "title": "ORIGINAL SOUND",
+          "body": "If the video contains sound, its original audio is selected on import."
+        },
+        "pt-BR": {
+          "title": "SOM ORIGINAL",
+          "body": "Se o vídeo tiver som, o áudio original já vem selecionado ao importar."
+        }
       },
-      "visual": "Open Animation. Reveal the video filmstrip and move its two trim handles to a short funny action. Loop that chosen moment twice in the persistent preview. Show a six-second total composition for the following audio demonstration, without suggesting a 120-second sticker export."
+      "cuts": [
+        56,
+        58,
+        60,
+        62
+      ]
     },
     {
-      "id": "original-sound",
-      "start": 70,
+      "id": "second",
+      "start": 64,
+      "end": 72,
+      "text": {
+        "fr": {
+          "title": "DEUX SONS",
+          "body": "Le deuxième son se place après le premier. Quand tu raccourcis le premier, le second le suit."
+        },
+        "en": {
+          "title": "TWO SOUNDS",
+          "body": "The second sound starts after the first. When you shorten the first, the second follows it."
+        },
+        "pt-BR": {
+          "title": "DOIS SONS",
+          "body": "O segundo som começa depois do primeiro. Ao encurtar o primeiro, o segundo acompanha a mudança."
+        }
+      },
+      "cuts": [
+        64,
+        66,
+        68,
+        70
+      ]
+    },
+    {
+      "id": "excerpt",
+      "start": 72,
       "end": 80,
       "text": {
-        "fr": {"title": "Le son est déjà là", "body": "L’audio d’origine, dès l’import."},
-        "en": {"title": "The sound is ready", "body": "Original audio, ready on import."},
-        "pt-BR": {"title": "O som já está aqui", "body": "Áudio original, pronto ao importar."}
+        "fr": {
+          "title": "À 5 S",
+          "body": "Prends le passage du deuxième son à partir de cinq secondes. Sa place après le premier son reste la même."
+        },
+        "en": {
+          "title": "AT 5 S",
+          "body": "Choose the second sound’s excerpt starting at five seconds. Its position after the first sound stays the same."
+        },
+        "pt-BR": {
+          "title": "AOS 5 S",
+          "body": "Escolha o trecho do segundo som a partir de cinco segundos. A posição dele depois do primeiro som continua a mesma."
+        }
       },
-      "visual": "Use a video that actually contains audio. Open Sound and show Sound 1 already populated by its original soundtrack. A short keyboard-tap sound aligns with the working cat. Show the six-second ruler and a clear first audio block; keep the UI compact."
-    },
-    {
-      "id": "second-sound",
-      "start": 80,
-      "end": 93,
-      "text": {
-        "fr": {"title": "Deux sons, à la suite", "body": "Le deuxième suit le premier."},
-        "en": {"title": "Two sounds. In sequence.", "body": "Sound 2 follows sound 1."},
-        "pt-BR": {"title": "Dois sons, em sequência", "body": "O segundo vem depois do primeiro."}
-      },
-      "visual": "Add an imported audio file to Sound 2. It appears immediately after Sound 1 by default, with the first block spanning 0–3 seconds and the second 3–6 seconds. Use contrasting blue and coral blocks with text labels. Shorten Sound 1 from three to two seconds and show Sound 2 following it automatically, then restore the three-second junction. Do not animate a required click on 'After sound 1' to obtain this default."
-    },
-    {
-      "id": "source-excerpt",
-      "start": 93,
-      "end": 104,
-      "text": {
-        "fr": {"title": "Prends le passage à 5 s", "body": "Le passage change. Sa place reste."},
-        "en": {"title": "Start the excerpt at 5 s", "body": "Change the excerpt. Keep its place."},
-        "pt-BR": {"title": "Comece o trecho em 5 s", "body": "Mude o trecho. Mantenha a posição."}
-      },
-      "visual": "Select Sound 2. Enter 5 in its source-excerpt start field and keep the excerpt duration at three seconds. Show the source range 5–8 seconds, while its composition block stays at 3–6 seconds after Sound 1. Tap the excerpt-listen control, then briefly play the assembled mix. The source start and the timeline placement must be visibly distinct."
+      "cuts": [
+        72,
+        74,
+        76,
+        78
+      ]
     },
     {
       "id": "collections",
-      "start": 104,
-      "end": 113,
+      "start": 80,
+      "end": 88,
       "text": {
-        "fr": {"title": "Tout à sa place", "body": "Crée tes collections. Glisse tes stickers."},
-        "en": {"title": "Everything in its place", "body": "Make collections. Drag stickers into them."},
-        "pt-BR": {"title": "Cada coisa em seu lugar", "body": "Crie coleções. Arraste suas figurinhas."}
+        "fr": {
+          "title": "BIEN RANGÉ",
+          "body": "Crée une collection et glisse tes stickers dedans. Tu peux aussi réorganiser les cartes."
+        },
+        "en": {
+          "title": "ALL SORTED",
+          "body": "Create a collection and drag stickers into it. You can also rearrange the cards."
+        },
+        "pt-BR": {
+          "title": "TUDO EM ORDEM",
+          "body": "Crie uma coleção e arraste as figurinhas para ela. Você também pode reorganizar os cartões."
+        }
       },
-      "visual": "Save the result to the local collection. Create a small colored collection named 'Réactions' / 'Reactions' / 'Reações'. Drag the new sticker into it, then reorder two sticker cards. A press and release without displacement leaves the order unchanged. No additional help panels or account screens."
+      "cuts": [
+        80,
+        82,
+        84,
+        86
+      ]
+    },
+    {
+      "id": "favorites",
+      "start": 88,
+      "end": 96,
+      "text": {
+        "fr": {
+          "title": "TES FAVORIS",
+          "body": "Touche le cœur pour retrouver rapidement tes stickers favoris."
+        },
+        "en": {
+          "title": "YOUR FAVORITES",
+          "body": "Tap the heart to find your favorite stickers quickly."
+        },
+        "pt-BR": {
+          "title": "SEUS FAVORITOS",
+          "body": "Toque no coração para encontrar suas figurinhas favoritas rapidamente."
+        }
+      },
+      "cuts": [
+        88,
+        90,
+        92,
+        94
+      ]
     },
     {
       "id": "export",
-      "start": 113,
+      "start": 96,
+      "end": 104,
+      "text": {
+        "fr": {
+          "title": "C’EST PRÊT",
+          "body": "Télécharge un GIF animé sans son, ou une vidéo MP4 avec son."
+        },
+        "en": {
+          "title": "READY TO GO",
+          "body": "Download an animated GIF without sound, or an MP4 video with sound."
+        },
+        "pt-BR": {
+          "title": "PRONTINHO",
+          "body": "Baixe um GIF animado sem som ou um vídeo MP4 com som."
+        }
+      },
+      "cuts": [
+        96,
+        98,
+        100,
+        102
+      ]
+    },
+    {
+      "id": "party",
+      "start": 104,
+      "end": 112,
+      "text": {
+        "fr": {
+          "title": "ENCORE !",
+          "body": "Les mèmes se mélangent et rebondissent : à chaque humeur sa réaction."
+        },
+        "en": {
+          "title": "AGAIN!",
+          "body": "The memes mix and bounce: a reaction for every mood."
+        },
+        "pt-BR": {
+          "title": "MAIS!",
+          "body": "Os memes se misturam e saltam: uma reação para cada humor."
+        }
+      },
+      "cuts": [
+        104,
+        106,
+        108,
+        110
+      ]
+    },
+    {
+      "id": "signature",
+      "start": 112,
       "end": 120,
       "text": {
-        "fr": {"title": "C’est prêt", "body": "GIF animé ou vidéo avec son."},
-        "en": {"title": "Ready to go", "body": "Animated GIF or video with sound."},
-        "pt-BR": {"title": "Prontinho", "body": "GIF animado ou vídeo com som."}
+        "fr": {
+          "title": "ZAPSTICK",
+          "body": "Zapstick. À toi de créer ta prochaine réaction."
+        },
+        "en": {
+          "title": "ZAPSTICK",
+          "body": "Zapstick. Create your next reaction."
+        },
+        "pt-BR": {
+          "title": "ZAPSTICK",
+          "body": "Zapstick. Crie sua próxima reação."
+        }
       },
-      "visual": "Present two simple export cards: a visibly looping animated GIF and a video marked with a sound icon. A download tap lands on the beat. Finish with the Zapstick mark and the finished captioned meme. The GIF has no audio; the video does. Do not show or promise conversion inside WhatsApp."
+      "cuts": [
+        112,
+        114,
+        116,
+        118
+      ]
     }
   ]
 }

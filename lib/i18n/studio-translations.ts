@@ -28,6 +28,19 @@ const rows:readonly Row[]=[
 ];
 
 const excerptRows:readonly Row[]=[
+ ['Fichier','File','Arquivo','Archivo','Datei','文件','ファイル','Файл'],
+ ['Depuis un lien','From a link','De um link','Desde un enlace','Über einen Link','从链接','リンクから','По ссылке'],
+ ['Lien','Link','Link','Enlace','Link','链接','リンク','Ссылка'],
+ ['Lien audio','Audio link','Link de áudio','Enlace de audio','Audio-Link','音频链接','音声リンク','Ссылка на аудио'],
+ ['Lien audio ou MyInstants','Audio or MyInstants link','Link de áudio ou MyInstants','Enlace de audio o MyInstants','Audio- oder MyInstants-Link','音频或 MyInstants 链接','音声またはMyInstantsのリンク','Ссылка на аудио или MyInstants'],
+ ['Importer','Import','Importar','Importar','Importieren','导入','読み込む','Импортировать'],
+ ['Découper le son','Trim audio','Recortar áudio','Recortar audio','Audio zuschneiden','裁剪音频','音声をトリミング','Обрезать звук'],
+ ['Glisse la zone pour choisir le passage. Les poignées règlent son début et sa fin.','Drag the selection to choose a passage. Use the handles to trim its start and end.','Arraste a seleção para escolher o trecho. Use as alças para ajustar o início e o fim.','Arrastra la selección para elegir el fragmento. Usa los tiradores para ajustar el inicio y el final.','Ziehe die Auswahl zum gewünschten Ausschnitt. Mit den Griffen bestimmst du Anfang und Ende.','拖动选区来选择片段，用两端的手柄调整起点和终点。','選択範囲をドラッグして使う部分を選び、両端のハンドルで開始と終了を調整します。','Перетащи выделение, чтобы выбрать фрагмент. Ручки регулируют его начало и конец.'],
+ ['Déplacer l’extrait audio','Move the audio excerpt','Mover o trecho de áudio','Mover el fragmento de audio','Audioausschnitt verschieben','移动音频片段','音声の選択範囲を移動','Переместить аудиофрагмент'],
+ ['Fin de l’extrait de la piste {number}','Track {number} excerpt end','Fim do trecho da faixa {number}','Fin del fragmento de la pista {number}','Ende des Ausschnitts von Spur {number}','音轨 {number} 的片段终点','トラック{number}の音声終了位置','Конец фрагмента дорожки {number}'],
+ ['Précision','Fine adjustment','Ajuste preciso','Ajuste preciso','Feineinstellung','精确调整','微調整','Точная настройка'],
+ ['Début précis de l’extrait de la piste {number}','Exact excerpt start for track {number}','Início exato do trecho da faixa {number}','Inicio exacto del fragmento de la pista {number}','Genauer Anfang des Ausschnitts von Spur {number}','音轨 {number} 片段的精确起点','トラック{number}の正確な開始位置','Точное начало фрагмента дорожки {number}'],
+ ['Fin précise de l’extrait de la piste {number}','Exact excerpt end for track {number}','Fim exato do trecho da faixa {number}','Final exacto del fragmento de la pista {number}','Genaues Ende des Ausschnitts von Spur {number}','音轨 {number} 片段的精确终点','トラック{number}の正確な終了位置','Точный конец фрагмента дорожки {number}'],
  ['Déplacer la piste {number}','Move track {number}','Mover faixa {number}','Mover pista {number}','Spur {number} verschieben','移动音轨 {number}','トラック{number}を移動','Переместить дорожку {number}'],
  ['Son {number}','Sound {number}','Som {number}','Sonido {number}','Ton {number}','声音 {number}','音声{number}','Звук {number}'],
  ['Écouter le montage','Play the mix','Ouvir a montagem','Escuchar el montaje','Montage anhören','播放混音','ミックスを再生','Прослушать монтаж'],

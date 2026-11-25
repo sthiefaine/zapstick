@@ -96,6 +96,12 @@ test('linked saved audio stays aligned through a recut and a new second sound wa
  const initial=audio.sequenceAudioRecipes([null,b],[audio.defaultAudioRecipe,audio.defaultAudioRecipe],0,6);assert.equal(initial[1].afterPrevious,true);
  const linked=audio.sequenceAudioRecipes([a,b],recipes,1,5);assert.equal(linked[0].offset,1);assert.equal(linked[1].offset,4);
 });
+test('removing the first sound starts a linked second at zero and preserves its chosen passage',()=>{
+ const second=source(new Float32Array(80000)),recipe={...audio.defaultAudioRecipe,start:5,duration:1,offset:3,volume:.5,afterPrevious:true};
+ const resolved=audio.resolveAudioRecipes([null,second],[audio.defaultAudioRecipe,recipe],0,6)[1];
+ assert.deepEqual(resolved,{...recipe,offset:0});
+ assert.equal(audio.resolveAudioRecipes([null,second],[audio.defaultAudioRecipe,{...recipe,afterPrevious:false}],0,6)[1].offset,3);
+});
 test('an explicitly chosen source passage stays at five seconds when the video is trimmed',()=>{
  const track={...source(new Float32Array(80000)),source:'original'},recipe={...audio.defaultAudioRecipe,start:5,duration:1};
  assert.equal(audio.resolveAudioRecipe(track,audio.defaultAudioRecipe,2).start,2);

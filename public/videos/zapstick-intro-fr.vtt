@@ -1,62 +1,77 @@
 WEBVTT
 
-intro
+hook
 00:00:00.000 --> 00:00:08.000
-[Musique]
-Zapstick
-Tes réactions prennent vie.
+[Musique rythmée et impacts]
+TES RÉACTIONS
+Des mèmes de chats et de chiens rebondissent et se retournent autour de la marque Zapstick.
 
-import-media
-00:00:08.000 --> 00:00:18.000
-Commence avec un média
-Photo, GIF ou vidéo.
+import
+00:00:08.000 --> 00:00:16.000
+IMPORTE
+Choisis une photo, un GIF ou une vidéo. Le média apparaît dans l’aperçu.
 
-import-link
-00:00:18.000 --> 00:00:27.000
-Un lien suffit
-Colle un lien public.
+link
+00:00:16.000 --> 00:00:24.000
+UN LIEN
+Colle un lien public pour récupérer son média, puis commence à le personnaliser.
 
-place-text
-00:00:27.000 --> 00:00:38.000
-Tes mots, ton style
-Écris. Glisse. C’est placé.
+text
+00:00:24.000 --> 00:00:32.000
+TES MOTS
+Ajoute tes mots, choisis leur style et déplace le texte directement sur l’aperçu.
 
-place-emoji
-00:00:38.000 --> 00:00:48.000
-La bonne réaction
-Pose ton émoji où tu veux.
+emoji
+00:00:32.000 --> 00:00:40.000
+RÉAGIS
+Choisis un émoji, déplace-le et ajuste sa taille sur le sticker animé.
 
 background
-00:00:48.000 --> 00:00:58.000
-Change le décor
-Retire le fond. Choisis ta couleur.
+00:00:40.000 --> 00:00:48.000
+SANS FOND
+Retire le fond du média, puis essaie les fonds colorés.
 
-trim-animation
-00:00:58.000 --> 00:01:10.000
-Le meilleur moment
-Choisis ton extrait. Garde le mouvement.
+animation
+00:00:48.000 --> 00:00:56.000
+LE MOMENT
+Déplace les poignées de la barre de montage pour choisir le moment à garder.
 
-original-sound
-00:01:10.000 --> 00:01:20.000
-Le son est déjà là
-L’audio d’origine, dès l’import.
+original
+00:00:56.000 --> 00:01:04.000
+SON ORIGINAL
+Si la vidéo contient du son, son audio d’origine est sélectionné dès l’import.
 
-second-sound
-00:01:20.000 --> 00:01:33.000
-Deux sons, à la suite
-Le deuxième suit le premier.
+second
+00:01:04.000 --> 00:01:12.000
+DEUX SONS
+Le deuxième son se place après le premier. Quand tu raccourcis le premier, le second le suit.
 
-source-excerpt
-00:01:33.000 --> 00:01:44.000
-Prends le passage à 5 s
-Le passage change. Sa place reste.
+excerpt
+00:01:12.000 --> 00:01:20.000
+À 5 S
+Prends le passage du deuxième son à partir de cinq secondes. Sa place après le premier son reste la même.
 
 collections
-00:01:44.000 --> 00:01:53.000
-Tout à sa place
-Crée tes collections. Glisse tes stickers.
+00:01:20.000 --> 00:01:28.000
+BIEN RANGÉ
+Crée une collection et glisse tes stickers dedans. Tu peux aussi réorganiser les cartes.
+
+favorites
+00:01:28.000 --> 00:01:36.000
+TES FAVORIS
+Touche le cœur pour retrouver rapidement tes stickers favoris.
 
 export
-00:01:53.000 --> 00:02:00.000
-C’est prêt
-GIF animé ou vidéo avec son.
+00:01:36.000 --> 00:01:44.000
+C’EST PRÊT
+Télécharge un GIF animé sans son, ou une vidéo MP4 avec son.
+
+party
+00:01:44.000 --> 00:01:52.000
+ENCORE !
+Les mèmes se mélangent et rebondissent : à chaque humeur sa réaction.
+
+signature
+00:01:52.000 --> 00:02:00.000
+ZAPSTICK
+Zapstick. À toi de créer ta prochaine réaction.
