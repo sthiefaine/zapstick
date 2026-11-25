@@ -7,7 +7,7 @@ import styles from './media-import-card.module.css';
  * after two breaths; pointer feedback and reduced-motion choices are respected. */
 export function MediaImportCard({onChoose, disabled = false, dragActive = false}: {onChoose: () => void; disabled?: boolean; dragActive?: boolean}) {
   const {t} = usePreferences();
-  return <button type="button" className={`${styles.card}${dragActive ? ` ${styles.dragActive}` : ''}`} disabled={disabled} onClick={onChoose}>
+  return <button id="studio-import-media" type="button" className={`${styles.card}${dragActive ? ` ${styles.dragActive}` : ''}`} disabled={disabled} onClick={onChoose}>
     <svg className={styles.art} viewBox="0 0 200 168" fill="none" aria-hidden="true" focusable="false">
       <g className={styles.photo} transform="rotate(-15 39 79)">
         <rect x="14" y="49" width="51" height="59" rx="12" className={styles.photoPaper}/>

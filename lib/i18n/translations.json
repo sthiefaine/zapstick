@@ -278,7 +278,8 @@
     "Préparation de la timeline…": "Préparation de la timeline…",
     "Position de lecture": "Position de lecture",
     "6 s max.": "6 s max.",
-    "Fin": "Fin"
+    "Fin": "Fin",
+    "Recommencer": "Recommencer"
   },
   "en": {
     "Créer un sticker": "Create a sticker",
@@ -559,7 +560,8 @@
     "Préparation de la timeline…": "Preparing timeline…",
     "Position de lecture": "Playback position",
     "6 s max.": "6 s max.",
-    "Fin": "End"
+    "Fin": "End",
+    "Recommencer": "Start over"
   },
   "pt-BR": {
     "Créer un sticker": "Criar figurinha",
@@ -840,7 +842,8 @@
     "Préparation de la timeline…": "Preparando a linha do tempo…",
     "Position de lecture": "Posição de reprodução",
     "6 s max.": "Máx. 6 s",
-    "Fin": "Fim"
+    "Fin": "Fim",
+    "Recommencer": "Começar de novo"
   },
   "es": {
     "Créer un sticker": "Crear un sticker",
@@ -1121,7 +1124,8 @@
     "Préparation de la timeline…": "Preparando la línea de tiempo…",
     "Position de lecture": "Posición de reproducción",
     "6 s max.": "Máx. 6 s",
-    "Fin": "Fin"
+    "Fin": "Fin",
+    "Recommencer": "Empezar de nuevo"
   },
   "de": {
     "Créer un sticker": "Sticker erstellen",
@@ -1402,7 +1406,8 @@
     "Préparation de la timeline…": "Zeitleiste wird vorbereitet…",
     "Position de lecture": "Wiedergabeposition",
     "6 s max.": "Max. 6 s",
-    "Fin": "Ende"
+    "Fin": "Ende",
+    "Recommencer": "Neu anfangen"
   },
   "zh-CN": {
     "Créer un sticker": "创建贴纸",
@@ -1683,7 +1688,8 @@
     "Préparation de la timeline…": "正在准备时间轴…",
     "Position de lecture": "播放位置",
     "6 s max.": "最长 6 秒",
-    "Fin": "结束"
+    "Fin": "结束",
+    "Recommencer": "重新开始"
   },
   "ja": {
     "Créer un sticker": "ステッカーを作る",
@@ -1964,7 +1970,8 @@
     "Préparation de la timeline…": "タイムラインを準備中…",
     "Position de lecture": "再生位置",
     "6 s max.": "最大 6 秒",
-    "Fin": "終了"
+    "Fin": "終了",
+    "Recommencer": "最初からやり直す"
   },
   "ru": {
     "Créer un sticker": "Создать стикер",
@@ -2245,6 +2252,7 @@
     "Préparation de la timeline…": "Подготовка шкалы времени…",
     "Position de lecture": "Позиция воспроизведения",
     "6 s max.": "Макс. 6 с",
-    "Fin": "Конец"
+    "Fin": "Конец",
+    "Recommencer": "Начать заново"
   }
 }
