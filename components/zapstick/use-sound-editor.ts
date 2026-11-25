@@ -1,7 +1,7 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import type {Sticker} from '@/lib/stickers/types';
-import {decodeAudio,defaultAudioRecipe,type AudioTrack,type AudioRecipe} from '@/lib/stickers/audio';
+import {decodeAudio,defaultAudioRecipe,sequenceAudioRecipes,type AudioTrack,type AudioRecipe} from '@/lib/stickers/audio';
 import {createMicrophoneSession,type MicrophoneState} from '@/lib/stickers/microphone';
 
 export type SoundSlot=0|1;
@@ -11,12 +11,20 @@ function replaceSlot<T>(values:readonly[T,T],index:SoundSlot,value:T):Pair<T>{re
 const audioMessage=(error:unknown)=>error instanceof Error?error.message:'Audio indisponible sur ce navigateur.';
 
 /** Each slot owns its source and recipe; visual cutouts never replace the audio. */
-export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>void,onError:(message:string)=>void){
+export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>void,onError:(message:string)=>void,visualStart=0,length=3){
  const [tracks,setTracks]=useState<Pair<AudioTrack|null>>([null,null]),[recipes,setRecipes]=useState<Pair<AudioRecipe>>(emptyRecipes),[selected,setSelected]=useState<SoundSlot>(0);
  const [pending,setPending]=useState(false),[microphone,setMicrophone]=useState<MicrophoneState>('idle'),[elapsed,setElapsed]=useState(0),[originalAvailable,setOriginalAvailable]=useState<Pair<boolean>>([false,false]),[busySlot,setBusySlot]=useState<SoundSlot|null>(null);
  const original=useRef<Pair<Blob|null>>([null,null]),operation=useRef<{controller:AbortController;index:SoundSlot}|null>(null),mic=useRef<ReturnType<typeof createMicrophoneSession>|null>(null);
  const callbacks=useRef({onPause,onError});
+ const latest=useRef({tracks,recipes,visualStart,length});
+ useEffect(()=>{latest.current={tracks,recipes,visualStart,length};},[tracks,recipes,visualStart,length]);
  useEffect(()=>{callbacks.current={onPause,onError};},[onPause,onError]);
+ const installTrack=useCallback((track:AudioTrack,index:SoundSlot)=>{
+  const state=latest.current,nextTracks=replaceSlot(state.tracks,index,track);
+  let nextRecipes=replaceSlot(state.recipes,index,{...defaultAudioRecipe,...(index===1?{afterPrevious:true}:{})});
+  if(index===1||nextRecipes[1].afterPrevious)nextRecipes=sequenceAudioRecipes(nextTracks,nextRecipes,state.visualStart,state.length);
+  setTracks(nextTracks);setRecipes(nextRecipes);
+ },[]);
  const cancel=useCallback(()=>{operation.current?.controller.abort();operation.current=null;mic.current?.cancel();mic.current=null;setPending(false);setMicrophone('idle');setBusySlot(null);},[]);
  const load=useCallback(async(blob:Blob,name:string,source:AudioTrack['source'],index:SoundSlot)=>{
   if(operation.current)return;
@@ -24,10 +32,10 @@ export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>voi
   callbacks.current.onPause();setPending(true);setBusySlot(index);
   try{
    const next=await decodeAudio(blob,{name:name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),source,signal:controller.signal});
-   if(!controller.signal.aborted){setTracks(values=>replaceSlot(values,index,next));setRecipes(values=>replaceSlot(values,index,{...defaultAudioRecipe}));}
+   if(!controller.signal.aborted)installTrack(next,index);
   }catch(error){if(!controller.signal.aborted)callbacks.current.onError(audioMessage(error));}
   finally{if(operation.current?.controller===controller){operation.current=null;setPending(false);setBusySlot(null);}}
- },[]);
+ },[installTrack]);
  useEffect(()=>{
   // Only a new draft identity replaces these sessions. A cutout swaps its visual
   // Blob under the same identity and must keep both audio sources and recipes.
@@ -54,7 +62,7 @@ export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>voi
      setTracks(restored);
      setRecipes(emptyRecipes().map((recipe,index)=>{
       const layer=layers[index];
-      return {...recipe,volume:layer?.volume??1,...(layer?.offset!==undefined?{offset:layer.offset,duration:layer.duration}:{})};
+      return {...recipe,volume:layer?.volume??1,...(layer?.offset!==undefined?{offset:layer.offset,duration:layer.duration}:{}),...(index===1&&layer?.offset!==undefined&&layers[0]?.offset!==undefined&&Math.abs(layer.offset-layers[0].offset-layers[0].duration)<.015?{afterPrevious:true}:{})};
      }) as Pair<AudioRecipe>);
     }finally{if(operation.current?.controller===controller){operation.current=null;setPending(false);setBusySlot(null);}}
    })();
@@ -89,12 +97,13 @@ export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>voi
    if(controller.signal.aborted)return;
    setPending(true);
    const next=await decodeAudio(blob,{name:'Micro',source:'microphone',signal:controller.signal});
-   if(!controller.signal.aborted){setTracks(values=>replaceSlot(values,index,next));setRecipes(values=>replaceSlot(values,index,{...defaultAudioRecipe}));}
+   if(!controller.signal.aborted)installTrack(next,index);
   }catch(error){if(!controller.signal.aborted&&!(error instanceof DOMException&&error.name==='AbortError'))callbacks.current.onError(audioMessage(error));}
   finally{if(operation.current?.controller===controller){operation.current=null;mic.current=null;setPending(false);setMicrophone('idle');setBusySlot(null);}}
  }
  const setRecipe=(value:AudioRecipe,index:SoundSlot=selected)=>setRecipes(values=>replaceSlot(values,index,value));
- return {tracks,recipes,selected,select:setSelected,setRecipe,pending,microphone,elapsed,busySlot,cancel,record,stop:()=>mic.current?.stop(),
+ return {tracks,recipes,visualStart,selected,select:setSelected,setRecipe,pending,microphone,elapsed,busySlot,cancel,record,stop:()=>mic.current?.stop(),
+  sequence:()=>{const state=latest.current;setRecipes(sequenceAudioRecipes(state.tracks,state.recipes,state.visualStart,state.length));},
   // Aliases keep callers reading the active slot straightforward.
   track:tracks[selected],recipe:recipes[selected],hasOriginal:originalAvailable[selected],
   chooseOriginal:()=>{const index=selected,blob=original.current[index];if(blob)void load(blob,draft?.name??'Original','original',index);},

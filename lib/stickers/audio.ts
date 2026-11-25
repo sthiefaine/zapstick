@@ -1,11 +1,26 @@
 export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone'; compositionBound?: boolean };
-export type AudioRecipe = { start: number; offset: number; volume: number; duration?: number; sourcePinned?: boolean };
+export type AudioRecipe = { start: number; offset: number; volume: number; duration?: number; sourcePinned?: boolean; afterPrevious?: boolean };
 export type AudioLayer = { track: AudioTrack; recipe: AudioRecipe };
 export const defaultAudioRecipe: AudioRecipe = { start: 0, offset: 0, volume: 1 };
 /** Original sound follows video trimming until its excerpt is explicitly chosen. */
 export function resolveAudioRecipe(track:AudioTrack|null,recipe:AudioRecipe,visualStart:number):AudioRecipe{
  if(track?.compositionBound)return{...recipe,offset:recipe.offset-visualStart};
  return track?.source==='original'&&!recipe.sourcePinned?{...recipe,start:visualStart+recipe.start}:recipe;
+}
+export function resolveAudioRecipes(tracks:readonly [AudioTrack|null,AudioTrack|null],recipes:readonly [AudioRecipe,AudioRecipe],visualStart:number,length:number):[AudioRecipe,AudioRecipe]{
+ const resolved=recipes.map((recipe,index)=>resolveAudioRecipe(tracks[index],recipe,visualStart)) as [AudioRecipe,AudioRecipe];
+ if(tracks[0]&&tracks[1]&&recipes[1].afterPrevious){
+  const first=resolved[0],available=Math.max(0,tracks[0].buffer.duration-Math.max(0,first.start));
+  resolved[1]={...resolved[1],offset:Math.max(0,first.offset+Math.min(first.duration??length,available))};
+ }
+ return resolved;
+}
+/** Link a newly added second sound, leaving its source passage independent. */
+export function sequenceAudioRecipes(tracks:readonly [AudioTrack|null,AudioTrack|null],recipes:readonly [AudioRecipe,AudioRecipe],visualStart:number,length:number):[AudioRecipe,AudioRecipe]{
+ if(!tracks[0]||!tracks[1])return[recipes[0],{...recipes[1],afterPrevious:true}];
+ const resolved=resolveAudioRecipes(tracks,recipes,visualStart,length);
+ const ordered=arrangeAudioSequence(resolved[0],resolved[1],length,tracks[0].buffer.duration,tracks[1].buffer.duration);
+ return ordered.map((value,index)=>({...recipes[index],duration:value.duration,offset:value.offset+(tracks[index]?.compositionBound?visualStart:0),...(index===1?{afterPrevious:true}:{})})) as [AudioRecipe,AudioRecipe];
 }
 export const MAX_AUDIO_SOURCE_SECONDS = 30;
 const MAX_OUTPUT_SECONDS = 6;

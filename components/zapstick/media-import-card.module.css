@@ -5,18 +5,18 @@
 .art{display:block;flex-shrink:1;width:184px;max-width:70%;height:auto;overflow:visible;pointer-events:none}
 .sticker{transform-box:fill-box;transform-origin:50% 70%;animation:sticker-breathe 1.8s ease-in-out 2;transition:transform .2s cubic-bezier(.2,.8,.25,1.25)}
 .photo,.gif{transform-box:fill-box;transform-origin:center;transition:translate .2s ease,rotate .2s ease}
-.photoPaper{fill:var(--surface);stroke:var(--control-border,var(--ink));stroke-width:2}
-.photoWindow{fill:var(--surface-2,var(--paper));stroke:var(--control-border,var(--ink));stroke-width:1.5}
-.line{stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.sun{fill:var(--ink)}
-.gifPaper{fill:var(--surface);stroke:var(--control-border,var(--ink));stroke-width:2}
-.play{fill:var(--ink)}
-.gifText{fill:var(--ink);font:bold 11px Arial,sans-serif;letter-spacing:.6px}
+.photoPaper{fill:var(--pop-blue);stroke:var(--pop-ink);stroke-width:2}
+.photoWindow{fill:color-mix(in srgb,var(--pop-blue) 45%,white);stroke:var(--pop-ink);stroke-width:1.5}
+.line{stroke:var(--pop-ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sun{fill:var(--pop-ink)}
+.gifPaper{fill:var(--pop-coral);stroke:var(--pop-ink);stroke-width:2}
+.play{fill:var(--pop-ink)}
+.gifText{fill:var(--pop-ink);font:bold 11px Arial,sans-serif;letter-spacing:.6px}
 .stickerPaper{fill:var(--accent);stroke:var(--accent-text);stroke-width:3;stroke-linejoin:round}
 .peel{fill:var(--paper);stroke:var(--accent-text);stroke-width:3;stroke-linejoin:round}
 .uploadPlus{stroke:var(--accent-text);stroke-width:8;stroke-linecap:round;stroke-linejoin:round}
-.spark{fill:var(--ink)}
-.dot{fill:var(--surface-2);stroke:var(--ink);stroke-width:1.5}
+.spark{fill:var(--pop-yellow);stroke:var(--pop-ink);stroke-width:1}
+.dot{fill:var(--pop-coral);stroke:var(--pop-ink);stroke-width:1.5}
 .card:hover:not(:disabled) .sticker,.card:focus-visible .sticker{animation:none;transform:translateY(-5px) rotate(-5deg)}
 .card:hover:not(:disabled) .photo,.card:focus-visible .photo{translate:-3px 2px;rotate:-4deg}
 .card:hover:not(:disabled) .gif,.card:focus-visible .gif{translate:4px -3px;rotate:4deg}

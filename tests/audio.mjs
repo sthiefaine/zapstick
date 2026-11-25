@@ -81,6 +81,21 @@ test('actual sequential PCM changes from the first sound to the second without o
   assert.ok(short.subarray(0, 960).some(sample => sample > .1)); assert.ok(short.subarray(960).some(sample => sample < -.1));
  } finally { globalThis.AudioBuffer = previous; }
 });
+test('adding sound two places it after sound one by default and keeps the source passage independent',()=>{
+ const tracks=[source(new Float32Array(48000)),source(new Float32Array(80000))];
+ const recipes=audio.sequenceAudioRecipes(tracks,[{...audio.defaultAudioRecipe},{...audio.defaultAudioRecipe,start:5}],0,6);
+ assert.equal(recipes[0].duration,3);assert.equal(recipes[1].offset,3);assert.equal(recipes[1].start,5);assert.equal(recipes[1].afterPrevious,true);
+ assert.equal(audio.resolveAudioRecipes(tracks,[{...recipes[0],duration:1},recipes[1]],0,6)[1].offset,1);
+ assert.equal(audio.resolveAudioRecipes(tracks,[{...recipes[0],offset:.5,duration:1},recipes[1]],0,6)[1].offset,1.5);
+ assert.equal(audio.resolveAudioRecipes(tracks,[recipes[0],{...recipes[1],afterPrevious:false,offset:0}],0,6)[1].offset,0);
+});
+test('linked saved audio stays aligned through a recut and a new second sound waits for a first',()=>{
+ const a={...source(new Float32Array(24000)),compositionBound:true},b={...source(new Float32Array(24000)),compositionBound:true};
+ const recipes=[{...audio.defaultAudioRecipe,duration:3},{...audio.defaultAudioRecipe,offset:3,duration:3,afterPrevious:true}];
+ const resolved=audio.resolveAudioRecipes([a,b],recipes,1,5);assert.equal(resolved[0].offset,-1);assert.equal(resolved[1].offset,2);
+ const initial=audio.sequenceAudioRecipes([null,b],[audio.defaultAudioRecipe,audio.defaultAudioRecipe],0,6);assert.equal(initial[1].afterPrevious,true);
+ const linked=audio.sequenceAudioRecipes([a,b],recipes,1,5);assert.equal(linked[0].offset,1);assert.equal(linked[1].offset,4);
+});
 test('an explicitly chosen source passage stays at five seconds when the video is trimmed',()=>{
  const track={...source(new Float32Array(80000)),source:'original'},recipe={...audio.defaultAudioRecipe,start:5,duration:1};
  assert.equal(audio.resolveAudioRecipe(track,audio.defaultAudioRecipe,2).start,2);

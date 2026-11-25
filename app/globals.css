@@ -7,6 +7,7 @@
  color-scheme:dark;--paper:#121212;--ink:#f5f5f5;--muted:#b9b9b9;--surface:#1c1c1c;--surface-2:#282828;--surface-3:#383838;--line:#4a4a4a;--control-border:#858585;--accent:#bfe8b0;--accent-text:#191919;--focus:#f5f5f5;--checker:#303030;--danger:#ffc2b4;--danger-bg:#40252b;--danger-line:#c08a82;--pop-mint:#cdebbb;--pop-peach:#ececec;--pop-stroke:#9b9b9b;--hard-shadow:#080808
 }
 *{box-sizing:border-box}
+:root{--pop-blue:#b8dbff;--pop-coral:#ffb59d;--pop-yellow:#ffe58f;--pop-ink:#191919}
 html{background:var(--paper);scroll-behavior:smooth}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);font-size:14px;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
 button,input,select,textarea{font:inherit}
@@ -439,9 +440,14 @@ h1{font-family:var(--font-sans);font-size:30px;font-weight:800;letter-spacing:-1
 /* Playback stays reachable above movable text and emoji layers. */
 .stage-play{z-index:6}
 
-/* The active destination owns the accent, including on the home screen. */
-.bottom-nav>button:not(.active):first-child>svg,.bottom-nav>button:not(.active):last-child>svg{background:var(--surface);color:var(--ink)}
-.bottom-nav>button.active:first-child>svg,.bottom-nav>button.active:last-child>svg{background:var(--accent);color:var(--accent-text)}
+/* Destination colors stay recognizable; weight and the inset border mark selection. */
+.bottom-nav>button:first-child>svg{background:var(--pop-blue);color:var(--pop-ink)}
+.bottom-nav>button:last-child>svg{background:var(--pop-coral);color:var(--pop-ink)}
+.bottom-nav>button.active:first-child>svg,.bottom-nav>button.active:last-child>svg{outline:2px solid var(--ink);outline-offset:2px;stroke-width:2.2}
+.bottom-nav>button:first-child>small{background:var(--pop-blue);color:var(--pop-ink)}
+.card-favorite.favorited>svg{background:var(--pop-coral);color:var(--pop-ink)}
+.studio:not(.has-media) .link-entry>.round-button{background:var(--pop-blue);color:var(--pop-ink)}
+@media(forced-colors:active){.bottom-nav>button:first-child>svg,.bottom-nav>button:last-child>svg,.bottom-nav>button:first-child>small,.card-favorite.favorited>svg,.studio:not(.has-media) .link-entry>.round-button{background:ButtonFace;color:ButtonText}.bottom-nav>button.active>svg{outline-color:Highlight}}
 
 /* Open tools leave more room for their controls on short mobile screens. */
 .studio.has-active-tool:not(.studio-complete) .stage-shell{width:min(100%,clamp(200px,30svh,290px));margin-top:16px}

@@ -18,7 +18,7 @@ type Undo={text:string;revert:()=>void};
 type Props={collection:Collection;onChange:Dispatch<SetStateAction<Collection>>;onOpen:(id:string)=>void;onCreate:(folderId:string)=>void;onFavorite:(id:string)=>void;onDelete:(ids:string[])=>void;onExport:(items:Sticker[],name?:string)=>void;onNotify:(text:string)=>void;onUndo:(value:Undo|null)=>void;disabled?:boolean;hidden?:boolean};
 type DragData={kind:'folder'|'sticker'|'target'|'tail';entityId:string;label:string};
 const folderKey=(id:string)=>`folder:${id}`,stickerKey=(id:string)=>`sticker:${id}`;
-const folderColors=['#cdebbb','#e7f0df','#f6c1a3','#e9dfbd','#cbdce6','#e4e4e7'];
+const folderColors=['#cdebbb','#b8dbff','#ffb59d','#ffe58f','#cbdce6','#e4e4e7'];
 const accepted=['image/png','image/jpeg','image/webp','image/gif','video/mp4','video/webm','video/quicktime'];
 
 export function CollectionsBoard({collection,onChange,onOpen,onCreate,onFavorite,onDelete,onExport,onNotify,onUndo,disabled=false,hidden=false}:Props){

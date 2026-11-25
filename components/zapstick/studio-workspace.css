@@ -37,7 +37,12 @@ body:has(.studio-editing:not([hidden])){height:100%;overflow:hidden;overscroll-b
 .studio-editing>.toolbelt::-webkit-scrollbar{display:none}
 .game-shell .studio.studio-editing>.toolbelt>button{flex:1 0 44px;min-width:44px;min-height:48px;max-width:none;gap:2px;margin:0;padding:3px 1px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:12px;font-weight:600;line-height:1.15;white-space:nowrap}
 .game-shell .studio.studio-editing>.toolbelt>button>span{width:36px;height:26px;min-height:26px;border:0;border-radius:7px;background:transparent;color:inherit;box-shadow:none}
-.game-shell .studio.studio-editing>.toolbelt>button.selected{background:var(--accent);color:var(--accent-text);font-weight:750}
+.game-shell .studio.studio-editing>.toolbelt>button{--tool-color:var(--pop-blue)}
+.game-shell .studio.studio-editing>.toolbelt>button[data-tool=emoji]{--tool-color:var(--pop-yellow)}
+.game-shell .studio.studio-editing>.toolbelt>button[data-tool=background]{--tool-color:var(--accent)}
+.game-shell .studio.studio-editing>.toolbelt>button[data-tool=animation],.game-shell .studio.studio-editing>.toolbelt>button[data-tool=sound]{--tool-color:var(--pop-coral)}
+.game-shell .studio.studio-editing>.toolbelt>button:not(.selected)>span{background:var(--tool-color);color:var(--pop-ink)}
+.game-shell .studio.studio-editing>.toolbelt>button.selected{background:var(--tool-color);color:var(--pop-ink);font-weight:750;box-shadow:inset 0 -2px 0 var(--pop-ink)}
 .game-shell .studio.studio-editing>.toolbelt>button.selected>span{background:transparent;color:inherit;box-shadow:none}
 
 .studio-editing .studio-inspector{flex:1 1 auto;min-height:0;min-width:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scroll-padding-block:8px 24px;padding:8px 0 10px;background:var(--paper);-webkit-overflow-scrolling:touch}
@@ -70,4 +75,4 @@ body:has(.studio-editing:not([hidden])){height:100%;overflow:hidden;overscroll-b
 @media(min-width:700px){.game-shell:has(.studio-editing:not([hidden])) .app-header,.game-shell:has(.studio-editing:not([hidden])) .app-main{max-width:620px}.studio-editing .studio-inspector{padding-inline:4px}}
 @media(prefers-reduced-motion:reduce){.studio-editing .stage-shell{transition:none!important}}
 [data-reduced-motion=true] .studio-editing .stage-shell{transition:none!important}
-@media(forced-colors:active){.studio-editing>.toolbelt>button.selected{background:Highlight;color:HighlightText}.studio-editing .stage-play,.studio-editing .preview-resize{background:ButtonFace;color:ButtonText;border-color:ButtonText}}
+@media(forced-colors:active){.game-shell .studio.studio-editing>.toolbelt>button.selected{background:Highlight;color:HighlightText;box-shadow:none}.game-shell .studio.studio-editing>.toolbelt>button:not(.selected)>span,.studio-editing .stage-play,.studio-editing .preview-resize{background:ButtonFace;color:ButtonText;border-color:ButtonText}}

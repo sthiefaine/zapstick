@@ -2,7 +2,7 @@
 import {useEffect,useMemo,useRef,useState,type PointerEvent} from 'react';
 import {Mic,Square,Upload,Volume2,VolumeX,Trash2,LoaderCircle,Video,Plus,Play,Pause,Headphones,Scissors} from 'lucide-react';
 import {usePreferences} from '@/components/preferences-provider';
-import {arrangeAudioSequence,planAudioWindow,type AudioTrack,type AudioRecipe} from '@/lib/stickers/audio';
+import {planAudioWindow,type AudioTrack,type AudioRecipe} from '@/lib/stickers/audio';
 import {useAudioAudition} from './use-audio-audition';
 import type {SoundSlot,useSoundEditor} from './use-sound-editor';
 import './sound-controls.css';
@@ -45,21 +45,15 @@ export function SoundControls({editor:e,recipes,length,currentTime,playing,disab
  const audition=useAudioAudition(track,recipe,length,playing,onPause,onError);
  function write(index:SoundSlot,value:AudioRecipe){
   const effective=recipes[index]??e.recipes[index],base=e.recipes[index];
-  e.setRecipe({...value,start:value.sourcePinned?value.start:value.start-(effective.start-base.start),offset:value.offset+(base.offset-effective.offset)},index);
+  e.setRecipe({...value,start:value.sourcePinned?value.start:value.start-(effective.start-base.start),offset:value.offset+(e.tracks[index]?.compositionBound?e.visualStart:0)},index);
  }
  function changeExcerpt(start:number,duration:number){
   if(!track)return;
   const bounded=Math.max(0,Math.min(track.buffer.duration-.01,start));
   const next={...recipe,start:bounded,duration:Math.max(.01,Math.min(duration,length,track.buffer.duration-bounded)),...(track.source==='original'&&!track.compositionBound?{sourcePinned:true}:{})};
   write(selected,next);
-  if(selected===0&&sequential){const end=Math.max(0,next.offset+next.duration);write(1,{...second,offset:end});}
  }
  const chooseFile=(index:SoundSlot)=>{audition.stop();e.select(index);fileTarget.current=index;file.current?.click();};
- function sequence(){
-  if(!e.tracks[0]||!e.tracks[1])return;
-  const ordered=arrangeAudioSequence(first,second,length,e.tracks[0].buffer.duration,e.tracks[1].buffer.duration);
-  for(const index of [0,1] as const)write(index,ordered[index]);
- }
  const sources=<div className="sound-sources" role="group" aria-label={t('Source de la piste {number}',{number})}>
   <button type="button" disabled={disabled||busy||!e.hasOriginal} onClick={()=>{audition.stop();e.chooseOriginal();}}><Video size={17}/>{t('Original')}</button>
   <button type="button" disabled={disabled||busy} onClick={()=>chooseFile(selected)}><Upload size={17}/>{t('Importer un son')}</button>
@@ -73,7 +67,7 @@ export function SoundControls({editor:e,recipes,length,currentTime,playing,disab
     const item=e.tracks[index],plan=recipes[index]??e.recipes[index],active=selected===index;
     return <div key={index} className={`sound-row${active?' is-selected':''}`}>
      <button className="sound-row-label" type="button" aria-pressed={active} aria-label={t('Sélectionner la piste {number}',{number:index+1})} disabled={disabled||busy} onClick={()=>{audition.stop();e.select(index);}}>{t('Son {number}',{number:index+1})}</button>
-     {item?<><SoundClip track={item} recipe={plan} index={index} length={length} currentTime={currentTime} selected={active} disabled={disabled||busy} snap={index===1?firstEnd:0} onSelect={()=>e.select(index)} onMove={offset=>write(index,{...plan,offset,duration:plan.duration??Math.min(length,item.buffer.duration-plan.start)})}/><button className="sound-row-mute" type="button" aria-label={plan.volume?t('Couper la piste {number}',{number:index+1}):t('Réactiver la piste {number}',{number:index+1})} disabled={disabled||busy} onClick={()=>write(index,{...plan,volume:plan.volume?0:1})}>{plan.volume?<Volume2 size={17}/>:<VolumeX size={17}/>}</button></>:<button className="sound-add" type="button" disabled={disabled||busy} aria-label={t('Ajouter un son à la piste {number}',{number:index+1})} onClick={()=>{audition.stop();e.select(index);}}><Plus size={17}/>{t('Ajouter un son')}</button>}
+     {item?<><SoundClip track={item} recipe={plan} index={index} length={length} currentTime={currentTime} selected={active} disabled={disabled||busy} snap={index===1?firstEnd:0} onSelect={()=>e.select(index)} onMove={offset=>write(index,{...plan,offset,...(index===1?{afterPrevious:false}:{}),duration:plan.duration??Math.min(length,item.buffer.duration-plan.start)})}/><button className="sound-row-mute" type="button" aria-label={plan.volume?t('Couper la piste {number}',{number:index+1}):t('Réactiver la piste {number}',{number:index+1})} disabled={disabled||busy} onClick={()=>write(index,{...plan,volume:plan.volume?0:1})}>{plan.volume?<Volume2 size={17}/>:<VolumeX size={17}/>}</button></>:<button className="sound-add" type="button" disabled={disabled||busy} aria-label={t('Ajouter un son à la piste {number}',{number:index+1})} onClick={()=>{audition.stop();e.select(index);}}><Plus size={17}/>{t('Ajouter un son')}</button>}
     </div>;
    })}
   </div>
@@ -87,7 +81,7 @@ export function SoundControls({editor:e,recipes,length,currentTime,playing,disab
     <label><span>{t('À partir de')}</span><span className="sound-number"><SoundTime key={`start-${selected}`} label={t('Début de l’extrait de la piste {number}',{number})} value={recipe.start} max={Math.max(0,track.buffer.duration-.01)} disabled={disabled||busy} onChange={value=>changeExcerpt(value,recipe.duration??maxDuration)}/><span>s</span></span></label>
     <label><span>{t('Pendant')}</span><span className="sound-number"><SoundTime key={`duration-${selected}`} label={t('Durée de la piste {number}',{number})} value={clipDuration} max={maxDuration} disabled={disabled||busy||maxDuration<=0} onChange={value=>changeExcerpt(recipe.start,Math.min(maxDuration,value))}/><span>s</span></span></label>
    </div>
-   <div className="sound-placement" role="group" aria-label={t('Placer le son')}><button type="button" aria-pressed={Math.abs(recipe.offset)<.015} disabled={disabled||busy} onClick={()=>write(selected,{...recipe,offset:0})}>{t('Au début')}</button>{selected===1&&e.tracks[0]?<button type="button" aria-pressed={sequential} disabled={disabled||busy} onClick={sequence}>{t('Après le son 1')}</button>:null}<output>{t('À {time} s dans le sticker',{time:seconds(recipe.offset)})}</output></div>
+   <div className="sound-placement" role="group" aria-label={t('Placer le son')}><button type="button" aria-pressed={Math.abs(recipe.offset)<.015} disabled={disabled||busy} onClick={()=>write(selected,{...recipe,offset:0,afterPrevious:false})}>{t('Au début')}</button>{selected===1&&e.tracks[0]?<button type="button" aria-pressed={sequential} disabled={disabled||busy} onClick={e.sequence}>{t('Après le son 1')}</button>:null}<output>{t('À {time} s dans le sticker',{time:seconds(recipe.offset)})}</output></div>
    <details className="sound-more"><summary>{t('Changer le son et régler le volume')}</summary>{sources}<div className="sound-levels" role="group" aria-label={t('Volume de la piste {number}',{number})}>{[.25,.5,1].map(volume=><button key={volume} type="button" aria-pressed={recipe.volume===volume} disabled={disabled||busy} onClick={()=>write(selected,{...recipe,volume})}>{Math.round(volume*100)} %</button>)}<button type="button" className="sound-remove" disabled={disabled||busy} onClick={()=>{audition.stop();e.remove(selected);}}><Trash2 size={16}/>{t('Retirer le son')}</button></div></details>
   </div>:!busy?<>{sources}<p className="sound-empty">{t('Choisis un audio de moins de 5 Mo et de 30 secondes maximum.')}</p></>:null}
  </div>;
