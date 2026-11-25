@@ -7,6 +7,7 @@ import type { AnimationPreview } from '@/lib/stickers/animation-preview';
 import './animation-timeline.css';
 
 type Props = {
+ compact?:boolean;
  duration: number;
  selection: TrimSelection;
  thumbnails: string[];
@@ -18,7 +19,7 @@ type Props = {
  onSeek: (time: number) => void;
  onTogglePlay: () => void;
 };
-export function AnimationTimeline({ duration, selection, thumbnails, currentTime, playing, disabled = false, loading = false, onChange, onSeek, onTogglePlay }: Props) {
+export function AnimationTimeline({ compact=false, duration, selection, thumbnails, currentTime, playing, disabled = false, loading = false, onChange, onSeek, onTogglePlay }: Props) {
  const { t, locale } = usePreferences(), track = useRef<HTMLDivElement>(null);
  const drag = useRef<{ edge: 'start' | 'end'; pointer: number; x:number; time:number } | null>(null);
  const trim = normalizeTrim(duration, selection.start, selection.duration), end = trim.start + trim.duration;
@@ -43,7 +44,7 @@ export function AnimationTimeline({ duration, selection, thumbnails, currentTime
   const values: Record<string, number> = { ArrowLeft: current - step, ArrowDown: current - step, ArrowRight: current + step, ArrowUp: current + step, PageDown: current - 1, PageUp: current + 1, Home: 0, End: duration };
   if (Object.hasOwn(values, event.key)) { event.preventDefault(); move(edge, values[event.key]); }
  }
- return <div className="animation-timeline" aria-label={t('Découper l’animation')}>
+ return <div className={`animation-timeline ${compact?'timeline-compact':''}`} aria-label={t('Découper l’animation')}>
   <div className="timeline-heading">
    <button className="timeline-play" type="button" disabled={disabled || !duration} aria-label={playing ? t('Mettre en pause') : t('Lire l’animation')} onClick={onTogglePlay}>{playing ? <Pause size={17} aria-hidden="true"/> : <Play size={17} aria-hidden="true"/>}</button>
    <output className="timeline-current">{formatTimelineTime(currentTime)}<span> / {formatTimelineTime(duration)}</span></output>

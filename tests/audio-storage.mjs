@@ -38,6 +38,14 @@ function wav({duration=.5,rate=48000,channels=2}={}){
 function collection(sound={blob:new Blob([wav()],{type:'audio/wav'}),duration:.5,name:'Bip stéréo'}){
  return {version:1,packs:[],stickers:[{id:'sound-sticker',name:'Animation',packId:'',kind:'animated',mime:'image/webp',blob:new Blob(['visual-bytes'],{type:'image/webp'}),favorite:true,createdAt:1,isSticker:true,...(sound?{sound}:{})}]};
 }
+function layeredCollection(){
+ const value=collection();
+ value.stickers[0].soundLayers=[
+  {blob:new Blob([wav({channels:1})],{type:'audio/wav'}),duration:.5,name:'Voix'},
+  {blob:new Blob([wav({rate:44100})],{type:'audio/wav'}),duration:.5,name:'Musique'},
+ ];
+ return value;
+}
 const backupFile=data=>new File([JSON.stringify(data)],'backup.json',{type:'application/json'});
 async function backupData(value=collection()){return JSON.parse(await(await store.createBackup(value)).text());}
 
@@ -59,7 +67,100 @@ test('saved audio survives IndexedDB and a portable JSON backup byte for byte',a
 test('older backups without sound remain readable without inventing an audio track',async()=>{
  const restored=await store.restore(backupFile(await backupData(collection(null))));
  assert.equal(Object.hasOwn(restored.stickers[0],'sound'),false);
+ assert.equal(Object.hasOwn(restored.stickers[0],'soundLayers'),false);
  assert.equal(await restored.stickers[0].blob.text(),'visual-bytes');
+});
+
+test('two editable sound layers and their composite survive IndexedDB and JSON byte for byte',async()=>{
+ const value=layeredCollection(),expected=value.stickers[0];
+ await store.saveCollection(value);
+ const loaded=await store.loadCollection(),saved=loaded.stickers[0];
+ assert.deepEqual(saved.soundLayers.map(layer=>layer.name),['Voix','Musique']);
+ const data=await backupData(loaded),serialized=data.stickers[0];
+ assert.equal(serialized.soundLayers.length,2);
+ for(const [index,layer] of serialized.soundLayers.entries()){
+  assert.equal(layer.mime,'audio/wav');assert.equal(Object.hasOwn(layer,'blob'),false);
+  assert.equal(layer.data,`data:audio/wav;base64,${Buffer.from(await expected.soundLayers[index].blob.arrayBuffer()).toString('base64')}`);
+ }
+ await store.clearLocalData();
+ const restored=await store.restore(backupFile(data));await store.saveCollection(restored);
+ const roundtrip=(await store.loadCollection()).stickers[0];
+ for(const key of ['sound','soundLayers']){
+  const actual=key==='sound'?[roundtrip.sound]:roundtrip.soundLayers,original=key==='sound'?[expected.sound]:expected.soundLayers;
+  assert.equal(actual.length,original.length);
+  for(const [index,layer] of actual.entries()){
+   assert.equal(layer.name,original[index].name);assert.equal(layer.duration,original[index].duration);
+   assert.deepEqual(new Uint8Array(await layer.blob.arrayBuffer()),new Uint8Array(await original[index].blob.arrayBuffer()));
+  }
+ }
+});
+
+test('legacy single-sound backups stay single-sound while one editable layer is also supported',async()=>{
+ const legacy=await store.restore(backupFile(await backupData()));
+ assert.equal(Object.hasOwn(legacy.stickers[0],'soundLayers'),false);
+ const value=layeredCollection();value.stickers[0].soundLayers.length=1;
+ await store.saveCollection(value);
+ const restored=await store.restore(backupFile(await backupData(value)));
+ assert.equal(restored.stickers[0].soundLayers.length,1);
+ assert.equal(restored.stickers[0].soundLayers[0].name,'Voix');
+ assert.equal(Object.hasOwn(restored.stickers[0].soundLayers[0],'volume'),false);
+});
+
+test('muted and quiet layer volumes survive reload and backup while their editable WAV samples remain intact',async()=>{
+ const value=layeredCollection();value.stickers[0].soundLayers[0].volume=0;value.stickers[0].soundLayers[1].volume=.25;
+ await store.saveCollection(value);
+ const loaded=await store.loadCollection();assert.deepEqual(loaded.stickers[0].soundLayers.map(layer=>layer.volume),[0,.25]);
+ const data=await backupData(loaded);assert.deepEqual(data.stickers[0].soundLayers.map(layer=>layer.volume),[0,.25]);
+ assert.equal(Object.hasOwn(data.stickers[0].sound,'volume'),false,'the already-mixed composite has no separate gain');
+ await store.clearLocalData();const restored=await store.restore(backupFile(data));await store.saveCollection(restored);
+ const layers=(await store.loadCollection()).stickers[0].soundLayers;
+ assert.deepEqual(layers.map(layer=>layer.volume),[0,.25]);
+ for(const [index,layer] of layers.entries())assert.deepEqual(new Uint8Array(await layer.blob.arrayBuffer()),new Uint8Array(await value.stickers[0].soundLayers[index].blob.arrayBuffer()));
+ assert.ok(new Uint8Array(await layers[0].blob.arrayBuffer()).subarray(44).some(sample=>sample!==0),'muting is metadata; the original samples can still be unmuted');
+});
+
+test('layer volumes reject non-finite values, invalid types and values outside zero to one',async()=>{
+ const data=await backupData(layeredCollection());
+ for(const volume of [-.01,1.01,NaN,Infinity,-Infinity,null,'0.5']){
+  const value=layeredCollection();value.stickers[0].soundLayers[1].volume=volume;
+  await assert.rejects(store.saveCollection(value),/Son enregistré/);
+  await assert.rejects(store.createBackup(value),/Son enregistré/);
+  const input=structuredClone(data);input.stickers[0].soundLayers[1].volume=volume;
+  await assert.rejects(store.restore(backupFile(input)),/Son enregistré/);
+ }
+ const full=layeredCollection();full.stickers[0].soundLayers[0].volume=1;
+ const restored=await store.restore(backupFile(await backupData(full)));
+ assert.equal(restored.stickers[0].soundLayers[0].volume,1);
+});
+
+test('layer arrays reject missing mixes, a third track, empty slots and invalid WAVs without replacing the library',async()=>{
+ await store.saveCollection(collection());
+ const good=layeredCollection(),layers=good.stickers[0].soundLayers;
+ for(const soundLayers of [null,{},[],[...layers,layers[0]],[undefined],[layers[0],null]]){
+  const value=layeredCollection();value.stickers[0].soundLayers=soundLayers;
+  await assert.rejects(store.saveCollection(value),/Son enregistré/);
+  await assert.rejects(store.createBackup(value),/Son enregistré/);
+ }
+ const missingMix=layeredCollection();delete missingMix.stickers[0].sound;
+ await assert.rejects(store.saveCollection(missingMix),/Son enregistré/);
+ await assert.rejects(store.createBackup(missingMix),/Son enregistré/);
+ const corrupt=layeredCollection();corrupt.stickers[0].soundLayers[1].blob=new Blob(['bad wave'],{type:'audio/wav'});
+ await assert.rejects(store.saveCollection(corrupt),/WAV/);
+ await assert.rejects(store.createBackup(corrupt),/WAV/);
+ const tooLong=layeredCollection();tooLong.stickers[0].soundLayers[0]={blob:new Blob([wav({duration:6.05})],{type:'audio/wav'}),duration:6.05,name:'Too long'};
+ await assert.rejects(store.saveCollection(tooLong),/Son enregistré/);
+ assert.equal(Object.hasOwn((await store.loadCollection()).stickers[0],'soundLayers'),false);
+ const data=await backupData(good),base=structuredClone(data);
+ for(const savedLayers of [null,{},[],[...base.stickers[0].soundLayers,base.stickers[0].soundLayers[0]],[null]]){
+  const input=structuredClone(base);input.stickers[0].soundLayers=savedLayers;
+  await assert.rejects(store.restore(backupFile(input)),/Son enregistré/);
+ }
+ const noMix=structuredClone(base);delete noMix.stickers[0].sound;
+ await assert.rejects(store.restore(backupFile(noMix)),/Son enregistré/);
+ for(const changes of [{mime:'audio/mpeg'},{duration:0},{duration:.25},{data:'https://example.com/voice.wav'},{data:'data:audio/wav;base64,YmFkIHdhdmU='}]){
+  const input=structuredClone(base);Object.assign(input.stickers[0].soundLayers[1],changes);
+  await assert.rejects(store.restore(backupFile(input)),/Son enregistré|WAV/);
+ }
 });
 
 test('PCM headers, payload boundaries, block sizes and measured duration are validated before saving',async()=>{
@@ -129,6 +230,17 @@ test('backup rejects the aggregate audio budget before any base64 reader runs',a
  try{await assert.rejects(store.createBackup(value),/La sauvegarde dépasse 100 Mo/);assert.equal(reads,0);}finally{globalThis.FileReader=Reader;}
 });
 
+test('backup budget counts both editable layers as well as the composite before any base64 allocation',async()=>{
+ const sound={blob:new Blob([wav({duration:6,rate:96000})],{type:'audio/wav'}),duration:6,name:'Shared six-second PCM'};
+ const base=collection(sound),sticker={...base.stickers[0],soundLayers:[sound,{...sound,name:'Second layer'}]};
+ const value={...base,stickers:Array.from({length:12},(_,index)=>({...sticker,id:`mixed-${index}`}))};
+ assert.ok(12*4*Math.ceil(sound.blob.size/3)<100*1024*1024,'the composite alone would fit');
+ assert.ok(12*3*4*Math.ceil(sound.blob.size/3)>100*1024*1024,'all three attachments exceed the limit');
+ const Reader=globalThis.FileReader;let reads=0;
+ globalThis.FileReader=class{readAsDataURL(){reads++;throw new Error('All audio attachments must be budgeted first.');}};
+ try{await assert.rejects(store.createBackup(value),/La sauvegarde dépasse 100 Mo/);assert.equal(reads,0);}finally{globalThis.FileReader=Reader;}
+});
+
 test('backup budget includes JSON metadata and data URL prefixes beyond the base64 payload',async()=>{
  // Twenty-five references share only 3 MiB of input storage, but base64 alone is exactly 100 MiB.
  const blob=new Blob([new Uint8Array(3*1024*1024)],{type:'image/webp'}),base=collection(null),sticker=base.stickers[0];
@@ -161,5 +273,20 @@ test('backup serializes image and sound Blobs sequentially while preserving ever
   assert.ok(data.stickers.every(sticker=>sticker.data.startsWith('data:image/webp;base64,')&&sticker.sound.data.startsWith('data:audio/wav;base64,')));
   const restored=await store.restore(new File([backup],'sequential.json'));
   assert.deepEqual(restored.stickers.map(sticker=>sticker.id),value.stickers.map(sticker=>sticker.id));
+ }finally{globalThis.FileReader=Reader;}
+});
+
+test('backup reads the composite, both layers and visual sequentially for every sticker',async()=>{
+ const base=layeredCollection(),value={...base,stickers:Array.from({length:3},(_,index)=>({...base.stickers[0],id:`mixed-${index}`}))};
+ const Reader=globalThis.FileReader;let active=0,maximum=0,reads=0;
+ globalThis.FileReader=class extends BlobReader{
+  readAsDataURL(blob){active++;reads++;maximum=Math.max(maximum,active);const onload=this.onload;this.onload=()=>{active--;onload?.();};super.readAsDataURL(blob);}
+ };
+ try{
+  const backup=await store.createBackup(value),data=JSON.parse(await backup.text());
+  assert.equal(reads,12);assert.equal(maximum,1);assert.equal(active,0);
+  assert.ok(data.stickers.every(sticker=>sticker.soundLayers.length===2&&sticker.soundLayers.every(layer=>layer.data.startsWith('data:audio/wav;base64,'))));
+  const restored=await store.restore(new File([backup],'two-layers.json'));
+  assert.deepEqual(restored.stickers.map(sticker=>sticker.soundLayers.map(layer=>layer.name)),[['Voix','Musique'],['Voix','Musique'],['Voix','Musique']]);
  }finally{globalThis.FileReader=Reader;}
 });

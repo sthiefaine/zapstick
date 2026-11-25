@@ -1,9 +1,9 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {renderAudio,registerAudioWork,type AudioRecipe,type AudioTrack} from '@/lib/stickers/audio';
+import {renderAudioMix,registerAudioWork,type AudioLayer} from '@/lib/stickers/audio';
 
 /** Web Audio is the common clock; visual frames read it instead of starting another timer. */
-export function useSoundTransport({track,recipe,length,start,playing,active,seek,onError}:{track:AudioTrack|null;recipe:AudioRecipe;length:number;start:number;playing:boolean;active:boolean;seek:{time:number;revision:number};onError:(message:string)=>void}){
+export function useSoundTransport({layers,length,start,playing,active,seek,onError}:{layers:readonly AudioLayer[];length:number;start:number;playing:boolean;active:boolean;seek:{time:number;revision:number};onError:(message:string)=>void}){
  const context=useRef<AudioContext|null>(null),node=useRef<AudioBufferSourceNode|null>(null);
  const scheduled=useRef<{at:number;offset:number;length:number;start:number}|null>(null),resume=useRef(0),revision=useRef(-1);
  const [unlocked,setUnlocked]=useState(0),errorRef=useRef(onError);
@@ -22,9 +22,9 @@ export function useSoundTransport({track,recipe,length,start,playing,active,seek
  },[]);
  useEffect(()=>{
   stop();
-  if(!track||!active||!playing||!length||!context.current||context.current.state!=='running')return;
+  if(!layers.length||!active||!playing||!length||!context.current||context.current.state!=='running')return;
   try{
-   const buffer=renderAudio(track,{start:recipe.start,offset:recipe.offset,volume:recipe.volume},length),source=context.current.createBufferSource();
+   const buffer=renderAudioMix(layers,length),source=context.current.createBufferSource();
    source.buffer=buffer;source.loop=true;source.loopStart=0;source.loopEnd=buffer.duration;source.connect(context.current.destination);
    const position=revision.current!==seek.revision?seek.time:resume.current;
    revision.current=seek.revision;
@@ -32,7 +32,7 @@ export function useSoundTransport({track,recipe,length,start,playing,active,seek
    scheduled.current={at:context.current.currentTime,offset,length:buffer.duration,start};node.current=source;source.start(0,offset);
   }catch(error){errorRef.current(error instanceof Error?error.message:'Audio indisponible sur ce navigateur.');}
   return stop;
- },[track,recipe.start,recipe.offset,recipe.volume,length,start,playing,active,seek.revision,seek.time,unlocked,stop]);
+ },[layers,length,start,playing,active,seek.revision,seek.time,unlocked,stop]);
  useEffect(()=>{
   const unregister=registerAudioWork(()=>{stop();void context.current?.close();context.current=null;});
   const hide=()=>{if(document.hidden)stop();};document.addEventListener('visibilitychange',hide);window.addEventListener('pagehide',stop);

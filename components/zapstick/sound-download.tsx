@@ -75,6 +75,11 @@ export function SoundDownload({sticker, onBusy, disabled = false}: Props) {
       <p className="sound-download-format">{t('Vidéo {format} avec son', {format: result.extension.toUpperCase()})}</p>
       <video key={result.url} src={result.url} controls playsInline preload="metadata" aria-label={t('Aperçu de la vidéo avec son')}/>
     </> : null}
-    <p className="sound-download-note">{t('Vidéo avec son. L’import comme sticker sonore dans WhatsApp reste à vérifier.')}</p>
+    <details className="whatsapp-sound-help">
+      <summary>{t('Son dans WhatsApp')}</summary>
+      <p>{t('Dans WhatsApp : Stickers → Créer → choisis la vidéo MP4. Si le bouton Son est disponible, sélectionne le son original.')}</p>
+      <p>{t('Sur le sticker envoyé, touche l’icône audio pour l’écouter : le son ne démarre pas tout seul.')}</p>
+      <p>{t('Pas de bouton Son ? La création sonore peut ne pas être activée sur ton compte, même si tu reçois déjà des stickers avec son.')}</p>
+    </details>
   </div>;
 }

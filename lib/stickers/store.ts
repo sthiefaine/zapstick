@@ -11,7 +11,7 @@ const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 
 /** Saved sound is normalized PCM16 WAV, never a browser recorder's opaque output. */
 export async function validateStickerSound(sound: StickerSound): Promise<void> {
-  if (!sound || !(sound.blob instanceof Blob) || sound.blob.type !== 'audio/wav' || typeof sound.name !== 'string' || sound.name.length > 120 || /[\u0000-\u001f\u007f]/.test(sound.name) || !Number.isFinite(sound.duration) || sound.duration <= 0 || sound.duration > MAX_SAVED_AUDIO_SECONDS) throw new Error('Son enregistré invalide.');
+  if (!sound || !(sound.blob instanceof Blob) || sound.blob.type !== 'audio/wav' || typeof sound.name !== 'string' || sound.name.length > 120 || /[\u0000-\u001f\u007f]/.test(sound.name) || !Number.isFinite(sound.duration) || sound.duration <= 0 || sound.duration > MAX_SAVED_AUDIO_SECONDS || (sound.volume !== undefined && (!Number.isFinite(sound.volume) || sound.volume < 0 || sound.volume > 1))) throw new Error('Son enregistré invalide.');
   if (sound.blob.size > MAX_SAVED_AUDIO_BYTES) throw new Error('La piste audio dépasse 2,4 Mo.');
   const invalid = () => new Error('La piste audio n’est pas un WAV valide.');
   const bytes = new Uint8Array(await sound.blob.arrayBuffer());
@@ -39,8 +39,29 @@ export async function validateStickerSound(sound: StickerSound): Promise<void> {
   if (duration > MAX_SAVED_AUDIO_SECONDS || Math.abs(duration - sound.duration) > 1 / sampleRate + 1e-9) throw invalid();
 }
 
+/** Layers are the editable components of the saved mix, not extra soundtrack slots. */
+function soundLayers(sticker: Pick<Sticker, 'sound' | 'soundLayers'>): StickerSound[] | undefined {
+  const layers = sticker.soundLayers;
+  if (layers === undefined) return undefined;
+  if (!Array.isArray(layers) || layers.length < 1 || layers.length > 2 || !sticker.sound) throw new Error('Son enregistré invalide.');
+  for (const layer of layers) {
+    if (!layer || !(layer.blob instanceof Blob) || !Number.isFinite(layer.duration) || layer.duration <= 0 || layer.duration > 6 || (layer.volume !== undefined && (!Number.isFinite(layer.volume) || layer.volume < 0 || layer.volume > 1))) throw new Error('Son enregistré invalide.');
+  }
+  return layers;
+}
+
 function dataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result as string); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob); });
+}
+
+async function restoreSound(saved: any): Promise<StickerSound> {
+  const prefix='data:audio/wav;base64,';
+  if(!saved||saved.mime!=='audio/wav'||typeof saved.data!=='string'||!saved.data.startsWith(prefix)||saved.data.length>prefix.length+4*Math.ceil(MAX_SAVED_AUDIO_BYTES/3))throw new Error('Son enregistré invalide.');
+  const encoded=saved.data.slice(prefix.length);
+  if(!encoded.length||encoded.length%4||!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))throw new Error('Son enregistré invalide.');
+  const sound={blob:await(await fetch(saved.data)).blob(),duration:saved.duration,name:saved.name,...(saved.volume!==undefined?{volume:saved.volume}:{})};
+  await validateStickerSound(sound);
+  return sound;
 }
 
 // Serializing operations makes erasure ordered with reads and pending writes.
@@ -90,7 +111,11 @@ export function saveCollection(value: Collection): Promise<void> {
   const generation = writeGeneration;
   return ordered(async () => {
     if (generation !== writeGeneration) return;
-    for (const sticker of value.stickers) if (sticker.sound !== undefined) await validateStickerSound(sticker.sound);
+    for (const sticker of value.stickers) {
+      const layers = soundLayers(sticker);
+      if (sticker.sound !== undefined) await validateStickerSound(sticker.sound);
+      for (const layer of layers ?? []) await validateStickerSound(layer);
+    }
     if (generation !== writeGeneration) return;
     const db = await database();
     if (generation !== writeGeneration) return;
@@ -138,14 +163,15 @@ export function clearLocalData(): Promise<void> {
 export function download(blob:Blob,name:string){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 export async function createBackup(collection:Collection):Promise<Blob> {
   const value=normalizeFolders(collection);
-  type BackupSound={name:string;duration:number;mime:'audio/wav';data:string};
-  type BackupSticker=Omit<Sticker,'blob'|'sound'> & {blob?:undefined;data?:string;sound?:BackupSound};
+  type BackupSound={name:string;duration:number;mime:'audio/wav';data:string;volume?:number};
+  type BackupSticker=Omit<Sticker,'blob'|'sound'|'soundLayers'> & {blob?:undefined;data?:string;sound?:BackupSound;soundLayers?:BackupSound[]};
   const prepared=value.stickers.map(s=>{
-    const sourceSound=s.sound;
+    const sourceSound=s.sound,sourceLayers=soundLayers(s);
     if(sourceSound!==undefined&&(!sourceSound||!(sourceSound.blob instanceof Blob)))throw new Error('Son enregistré invalide.');
     const localGif=!s.blob&&s.src?.startsWith('/memes/')?s.src:undefined;
-    const serialized:BackupSticker={...s,blob:undefined,sound:sourceSound===undefined?undefined:{name:sourceSound.name,duration:sourceSound.duration,mime:'audio/wav',data:''},...(s.blob||localGif?{src:undefined,data:''}:{})};
-    return {serialized,sourceSound,blob:s.blob,localGif};
+    const emptySound=(sound:StickerSound):BackupSound=>({name:sound.name,duration:sound.duration,mime:'audio/wav',data:'',...(sound.volume!==undefined?{volume:sound.volume}:{})});
+    const serialized:BackupSticker={...s,blob:undefined,sound:sourceSound===undefined?undefined:emptySound(sourceSound),soundLayers:sourceLayers?.map(emptySound),...(s.blob||localGif?{src:undefined,data:''}:{})};
+    return {serialized,sourceSound,sourceLayers,blob:s.blob,localGif};
   });
   const output={...value,stickers:prepared.map(item=>item.serialized)};
   const tooLarge=()=>new Error('La sauvegarde dépasse 100 Mo.');
@@ -159,7 +185,7 @@ export async function createBackup(collection:Collection):Promise<Blob> {
     checkBudget();
   };
   checkBudget();
-  for(const item of prepared){if(item.blob)reserve(item.blob);if(item.sourceSound)reserve(item.sourceSound.blob);}
+  for(const item of prepared){if(item.blob)reserve(item.blob);if(item.sourceSound)reserve(item.sourceSound.blob);for(const layer of item.sourceLayers??[])reserve(layer.blob);}
   // Resolve bundled GIFs one at a time and charge each serialized occurrence to the same budget.
   const localGifs=new Map<string,Blob>();
   for(const item of prepared){
@@ -179,6 +205,7 @@ export async function createBackup(collection:Collection):Promise<Blob> {
   // A single in-flight read avoids thousands of concurrent Blob and base64 copies.
   for(const item of prepared){
     if(item.sourceSound){await validateStickerSound(item.sourceSound);item.serialized.sound!.data=await dataUrl(item.sourceSound.blob);}
+    for(const [index,layer] of (item.sourceLayers??[]).entries()){await validateStickerSound(layer);item.serialized.soundLayers![index].data=await dataUrl(layer.blob);}
     if(item.blob)item.serialized.data=await dataUrl(item.blob);
   }
   const result=new Blob([JSON.stringify(output)],{type:'application/json'});
@@ -197,18 +224,18 @@ export async function restore(file:File):Promise<Collection>{
   const ids=new Set<string>();
   for(const p of data.packs){if(typeof p.id!=='string'||ids.has(p.id)||typeof p.name!=='string'||p.name.length>80||!['static','animated'].includes(p.kind)||!/^#[0-9a-f]{6}$/i.test(p.color))throw new Error('Pack invalide dans la sauvegarde.');ids.add(p.id);}
   const stickerIds=new Set<string>();
-  const stickers=await Promise.all(data.stickers.map(async(s:any)=>{if(!s||typeof s.id!=='string'||stickerIds.has(s.id)||typeof s.name!=='string'||s.name.length>120||!['static','animated'].includes(s.kind)||typeof s.mime!=='string'||!s.mime.match(/^(image\/(png|jpeg|webp|gif|svg\+xml)|video\/(mp4|webm|quicktime))$/)||typeof s.favorite!=='boolean'||typeof s.createdAt!=='number'||typeof s.isSticker!=='boolean'||(s.packId&&!ids.has(s.packId))||(s.folderId!==undefined&&typeof s.folderId!=='string'))throw new Error('Sticker invalide dans la sauvegarde.');
+  const stickers:Sticker[]=[];
+  for(const s of data.stickers){if(!s||typeof s.id!=='string'||stickerIds.has(s.id)||typeof s.name!=='string'||s.name.length>120||!['static','animated'].includes(s.kind)||typeof s.mime!=='string'||!s.mime.match(/^(image\/(png|jpeg|webp|gif|svg\+xml)|video\/(mp4|webm|quicktime))$/)||typeof s.favorite!=='boolean'||typeof s.createdAt!=='number'||typeof s.isSticker!=='boolean'||(s.packId&&!ids.has(s.packId))||(s.folderId!==undefined&&typeof s.folderId!=='string'))throw new Error('Sticker invalide dans la sauvegarde.');
+    if(s.soundLayers!==undefined&&(!Array.isArray(s.soundLayers)||s.soundLayers.length<1||s.soundLayers.length>2||!s.sound))throw new Error('Son enregistré invalide.');
     stickerIds.add(s.id);let blob:Blob|undefined;let src:string|undefined;
     if(s.data){if(typeof s.data!=='string'||!s.data.startsWith(`data:${s.mime};base64,`))throw new Error('Média invalide.');blob=await(await fetch(s.data)).blob();if(blob.size>20*1024*1024)throw new Error('Un média dépasse 20 Mo.');}else if(typeof s.src==='string'&&/^\/stickers\/\d{1,2}\.svg$/.test(s.src)){src=s.src;}else throw new Error('Média manquant dans la sauvegarde.');
-    let sound:StickerSound|undefined;
-    if(s.sound!==undefined){
-      const saved=s.sound,prefix='data:audio/wav;base64,';
-      if(!saved||saved.mime!=='audio/wav'||typeof saved.data!=='string'||!saved.data.startsWith(prefix)||saved.data.length>prefix.length+4*Math.ceil(MAX_SAVED_AUDIO_BYTES/3))throw new Error('Son enregistré invalide.');
-      const encoded=saved.data.slice(prefix.length);
-      if(!encoded.length||encoded.length%4||!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))throw new Error('Son enregistré invalide.');
-      sound={blob:await(await fetch(saved.data)).blob(),duration:saved.duration,name:saved.name};
-      await validateStickerSound(sound);
+    const sound=s.sound===undefined?undefined:await restoreSound(s.sound);
+    let restoredLayers:StickerSound[]|undefined;
+    if(s.soundLayers!==undefined){
+      restoredLayers=[];
+      for(const saved of s.soundLayers)restoredLayers.push(await restoreSound(saved));
+      soundLayers({sound,soundLayers:restoredLayers});
     }
-    return {id:s.id,name:s.name,packId:s.packId,...(s.folderId!==undefined?{folderId:folderIds.has(s.folderId)?s.folderId:''}:{}),kind:s.kind,mime:s.mime,favorite:s.favorite,createdAt:s.createdAt,isSticker:s.isSticker,sourceUrl:typeof s.sourceUrl==='string'&&s.sourceUrl.startsWith('https://')?s.sourceUrl:undefined,blob,src,...(sound?{sound}:{})};
-  }));return normalizeFolders(removeExamples({version:1,starterMemesVersion:1,packs:data.packs,...(data.folders!==undefined?{folders:data.folders}:{}),stickers}));
+    stickers.push({id:s.id,name:s.name,packId:s.packId,...(s.folderId!==undefined?{folderId:folderIds.has(s.folderId)?s.folderId:''}:{}),kind:s.kind,mime:s.mime,favorite:s.favorite,createdAt:s.createdAt,isSticker:s.isSticker,sourceUrl:typeof s.sourceUrl==='string'&&s.sourceUrl.startsWith('https://')?s.sourceUrl:undefined,blob,src,...(sound?{sound}:{}),...(restoredLayers?{soundLayers:restoredLayers}:{})});
+  }return normalizeFolders(removeExamples({version:1,starterMemesVersion:1,packs:data.packs,...(data.folders!==undefined?{folders:data.folders}:{}),stickers}));
 }

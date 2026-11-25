@@ -30,5 +30,23 @@
 .timeline-limits strong{color:var(--ink);font-weight:650}.timeline-limits>span{white-space:nowrap}
 .timeline-loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;z-index:5;pointer-events:none}
 .animation-timeline button:disabled,.animation-timeline input:disabled{opacity:.5;cursor:default}
+.animation-timeline.timeline-compact{margin-top:0;padding-bottom:5px}
+.timeline-compact .timeline-heading{min-height:44px;margin-bottom:5px;gap:7px;flex-wrap:nowrap}
+.timeline-compact .timeline-play{border-width:1px;border-radius:10px;box-shadow:none}
+.timeline-compact .timeline-current{font-size:13px;font-weight:650}
+.timeline-compact .timeline-duration{padding:4px 6px;font-size:12px;border-radius:7px;white-space:nowrap}
+.timeline-compact .timeline-filmstrip{height:48px;margin-inline:22px}
+.timeline-compact .timeline-thumbnails{inset-block:4px}
+.timeline-compact .timeline-handle{min-height:48px;height:48px}
+.timeline-compact .timeline-handle>span{height:48px;width:13px;border-width:1px;border-radius:6px;box-shadow:none}
+.timeline-compact .timeline-handle>span::after{height:18px;width:2px}
+.timeline-compact .timeline-selection{top:1px;bottom:1px;border-block-width:3px}
+.timeline-compact .timeline-dim{top:4px;bottom:4px}
+.timeline-compact .timeline-scale{display:none}
+.timeline-compact .timeline-scrubber{height:32px;margin-inline:8px}
+.timeline-compact .timeline-scrubber input{height:32px;min-height:32px}
+.timeline-compact .timeline-limits{gap:5px;font-size:12px;line-height:1.4}
+.timeline-compact .timeline-limits>span:nth-child(2){display:none}
+@media(max-width:359px){.timeline-compact .timeline-duration{font-size:11px;padding-inline:4px}.timeline-compact .timeline-current{font-size:12px}.timeline-compact .timeline-limits{font-size:11px}}
 @media(max-width:370px){.timeline-heading{gap:7px}.timeline-duration{font-size:10px;padding-inline:5px}.timeline-current{font-size:11px}.timeline-heading{flex-wrap:nowrap}.timeline-scale{font-size:9px}}
 @media(forced-colors:active){.timeline-selection{border-color:Highlight}.timeline-handle>span,.timeline-play{background:ButtonFace;border-color:ButtonText}.timeline-handle>span::after,.timeline-playhead{background:ButtonText}.timeline-thumbnails{border:1px solid CanvasText}}

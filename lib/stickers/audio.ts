@@ -1,5 +1,6 @@
 export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone' };
 export type AudioRecipe = { start: number; offset: number; volume: number };
+export type AudioLayer = { track: AudioTrack; recipe: AudioRecipe };
 export const defaultAudioRecipe: AudioRecipe = { start: 0, offset: 0, volume: 1 };
 export const MAX_AUDIO_SOURCE_SECONDS = 30;
 const MAX_OUTPUT_SECONDS = 6;
@@ -129,6 +130,48 @@ export function renderAudio(track: AudioTrack, recipe: AudioRecipe, duration: nu
    const fade = plan.fadeSamples ? Math.max(0, Math.min(1, i / plan.fadeSamples, (plan.count - 1 - i) / plan.fadeSamples)) : 1;
    to[plan.targetStart + i] = finite(from[plan.sourceStart + i]) * plan.volume * fade;
   }
+ }
+ return result;
+}
+
+/** One shared, bounded PCM mix for preview, saved sound and video export.
+ * Mono is duplicated into stereo only when another layer requires stereo.
+ * Linear interpolation puts every layer on the same 48 kHz sample grid. */
+export function renderAudioMix(layers: readonly AudioLayer[], duration: number): AudioBuffer {
+ if (layers.length > 2) throw new Error('Tu peux ajouter jusqu’à deux pistes audio.');
+ if (!Number.isFinite(duration) || duration <= 0) throw new Error('Choisis une durée audio valide.');
+ const sampleRate = 48000, length = Math.max(1, Math.round(Math.min(MAX_OUTPUT_SECONDS, duration) * sampleRate));
+ let channels = 1;
+ for (const {track} of layers) {
+  const source = track.buffer;
+  if (![1, 2].includes(source.numberOfChannels) || !Number.isFinite(source.sampleRate) || source.sampleRate < 8000 || source.sampleRate > 96000 || !Number.isInteger(source.length) || source.length < 1) throw new Error(unsupported);
+  channels = Math.max(channels, source.numberOfChannels);
+ }
+ const result = createBuffer(channels, length, sampleRate);
+ for (const {track, recipe} of layers) {
+  // Build each audible window before resampling. Offset, trim, gain and the
+  // three-millisecond boundary fades therefore have exactly one definition.
+  const rendered = renderAudio(track, recipe, duration), ratio = rendered.sampleRate / sampleRate;
+  for (let channel = 0; channel < channels; channel++) {
+   const from = rendered.getChannelData(Math.min(channel, rendered.numberOfChannels - 1)), to = result.getChannelData(channel);
+   if (ratio === 1) {
+    for (let frame = 0; frame < length; frame++) to[frame] += from[frame] ?? 0;
+   } else {
+    for (let frame = 0; frame < length; frame++) {
+     const position = frame * ratio, first = Math.floor(position), fraction = position - first;
+     const left = from[first] ?? 0, right = from[first + 1] ?? left;
+     to[frame] += left + (right - left) * fraction;
+    }
+   }
+  }
+ }
+ // A common peak gain keeps stereo balance and the two layers' relative levels.
+ // A quiet or single layer stays at its selected volume instead of being halved.
+ let peak = 0;
+ for (let channel = 0; channel < channels; channel++) for (const sample of result.getChannelData(channel)) peak = Math.max(peak, Math.abs(sample));
+ if (peak > 1) for (let channel = 0; channel < channels; channel++) {
+  const samples = result.getChannelData(channel);
+  for (let frame = 0; frame < length; frame++) samples[frame] /= peak;
  }
  return result;
 }

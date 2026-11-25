@@ -19,6 +19,11 @@ const config=loadTS('lib/i18n/config.ts'),messages=loadTS('lib/i18n/messages.ts'
 const {privacyTranslations,privacyUiSources}=loadTS('lib/privacy/translations.ts');
 const {privacySections,backgroundPrivacySection,legalSections}=loadTS('lib/privacy/content.ts');
 const {audioSources,audioTranslations}=loadTS('lib/i18n/audio.ts');
+const {studioSources,studioTranslations}=loadTS('lib/i18n/studio-translations.ts');
+test('two-track controls, preview actions and conditional WhatsApp audio help cover all locales',()=>{
+ for(const locale of config.SUPPORTED_LOCALES)for(const source of studioSources){assert.ok(studioTranslations[locale][source]?.trim(),`${locale}: ${source}`);assert.equal(messages.translate(locale,source),studioTranslations[locale][source]);}
+ assert.equal(messages.translate('en','Volume de la piste {number}',{number:2}),'Track 2 volume');
+});
 test('audio labels and errors are translated in all eight languages',()=>{
  assert.ok(audioSources.length>=50);
  for(const locale of config.SUPPORTED_LOCALES)for(const source of audioSources){assert.ok(audioTranslations[locale][source]?.trim(),`${locale}: ${source}`);assert.equal(messages.translate(locale,source),audioTranslations[locale][source]);}

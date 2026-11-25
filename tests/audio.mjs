@@ -52,6 +52,73 @@ test('sample rendering preserves silence gaps, fades only audible boundaries and
   assert.equal(audio.renderAudio(track, audio.defaultAudioRecipe, 9).length, 48000);
  } finally { globalThis.AudioBuffer = previous; }
 });
+test('two independently trimmed and shifted layers share the 48 kHz output grid', () => {
+ const previous = globalThis.AudioBuffer; globalThis.AudioBuffer = BufferAudio;
+ try {
+  const voice = source(Float32Array.from({length: 8000}, (_, i) => i / 20000)), music = source(new Float32Array(22050).fill(.2), 22050);
+  const layers = [
+   {track: voice, recipe: {start: .1, offset: -.2, volume: 1}},
+   {track: music, recipe: {start: 0, offset: .5, volume: .5}},
+  ];
+  const mixed = audio.renderAudioMix(layers, 1.5), samples = mixed.getChannelData(0);
+  assert.equal(mixed.sampleRate, 48000); assert.equal(mixed.length, 72000); assert.equal(mixed.numberOfChannels, 1);
+  assert.equal(samples[0], 0);
+  assert.ok(Math.abs(samples[9600] - .2) < .00001, 'negative offset skips the beginning of the first source');
+  assert.ok(Math.abs(samples[31200] - .48) < .00001, 'each layer uses its own excerpt, offset and volume');
+  assert.ok(Math.abs(samples[38400] - .1) < .00001, 'the first source ends independently; the delayed second stays audible');
+  assert.equal(samples[samples.length - 1], 0);
+  assert.equal(layers[0].recipe.start, .1); assert.equal(layers[1].recipe.offset, .5);
+  assert.ok(Math.abs(voice.buffer.getChannelData(0)[4000] - .2) < .00001);
+ } finally { globalThis.AudioBuffer = previous; }
+});
+test('mixed sample rates retain stereo balance and duplicate mono without changing its level', () => {
+ const previous = globalThis.AudioBuffer; globalThis.AudioBuffer = BufferAudio;
+ try {
+  const mono = source(new Float32Array(48000).fill(.2), 48000), stereo = source(new Float32Array(44100).fill(.1), 44100, 2);
+  stereo.buffer.data[1].fill(-.2);
+  const mixed = audio.renderAudioMix([
+   {track: mono, recipe: {start: 0, offset: .1, volume: .5}},
+   {track: stereo, recipe: {start: 0, offset: .2, volume: .8}},
+  ], 1);
+  assert.equal(mixed.numberOfChannels, 2); assert.equal(mixed.sampleRate, 48000);
+  const left = mixed.getChannelData(0), right = mixed.getChannelData(1);
+  assert.equal(left[4000], 0); assert.equal(right[4000], 0);
+  assert.ok(Math.abs(left[7200] - .1) < .00001); assert.ok(Math.abs(right[7200] - .1) < .00001);
+  assert.ok(Math.abs(left[24000] - .18) < .00001); assert.ok(Math.abs(right[24000] + .06) < .00001);
+  const highRate = source(Float32Array.from({length: 96000}, (_, i) => i / 192000), 96000);
+  const resampled = audio.renderAudioMix([{track: highRate, recipe: audio.defaultAudioRecipe}], 1);
+  assert.ok(Math.abs(resampled.getChannelData(0)[12000] - .125) < .00001);
+ } finally { globalThis.AudioBuffer = previous; }
+});
+test('mixing only scales overloaded peaks, preserving quiet tracks, mute and stereo ratios', () => {
+ const previous = globalThis.AudioBuffer; globalThis.AudioBuffer = BufferAudio;
+ try {
+  const stereo = source(new Float32Array(48000).fill(.8), 48000, 2), mono = source(new Float32Array(24000).fill(.8), 24000);
+  stereo.buffer.data[1].fill(.4);
+  const first = {track: stereo, recipe: {...audio.defaultAudioRecipe}}, second = {track: mono, recipe: {...audio.defaultAudioRecipe}};
+  const alone = audio.renderAudioMix([first], 1), mixed = audio.renderAudioMix([first, second], 1);
+  assert.ok(Math.abs(alone.getChannelData(0)[24000] - .8) < .00001, 'one sound is not halved');
+  assert.ok(Math.abs(mixed.getChannelData(0)[24000] - 1) < .00001);
+  assert.ok(Math.abs(mixed.getChannelData(1)[24000] - .75) < .00001, 'the same limiter gain keeps stereo balance');
+  for (const channel of mixed.data) assert.ok(channel.every(sample => Number.isFinite(sample) && Math.abs(sample) <= 1));
+  const muted = audio.renderAudioMix([first, {...second, recipe: {...second.recipe, volume: 0}}], 1);
+  assert.deepEqual(muted.getChannelData(0), alone.getChannelData(0));
+  assert.ok(stereo.buffer.getChannelData(0).every(sample => Math.abs(sample - .8) < .00001));
+ } finally { globalThis.AudioBuffer = previous; }
+});
+test('mixing keeps short tails silent, caps duration and rejects unsupported layer layouts', () => {
+ const previous = globalThis.AudioBuffer; globalThis.AudioBuffer = BufferAudio;
+ try {
+  const track = source(new Float32Array(400).fill(.3), 8000), layer = {track, recipe: audio.defaultAudioRecipe};
+  const mixed = audio.renderAudioMix([layer], 9);
+  assert.equal(mixed.length, 288000); assert.equal(mixed.duration, 6);
+  assert.ok(mixed.getChannelData(0).subarray(2400).every(sample => sample === 0));
+  assert.ok(audio.renderAudioMix([], .25).getChannelData(0).every(sample => sample === 0));
+  assert.throws(() => audio.renderAudioMix([layer, layer, layer], 1), /deux pistes/);
+  assert.throws(() => audio.renderAudioMix([layer], Infinity), /durée audio/);
+  assert.throws(() => audio.renderAudioMix([{...layer, track: source([.2], 8000, 3)}], 1), /format audio/);
+ } finally { globalThis.AudioBuffer = previous; }
+});
 test('WAV output has correct stereo interleaving, lengths and signed PCM clipping', async () => {
  const buffer = source([0, .5, -1, 2], 8000, 2).buffer; buffer.data[1].set([1, -.5, 0, -2]);
  const blob = audio.encodeWav(buffer), bytes = await blob.arrayBuffer(), view = new DataView(bytes);

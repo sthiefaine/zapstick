@@ -15,6 +15,7 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 
 ## Fonctionnalités
 
+- Éditeur mobile à hauteur d’écran : aperçu permanent et agrandissable, rail d’outils compact, réglages seuls défilants et action de création toujours accessible. Navigation au clavier et adaptation au clavier logiciel.
 - Interface conçue pour le mobile : atelier interactif sur un seul écran, outils intégrés, identité vert pâle, logo sticker et interactions tactiles.
 - Thèmes clair, sombre et système ; huit langues avec URL propre, sélecteur de langue avec drapeaux dans le header, choix mémorisés et document traduit.
 - Accessibilité : navigation au clavier, commandes alternatives aux gestes, focus visible, contraste et mode de réduction des animations.
@@ -31,7 +32,7 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 - Import des publications X publiques par FxTwitter API v2 ; liens directs de médias X, Giphy et Tenor.
 - Bouton « Coller et importer » : lecture du presse-papiers au clic et import immédiat du lien. Nécessite HTTPS ou localhost et l’autorisation du navigateur ; le collage manuel reste disponible.
 - Atelier avec aperçu animé, déplacement, zoom, rotation et choix du fond. Texte déplaçable avec trois polices, couleurs et fond ; jusqu’à huit émojis déplaçables et redimensionnables, depuis la grille ou le clavier du téléphone.
-- Outil Son pour les animations : audio de la vidéo, fichier audio ou microphone (prise de 6 s maximum), extrait, décalage positif/négatif, volume et fondus courts. Audio traité localement, conservé avec le sticker dans IndexedDB et les sauvegardes JSON.
+- Outil Son pour les animations : deux pistes indépendantes, chacune issue de la vidéo, d’un fichier audio ou du microphone (prise de 6 s maximum), extrait, décalage positif/négatif, volume et fondus courts. Audio traité localement, conservé avec le sticker dans IndexedDB et les sauvegardes JSON.
 - Export vidéo avec son en MP4 H.264/AAC, ou WebM VP8/Opus si ces encodeurs MP4 sont indisponibles. Aperçu du fichier produit ; les exports GIF/WebP restent silencieux. Aucun envoi ni compte WhatsApp connecté.
 - Barre de montage avec vignettes et poignées pour choisir l’extrait d’un GIF ou d’une vidéo ; sélection et aperçu au clavier également disponibles. Le mode fixe capture l’image choisie.
 - Détourage des images fixes avec U²-Net-P, calculé sur l’appareil : chargement au clic, progression, annulation et rétablissement du fond original. Premier usage : environ 19 Mo de moteur et modèle ; qualité variable selon l’image. Voir [les détails et licences](docs/BACKGROUND_REMOVAL.md).
@@ -52,7 +53,7 @@ Pour la galerie Android, les animations sont téléchargées en GIF. Le WebP ani
 
 GIF, vidéo et WebP animé sont éditables avec aperçu, découpe, textes et émojis. Le détourage local traite aussi l’extrait animé choisi et permet de rétablir son fond avant de créer le sticker. Le navigateur doit prendre en charge l’encodage Canvas WebP et le décodage du format source.
 
-Le son importé est limité à 5 Mio et 30 s ; la piste originale des vidéos est limitée à 30 s. Une seule source sonore est utilisée à la fois, sans allonger la sélection animée (6 s maximum). Le microphone demande HTTPS ou localhost et une autorisation explicite au clic ; il est arrêté à la fin de la prise, à l’annulation, en quittant l’atelier ou en masquant la page. Aucun accès au microphone n’est déclenché à l’ouverture. Les navigateurs sans encodeurs compatibles conservent l’édition locale et les exports silencieux.
+Le son importé est limité à 5 Mio et 30 s ; la piste originale des vidéos est limitée à 30 s. Jusqu’à deux sources sont mixées localement, avec volume, extrait et décalage indépendants, sans allonger la sélection animée (6 s maximum). Le microphone demande HTTPS ou localhost et une autorisation explicite au clic ; il est arrêté à la fin de la prise, à l’annulation, en quittant l’atelier ou en masquant la page. Aucun accès au microphone n’est déclenché à l’ouverture. Les navigateurs sans encodeurs compatibles conservent l’édition locale et les exports silencieux.
 
 Un MP4 sonore est une vidéo ordinaire, avec un fond blanc pour les zones transparentes. Ce téléchargement ne garantit pas sa conversion en sticker sonore dans WhatsApp : aucun parcours natif n’a été validé sur Android. Les fichiers WebP et GIF ne contiennent pas de piste audio.
 

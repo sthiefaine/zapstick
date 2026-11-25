@@ -5,3 +5,8 @@
 .sound-download-format{font-weight:600}
 .sound-download-error{font-size:13px;line-height:1.5;color:#b42318;margin:8px 0}
 .sound-download video{display:block;width:100%;max-height:300px;border-radius:12px;background:#fff;object-fit:contain}
+.whatsapp-sound-help{margin-block:6px;color:var(--muted);font-size:14px;line-height:1.5}
+.whatsapp-sound-help>summary{display:list-item;min-height:44px;padding:11px 0;color:var(--ink);font-weight:600;cursor:pointer;outline-offset:3px}
+.whatsapp-sound-help>p{margin:0 0 8px}
+.whatsapp-sound-help>a{display:inline-flex;align-items:center;gap:6px;min-height:44px;text-decoration:underline;text-underline-offset:3px}
+.whatsapp-sound-help>summary:focus-visible{outline:3px solid var(--focus)}

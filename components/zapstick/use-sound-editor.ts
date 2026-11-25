@@ -4,55 +4,83 @@ import type {Sticker} from '@/lib/stickers/types';
 import {decodeAudio,defaultAudioRecipe,type AudioTrack,type AudioRecipe} from '@/lib/stickers/audio';
 import {createMicrophoneSession,type MicrophoneState} from '@/lib/stickers/microphone';
 
-/** Audio owns its source: replacing the visual with a cutout never replaces it. */
+export type SoundSlot=0|1;
+type Pair<T>=[T,T];
+const emptyRecipes=():Pair<AudioRecipe>=>[{...defaultAudioRecipe},{...defaultAudioRecipe}];
+function replaceSlot<T>(values:readonly[T,T],index:SoundSlot,value:T):Pair<T>{return index===0?[value,values[1]]:[values[0],value];}
+const audioMessage=(error:unknown)=>error instanceof Error?error.message:'Audio indisponible sur ce navigateur.';
+
+/** Each slot owns its source and recipe; visual cutouts never replace the audio. */
 export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>void,onError:(message:string)=>void){
- const [track,setTrack]=useState<AudioTrack|null>(null),[recipe,setRecipe]=useState<AudioRecipe>({...defaultAudioRecipe});
- const [pending,setPending]=useState(false),[microphone,setMicrophone]=useState<MicrophoneState>('idle'),[elapsed,setElapsed]=useState(0),[hasOriginal,setHasOriginal]=useState(false);
- const original=useRef<Blob|null>(null),operation=useRef<AbortController|null>(null),mic=useRef<ReturnType<typeof createMicrophoneSession>|null>(null);
+ const [tracks,setTracks]=useState<Pair<AudioTrack|null>>([null,null]),[recipes,setRecipes]=useState<Pair<AudioRecipe>>(emptyRecipes),[selected,setSelected]=useState<SoundSlot>(0);
+ const [pending,setPending]=useState(false),[microphone,setMicrophone]=useState<MicrophoneState>('idle'),[elapsed,setElapsed]=useState(0),[originalAvailable,setOriginalAvailable]=useState<Pair<boolean>>([false,false]),[busySlot,setBusySlot]=useState<SoundSlot|null>(null);
+ const original=useRef<Pair<Blob|null>>([null,null]),operation=useRef<{controller:AbortController;index:SoundSlot}|null>(null),mic=useRef<ReturnType<typeof createMicrophoneSession>|null>(null);
  const callbacks=useRef({onPause,onError});
  useEffect(()=>{callbacks.current={onPause,onError};},[onPause,onError]);
- const cancel=useCallback(()=>{operation.current?.abort();operation.current=null;mic.current?.cancel();mic.current=null;setPending(false);setMicrophone('idle');},[]);
- const load=useCallback(async(blob:Blob,name:string,source:AudioTrack['source'])=>{
-  cancel();const controller=new AbortController();operation.current=controller;
-  callbacks.current.onPause();setPending(true);
-  try{const next=await decodeAudio(blob,{name:name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),source,signal:controller.signal});if(!controller.signal.aborted){setTrack(next);setRecipe({...defaultAudioRecipe});}}
-  catch(error){if(!controller.signal.aborted)callbacks.current.onError(error instanceof Error?error.message:'Audio indisponible sur ce navigateur.');}
-  finally{if(operation.current===controller){operation.current=null;setPending(false);}}
- },[cancel]);
+ const cancel=useCallback(()=>{operation.current?.controller.abort();operation.current=null;mic.current?.cancel();mic.current=null;setPending(false);setMicrophone('idle');setBusySlot(null);},[]);
+ const load=useCallback(async(blob:Blob,name:string,source:AudioTrack['source'],index:SoundSlot)=>{
+  if(operation.current)return;
+  const controller=new AbortController();operation.current={controller,index};
+  callbacks.current.onPause();setPending(true);setBusySlot(index);
+  try{
+   const next=await decodeAudio(blob,{name:name.replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,120),source,signal:controller.signal});
+   if(!controller.signal.aborted){setTracks(values=>replaceSlot(values,index,next));setRecipes(values=>replaceSlot(values,index,{...defaultAudioRecipe}));}
+  }catch(error){if(!controller.signal.aborted)callbacks.current.onError(audioMessage(error));}
+  finally{if(operation.current?.controller===controller){operation.current=null;setPending(false);setBusySlot(null);}}
+ },[]);
  useEffect(()=>{
-  // The external draft identity starts a new capture/decoding session. A cutout
-  // replaces only its visual Blob and must keep this original audio session.
+  // Only a new draft identity replaces these sessions. A cutout swaps its visual
+  // Blob under the same identity and must keep both audio sources and recipes.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  cancel();setTrack(null);setRecipe({...defaultAudioRecipe});setElapsed(0);
-  original.current=draft?.sound?.blob??(draft?.mime.startsWith('video/')?draft.blob??null:null);
-  setHasOriginal(!!original.current);
-  if(draft?.sound)void load(draft.sound.blob,draft.sound.name,'original');
+  cancel();setTracks([null,null]);setRecipes(emptyRecipes());setSelected(0);setElapsed(0);
+  const saved=draft?.soundLayers;
+  const layers=saved?.length?saved.slice(0,2):draft?.sound?[draft.sound]:[];
+  const video=draft?.mime.startsWith('video/')?draft.blob??null:null;
+  original.current=[layers[0]?.blob??video,layers[1]?.blob??video];
+  setOriginalAvailable([!!original.current[0],!!original.current[1]]);
+  if(layers.length){
+   const controller=new AbortController();operation.current={controller,index:0};setPending(true);setBusySlot(0);callbacks.current.onPause();
+   void(async()=>{
+    const restored:Pair<AudioTrack|null>=[null,null];
+    try{
+     for(let index=0;index<layers.length;index++){
+      try{restored[index as SoundSlot]=await decodeAudio(layers[index].blob,{name:layers[index].name,source:'original',signal:controller.signal});}
+      catch(error){if(!controller.signal.aborted)callbacks.current.onError(audioMessage(error));}
+      if(controller.signal.aborted)return;
+     }
+     setTracks(restored);
+     setRecipes(emptyRecipes().map((recipe,index)=>({...recipe,volume:layers[index]?.volume??1})) as Pair<AudioRecipe>);
+    }finally{if(operation.current?.controller===controller){operation.current=null;setPending(false);setBusySlot(null);}}
+   })();
+  }
   return cancel;
  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[draft?.id,cancel,load]);
+ },[draft?.id,cancel]);
  useEffect(()=>{
-  // Hidden editors stay mounted; ending their capture must also update the UI.
+  // Hidden editors stay mounted, so navigation must explicitly end capture.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   if(!active)cancel();
  },[active,cancel]);
  useEffect(()=>{const hide=()=>{if(document.hidden){cancel();callbacks.current.onPause();}};document.addEventListener('visibilitychange',hide);window.addEventListener('pagehide',cancel);return()=>{document.removeEventListener('visibilitychange',hide);window.removeEventListener('pagehide',cancel);};},[cancel]);
  async function record(){
   if(mic.current||operation.current)return;
-  cancel();callbacks.current.onPause();setElapsed(0);
-  const controller=new AbortController();operation.current=controller;
-  const session=createMicrophoneSession({onState:setMicrophone,onElapsed:setElapsed});mic.current=session;
+  const index=selected,controller=new AbortController();operation.current={controller,index};callbacks.current.onPause();setElapsed(0);setBusySlot(index);
+  const session=createMicrophoneSession({onState:value=>{if(operation.current?.controller===controller)setMicrophone(value);},onElapsed:value=>{if(operation.current?.controller===controller)setElapsed(value);}});mic.current=session;
   try{
    const blob=await session.record(controller.signal);
    if(controller.signal.aborted)return;
    setPending(true);
    const next=await decodeAudio(blob,{name:'Micro',source:'microphone',signal:controller.signal});
-   if(!controller.signal.aborted){setTrack(next);setRecipe({...defaultAudioRecipe});}
-  }catch(error){if(!controller.signal.aborted&&!(error instanceof DOMException&&error.name==='AbortError'))callbacks.current.onError(error instanceof Error?error.message:'Audio indisponible sur ce navigateur.');}
-  finally{if(operation.current===controller){operation.current=null;mic.current=null;setPending(false);setMicrophone('idle');}}
+   if(!controller.signal.aborted){setTracks(values=>replaceSlot(values,index,next));setRecipes(values=>replaceSlot(values,index,{...defaultAudioRecipe}));}
+  }catch(error){if(!controller.signal.aborted&&!(error instanceof DOMException&&error.name==='AbortError'))callbacks.current.onError(audioMessage(error));}
+  finally{if(operation.current?.controller===controller){operation.current=null;mic.current=null;setPending(false);setMicrophone('idle');setBusySlot(null);}}
  }
- return {track,recipe,setRecipe,pending,microphone,elapsed,cancel,record,stop:()=>mic.current?.stop(),
-  hasOriginal,chooseOriginal:()=>{if(original.current)void load(original.current,draft?.name??'Original','original');},
-  chooseFile:(file:File)=>load(file,file.name.replace(/\.[^.]+$/,'')||'Audio','file'),
-  remove:()=>{cancel();setTrack(null);setRecipe({...defaultAudioRecipe});},
+ const setRecipe=(value:AudioRecipe,index:SoundSlot=selected)=>setRecipes(values=>replaceSlot(values,index,value));
+ return {tracks,recipes,selected,select:setSelected,setRecipe,pending,microphone,elapsed,busySlot,cancel,record,stop:()=>mic.current?.stop(),
+  // Aliases keep callers reading the active slot straightforward.
+  track:tracks[selected],recipe:recipes[selected],hasOriginal:originalAvailable[selected],
+  chooseOriginal:()=>{const index=selected,blob=original.current[index];if(blob)void load(blob,draft?.name??'Original','original',index);},
+  chooseFile:(file:File,index:SoundSlot=selected)=>load(file,file.name.replace(/\.[^.]+$/,'')||'Audio','file',index),
+  remove:(index:SoundSlot=selected)=>{if(operation.current?.index===index)cancel();setTracks(values=>replaceSlot(values,index,null));setRecipes(values=>replaceSlot(values,index,{...defaultAudioRecipe}));},
  };
 }
