@@ -5,7 +5,7 @@ import {createPortal} from 'react-dom';
 import {DndContext,DragOverlay,MouseSensor,TouchSensor,KeyboardSensor,useSensor,useSensors,useDroppable,pointerWithin,closestCenter,type CollisionDetection,type DragEndEvent} from '@dnd-kit/core';
 import {SortableContext,useSortable,rectSortingStrategy,horizontalListSortingStrategy,sortableKeyboardCoordinates} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
-import {Check,CheckSquare,Download,Folder,FolderOpen,FolderPlus,GripVertical,Heart,ImagePlus,Inbox,MoreHorizontal,Pencil,Play,Plus,Search,Trash2,Upload,X} from 'lucide-react';
+import {Check,CheckSquare,Download,Folder,FolderOpen,FolderPlus,GripVertical,Heart,ImagePlus,Inbox,MoreHorizontal,Pencil,Play,Plus,Search,Trash2,Upload,X,Volume2} from 'lucide-react';
 import {usePreferences} from '@/components/preferences-provider';
 import type {Collection,CollectionFolder,Sticker} from '@/lib/stickers/types';
 import {createFolder,updateFolder,deleteFolder,moveToFolder,reorderStickers,reorderFolders} from '@/lib/stickers/folders';
@@ -116,7 +116,7 @@ function SortableSticker({sticker,selected,selecting,disabled,onOpen,onSelect,on
  const {t}=usePreferences();
  const {setNodeRef,setActivatorNodeRef,attributes,listeners,transform,transition,isDragging,isOver}=useSortable({id:stickerKey(sticker.id),data:{kind:'sticker',entityId:sticker.id,label:sticker.name} satisfies DragData,disabled,transition:reduceMotion?null:undefined});
  return <article ref={setNodeRef} className={`sticker-card library-sticker ${selected?'selected':''} ${isOver?'library-sort-over':''}`} style={{transform:CSS.Transform.toString(transform),transition,opacity:isDragging ? .3 : 1}}>
-  <button className="card-media" {...listeners} onClick={onOpen} aria-label={t(selecting?'Sélectionner {name}':'Ouvrir {name}',{name:sticker.name})} aria-pressed={selecting?selected:undefined}><Media sticker={sticker}/>{sticker.kind==='animated'?<span className="card-animation"><Play size={8} fill="currentColor"/></span>:null}</button>
+  <button className="card-media" {...listeners} onClick={onOpen} aria-label={t(selecting?'Sélectionner {name}':'Ouvrir {name}',{name:sticker.name})} aria-pressed={selecting?selected:undefined}><Media sticker={sticker}/>{sticker.kind==='animated'?<span className="card-animation" title={sticker.sound?t('Son'):undefined}>{sticker.sound?<Volume2 size={11}/>:<Play size={8} fill="currentColor"/>}</span>:null}</button>
   <button className="library-drag-handle" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={t('Déplacer {name}',{name:sticker.name})}><GripVertical size={17}/></button>
   {selecting?<button className={`library-select ${selected?'checked':''}`} onClick={onSelect} aria-label={t('Sélectionner {name}',{name:sticker.name})} aria-pressed={selected}>{selected?<Check size={16}/>:<span/>}</button>:<button className={`card-favorite ${sticker.favorite?'favorited':''}`} aria-label={t(sticker.favorite?'Retirer {name} des favoris':'Ajouter {name} aux favoris',{name:sticker.name})} onClick={onFavorite}><Heart size={14} fill={sticker.favorite?'currentColor':'none'}/></button>}
   <button className="card-title" onClick={onOpen}>{sticker.name}</button>

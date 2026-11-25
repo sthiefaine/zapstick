@@ -1,0 +1,165 @@
+import test, {after, beforeEach} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import {IDBFactory} from 'fake-indexeddb';
+import ts from 'typescript';
+
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),cache=new Map(),nodeRequire=createRequire(import.meta.url);
+function loadTS(file){
+ const absolute=path.resolve(root,file);
+ if(cache.has(absolute))return cache.get(absolute).exports;
+ const module={exports:{}};cache.set(absolute,module);
+ const code=ts.transpileModule(fs.readFileSync(absolute,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const require=specifier=>specifier.startsWith('.')?loadTS(path.resolve(path.dirname(absolute),specifier+(path.extname(specifier)?'':'.ts'))):nodeRequire(specifier);
+ new Function('require','module','exports',code)(require,module,module.exports);return module.exports;
+}
+const store=loadTS('lib/stickers/store.ts'),{registerAudioWork}=loadTS('lib/stickers/audio.ts');
+const originals=new Map(['indexedDB','FileReader'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+Object.defineProperty(globalThis,'indexedDB',{configurable:true,value:new IDBFactory()});
+class BlobReader{
+ result=null;error=null;onload=null;onerror=null;
+ readAsDataURL(blob){blob.arrayBuffer().then(bytes=>{this.result=`data:${blob.type};base64,${Buffer.from(bytes).toString('base64')}`;this.onload?.();},error=>{this.error=error;this.onerror?.();});}
+}
+Object.defineProperty(globalThis,'FileReader',{configurable:true,writable:true,value:BlobReader});
+after(async()=>{await store.clearLocalData();for(const [key,descriptor] of originals){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}});
+beforeEach(async()=>{await store.clearLocalData();});
+
+// A real PCM fixture: stereo pulses at known sample positions, with a canonical WAV header.
+function wav({duration=.5,rate=48000,channels=2}={}){
+ const frames=Math.round(duration*rate),bytes=new Uint8Array(44+frames*channels*2),view=new DataView(bytes.buffer);
+ const text=(offset,value)=>{for(let i=0;i<value.length;i++)bytes[offset+i]=value.charCodeAt(i);};
+ text(0,'RIFF');view.setUint32(4,bytes.length-8,true);text(8,'WAVE');text(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,channels,true);view.setUint32(24,rate,true);view.setUint32(28,rate*channels*2,true);view.setUint16(32,channels*2,true);view.setUint16(34,16,true);text(36,'data');view.setUint32(40,frames*channels*2,true);
+ for(let frame=0;frame<frames;frame++)for(let channel=0;channel<channels;channel++)view.setInt16(44+(frame*channels+channel)*2,frame%2400<24?(channel?-.5:.5)*32767:0,true);
+ return bytes;
+}
+function collection(sound={blob:new Blob([wav()],{type:'audio/wav'}),duration:.5,name:'Bip stéréo'}){
+ return {version:1,packs:[],stickers:[{id:'sound-sticker',name:'Animation',packId:'',kind:'animated',mime:'image/webp',blob:new Blob(['visual-bytes'],{type:'image/webp'}),favorite:true,createdAt:1,isSticker:true,...(sound?{sound}:{})}]};
+}
+const backupFile=data=>new File([JSON.stringify(data)],'backup.json',{type:'application/json'});
+async function backupData(value=collection()){return JSON.parse(await(await store.createBackup(value)).text());}
+
+test('saved audio survives IndexedDB and a portable JSON backup byte for byte',async()=>{
+ const value=collection();await store.saveCollection(value);
+ const loaded=await store.loadCollection(),sound=loaded.stickers[0].sound;
+ assert.equal(sound.name,'Bip stéréo');assert.equal(sound.duration,.5);assert.equal(sound.blob.type,'audio/wav');
+ assert.deepEqual(new Uint8Array(await sound.blob.arrayBuffer()),wav());
+ const data=await backupData(loaded),serialized=data.stickers[0].sound;
+ assert.equal(serialized.mime,'audio/wav');assert.equal(Object.hasOwn(serialized,'blob'),false);
+ assert.equal(serialized.data,`data:audio/wav;base64,${Buffer.from(wav()).toString('base64')}`);
+ await store.clearLocalData();
+ const restored=await store.restore(backupFile(data));await store.saveCollection(restored);
+ const reloaded=(await store.loadCollection()).stickers[0];
+ assert.equal(await reloaded.blob.text(),'visual-bytes');assert.equal(reloaded.sound.name,sound.name);assert.equal(reloaded.sound.duration,sound.duration);
+ assert.deepEqual(new Uint8Array(await reloaded.sound.blob.arrayBuffer()),wav());
+});
+
+test('older backups without sound remain readable without inventing an audio track',async()=>{
+ const restored=await store.restore(backupFile(await backupData(collection(null))));
+ assert.equal(Object.hasOwn(restored.stickers[0],'sound'),false);
+ assert.equal(await restored.stickers[0].blob.text(),'visual-bytes');
+});
+
+test('PCM headers, payload boundaries, block sizes and measured duration are validated before saving',async()=>{
+ await store.saveCollection(collection(null));
+ const mutations=[
+  bytes=>{bytes[0]=0;},
+  bytes=>new DataView(bytes.buffer).setUint32(4,bytes.length-9,true),
+  bytes=>new DataView(bytes.buffer).setUint16(20,3,true),
+  bytes=>new DataView(bytes.buffer).setUint16(22,3,true),
+  bytes=>new DataView(bytes.buffer).setUint32(24,0,true),
+  bytes=>new DataView(bytes.buffer).setUint32(28,123,true),
+  bytes=>new DataView(bytes.buffer).setUint16(32,1,true),
+  bytes=>new DataView(bytes.buffer).setUint16(34,32,true),
+  bytes=>new DataView(bytes.buffer).setUint32(40,bytes.length,true),
+  bytes=>new DataView(bytes.buffer).setUint32(40,0,true),
+ ];
+ for(const mutate of mutations){const bytes=wav();mutate(bytes);await assert.rejects(store.saveCollection(collection({blob:new Blob([bytes],{type:'audio/wav'}),duration:.5,name:'Bad'})),/WAV/);}
+ await assert.rejects(store.saveCollection(collection({blob:new Blob([wav().subarray(0,-1)],{type:'audio/wav'}),duration:.5,name:'Truncated'})),/WAV/);
+ await assert.rejects(store.saveCollection(collection({blob:new Blob([wav()],{type:'audio/wav'}),duration:.4,name:'Wrong duration'})),/WAV/);
+ assert.equal(Object.hasOwn((await store.loadCollection()).stickers[0],'sound'),false);
+});
+
+test('sound metadata and byte limits are enforced for saving and restoring',async()=>{
+ const good=collection().stickers[0].sound;
+ for(const overrides of [{duration:0},{duration:-1},{duration:NaN},{duration:Infinity},{duration:6.2},{name:'x'.repeat(121)},{name:'bad\u0000name'},{blob:new Blob([wav()],{type:'audio/mpeg'})}])await assert.rejects(store.saveCollection(collection({...good,...overrides})),/Son enregistré/);
+ await assert.rejects(store.saveCollection(collection({...good,blob:new Blob([new Uint8Array(store.MAX_SAVED_AUDIO_BYTES+1)],{type:'audio/wav'})})),/2,4 Mo/);
+ await assert.rejects(store.createBackup(collection({...good,duration:6.2})),/Son enregistré/);
+ const data=await backupData();
+ for(const overrides of [{mime:'audio/mpeg'},{duration:null},{duration:0},{duration:6.2},{name:'x'.repeat(121)},{data:'data:audio/mpeg;base64,AAAA'},{data:'data:audio/wav;base64,not base64'},{data:'https://example.com/sound.wav'}]){
+  const input=structuredClone(data);Object.assign(input.stickers[0].sound,overrides);await assert.rejects(store.restore(backupFile(input)),/Son enregistré|WAV/);
+ }
+ const malformed=structuredClone(data),bytes=wav();new DataView(bytes.buffer).setUint32(40,3,true);malformed.stickers[0].sound.data=`data:audio/wav;base64,${Buffer.from(bytes).toString('base64')}`;
+ await assert.rejects(store.restore(backupFile(malformed)),/WAV/);
+ const oversized=structuredClone(data);oversized.stickers[0].sound.data='data:audio/wav;base64,'+'A'.repeat(4*Math.ceil(store.MAX_SAVED_AUDIO_BYTES/3)+4);
+ await assert.rejects(store.restore(backupFile(oversized)),/Son enregistré/);
+});
+
+test('a valid six-second stereo track remains accepted and restore never fetches an external audio URL',async()=>{
+ const sound={blob:new Blob([wav({duration:6})],{type:'audio/wav'}),duration:6,name:'Six seconds'};
+ await store.saveCollection(collection(sound));
+ const data=await backupData(collection(sound)),originalFetch=globalThis.fetch,requests=[];
+ globalThis.fetch=async(input,...args)=>{requests.push(String(input));assert.ok(String(input).startsWith('data:'));return originalFetch(input,...args);};
+ try{const restored=await store.restore(backupFile(data));assert.equal(restored.stickers[0].sound.duration,6);assert.equal(requests.length,2);}finally{globalThis.fetch=originalFetch;}
+});
+
+test('erasure cancels registered audio before a queued save finishes and removes every sound Blob',async()=>{
+ await store.saveCollection(collection());
+ let release,enteredResolve,stopped=0;
+ const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{enteredResolve=resolve;});
+ const blob=new Blob([wav()],{type:'audio/wav'}),read=blob.arrayBuffer.bind(blob);
+ blob.arrayBuffer=async()=>{enteredResolve();await gate;return read();};
+ const saving=store.saveCollection(collection({blob,duration:.5,name:'Queued'}));await entered;
+ registerAudioWork(()=>{stopped++;});
+ const clearing=store.clearLocalData();
+ for(let i=0;i<10&&!stopped;i++)await Promise.resolve();
+ assert.equal(stopped,1,'microphone/playback cleanup must not wait for the storage queue');
+ release();await Promise.all([saving,clearing]);
+ assert.deepEqual((await store.loadCollection()).stickers,[]);
+});
+
+test('backup rejects the aggregate audio budget before any base64 reader runs',async()=>{
+ const sound={blob:new Blob([wav({duration:6,rate:96000})],{type:'audio/wav'}),duration:6,name:'Shared six-second PCM'};
+ const base=collection(sound),sticker=base.stickers[0];
+ const value={...base,stickers:Array.from({length:45},(_,index)=>({...sticker,id:`audio-${index}`}))};
+ const Reader=globalThis.FileReader;let reads=0;
+ globalThis.FileReader=class{readAsDataURL(){reads++;throw new Error('Base64 must not be allocated.');}};
+ try{await assert.rejects(store.createBackup(value),/La sauvegarde dépasse 100 Mo/);assert.equal(reads,0);}finally{globalThis.FileReader=Reader;}
+});
+
+test('backup budget includes JSON metadata and data URL prefixes beyond the base64 payload',async()=>{
+ // Twenty-five references share only 3 MiB of input storage, but base64 alone is exactly 100 MiB.
+ const blob=new Blob([new Uint8Array(3*1024*1024)],{type:'image/webp'}),base=collection(null),sticker=base.stickers[0];
+ const value={...base,stickers:Array.from({length:25},(_,index)=>({...sticker,id:`image-${index}`,name:'Été « 😺 »',blob}))};
+ assert.equal(25*4*Math.ceil(blob.size/3),100*1024*1024);
+ const Reader=globalThis.FileReader;let reads=0;
+ globalThis.FileReader=class{readAsDataURL(){reads++;throw new Error('Metadata must be budgeted first.');}};
+ try{await assert.rejects(store.createBackup(value),/La sauvegarde dépasse 100 Mo/);assert.equal(reads,0);}finally{globalThis.FileReader=Reader;}
+});
+
+test('bundled GIFs are resolved within the aggregate budget before any base64 allocation',async()=>{
+ const {HOME_MEMES}=loadTS('lib/stickers/home-memes.ts');
+ const blob=new Blob([new Uint8Array(3*1024*1024)],{type:'image/webp'}),base=collection(null),sticker=base.stickers[0];
+ const value={...base,stickers:[...Array.from({length:24},(_,index)=>({...sticker,id:`image-${index}`,blob})),{...sticker,id:'local-gif',mime:'image/gif',blob:undefined,src:HOME_MEMES[0].src}]};
+ const Reader=globalThis.FileReader,originalFetch=globalThis.fetch;let reads=0,fetches=0;
+ globalThis.FileReader=class{readAsDataURL(){reads++;throw new Error('The GIF must be budgeted first.');}};
+ globalThis.fetch=async(input)=>{fetches++;assert.equal(input,HOME_MEMES[0].src);assert.equal(reads,0);return new Response(new Blob([blob],{type:'image/gif'}),{headers:{'content-type':'image/gif'}});};
+ try{await assert.rejects(store.createBackup(value),/La sauvegarde dépasse 100 Mo/);assert.equal(fetches,1);assert.equal(reads,0);}finally{globalThis.FileReader=Reader;globalThis.fetch=originalFetch;}
+});
+
+test('backup serializes image and sound Blobs sequentially while preserving every attachment',async()=>{
+ const base=collection(),value={...base,stickers:Array.from({length:4},(_,index)=>({...base.stickers[0],id:`sound-${index}`}))};
+ const Reader=globalThis.FileReader;let active=0,maximum=0,reads=0;
+ globalThis.FileReader=class extends BlobReader{
+  readAsDataURL(blob){active++;reads++;maximum=Math.max(maximum,active);const onload=this.onload;this.onload=()=>{active--;onload?.();};super.readAsDataURL(blob);}
+ };
+ try{
+  const backup=await store.createBackup(value),data=JSON.parse(await backup.text());
+  assert.equal(reads,8);assert.equal(maximum,1);assert.equal(active,0);
+  assert.ok(data.stickers.every(sticker=>sticker.data.startsWith('data:image/webp;base64,')&&sticker.sound.data.startsWith('data:audio/wav;base64,')));
+  const restored=await store.restore(new File([backup],'sequential.json'));
+  assert.deepEqual(restored.stickers.map(sticker=>sticker.id),value.stickers.map(sticker=>sticker.id));
+ }finally{globalThis.FileReader=Reader;}
+});

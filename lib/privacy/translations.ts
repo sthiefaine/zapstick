@@ -38,6 +38,7 @@ type TranslatedDocument={privacy:readonly (readonly [string,string])[];legal:rea
 const documents:Record<Exclude<Locale,'fr'>,TranslatedDocument>={
  en:{
   privacy:[
+   ['When you add audio','Original video audio, imported audio files and recordings are processed in your browser without being sent to the Zapstick server. Microphone access is requested only when you press a recording button. Audio added to a sticker is stored on this device and included in backups. Erasing local data stops the microphone and audio playback; backups and previously downloaded files remain on your device until you delete them.'],
    ['Your files stay on your device','Images, videos, stickers, names, favorites and packs are stored in IndexedDB in your browser. They are not sent to the Zapstick server. You can edit, export or delete them in the app.'],
    ['Why this data is used','The requested features — importing, creating, organizing and local saving — provide the service (GDPR Article 6(1)(b), where applicable). Connection information needed for security is processed on the legitimate interest of protecting the service (Article 6(1)(f)). Technical preferences apply your choices without advertising tracking.'],
    ['Preferences and tracking','Zapstick remembers your language and theme choices. The app contains no advertising or audience analytics and uses no advertising trackers.'],
@@ -56,6 +57,7 @@ const documents:Record<Exclude<Locale,'fr'>,TranslatedDocument>={
  },
  'pt-BR':{
   privacy:[
+   ['Ao adicionar áudio','O áudio original de um vídeo, os arquivos de áudio importados e as gravações são processados no seu navegador, sem envio ao servidor do Zapstick. O acesso ao microfone só é solicitado quando você pressiona um botão de gravação. O áudio adicionado a uma figurinha fica salvo neste dispositivo e é incluído nos backups. Apagar os dados locais interrompe o microfone e a reprodução de áudio; os backups e arquivos já baixados permanecem no dispositivo até serem excluídos.'],
    ['Seus arquivos ficam no seu dispositivo','Imagens, vídeos, stickers, nomes, favoritos e pacotes são armazenados no IndexedDB do seu navegador. Eles não são enviados ao servidor do Zapstick. Você pode editar, exportar ou excluir esses dados no app.'],
    ['Por que esses dados são usados','As funções solicitadas — importar, criar, organizar e salvar localmente — fornecem o serviço (artigo 6.1.b do RGPD, quando aplicável). As informações de conexão necessárias à segurança baseiam-se no interesse legítimo de proteger o serviço (artigo 6.1.f). As preferências técnicas aplicam suas escolhas sem rastreamento publicitário.'],
    ['Preferências e rastreamento','O Zapstick lembra suas escolhas de idioma e tema. O app não inclui publicidade nem análise de audiência e não usa rastreadores publicitários.'],
@@ -74,6 +76,7 @@ const documents:Record<Exclude<Locale,'fr'>,TranslatedDocument>={
  },
  es:{
   privacy:[
+   ['Cuando añades audio','El audio original de un vídeo, los archivos de audio importados y las grabaciones se procesan en tu navegador, sin enviarse al servidor de Zapstick. Solo se solicita acceso al micrófono cuando pulsas un botón de grabación. El audio añadido a un sticker se guarda en este dispositivo y se incluye en las copias de seguridad. Borrar los datos locales detiene el micrófono y la reproducción de audio; las copias y los archivos ya descargados permanecen en tu dispositivo hasta que los elimines.'],
    ['Tus archivos se quedan en tu dispositivo','Las imágenes, los vídeos, los stickers, los nombres, los favoritos y los paquetes se guardan en IndexedDB, en tu navegador. No se envían al servidor de Zapstick. Puedes editarlos, exportarlos o eliminarlos en la app.'],
    ['Por qué se utilizan estos datos','Las funciones solicitadas — importar, crear, organizar y guardar localmente — permiten prestar el servicio (artículo 6.1.b del RGPD, cuando sea aplicable). La información de conexión necesaria para la seguridad se trata por el interés legítimo de proteger el servicio (artículo 6.1.f). Las preferencias técnicas aplican tus elecciones sin seguimiento publicitario.'],
    ['Preferencias y seguimiento','Zapstick recuerda tus elecciones de idioma y tema. La app no incluye publicidad ni análisis de audiencia y no utiliza rastreadores publicitarios.'],
@@ -92,6 +95,7 @@ const documents:Record<Exclude<Locale,'fr'>,TranslatedDocument>={
  },
  de:{
   privacy:[
+   ['Wenn du Ton hinzufügst','Der Originalton eines Videos, importierte Audiodateien und Aufnahmen werden in deinem Browser verarbeitet und nicht an den Zapstick-Server gesendet. Mikrofonzugriff wird nur angefragt, wenn du eine Aufnahmetaste drückst. Zu einem Sticker hinzugefügter Ton wird auf diesem Gerät gespeichert und in Sicherungen aufgenommen. Das Löschen lokaler Daten stoppt Mikrofon und Audiowiedergabe; Sicherungen und bereits heruntergeladene Dateien bleiben auf deinem Gerät, bis du sie löschst.'],
    ['Deine Dateien bleiben auf deinem Gerät','Bilder, Videos, Sticker, Namen, Favoriten und Pakete werden in IndexedDB in deinem Browser gespeichert. Sie werden nicht an den Zapstick-Server gesendet. Du kannst sie in der App bearbeiten, exportieren oder löschen.'],
    ['Wofür diese Daten verwendet werden','Die angeforderten Funktionen — Import, Erstellung, Organisation und lokale Speicherung — dienen der Bereitstellung des Dienstes (Artikel 6 Absatz 1 Buchstabe b DSGVO, soweit anwendbar). Sicherheitsrelevante Verbindungsdaten werden aufgrund des berechtigten Interesses am Schutz des Dienstes verarbeitet (Artikel 6 Absatz 1 Buchstabe f). Technische Einstellungen setzen deine Auswahl ohne Werbetracking um.'],
    ['Einstellungen und Tracking','Zapstick speichert deine Sprach- und Designauswahl. Die App enthält weder Werbung noch Reichweitenanalyse und verwendet keine Werbetracker.'],
@@ -110,6 +114,7 @@ const documents:Record<Exclude<Locale,'fr'>,TranslatedDocument>={
  },
  'zh-CN':{
   privacy:[
+   ['添加音频时','视频原声、导入的音频文件和录音均在浏览器中处理，不会发送到 Zapstick 服务器。只有按下录音按钮时才会请求麦克风权限。添加到贴纸中的音频保存在此设备上，并包含在备份中。清除本地数据会停止麦克风和音频播放；已下载的备份和文件会保留在设备上，直到你将其删除。'],
    ['文件保留在你的设备上','图片、视频、贴纸、名称、收藏和贴纸包保存在浏览器的 IndexedDB 中，不会发送到 Zapstick 服务器。你可以在应用中编辑、导出或删除这些数据。'],
    ['这些数据的用途','你请求的导入、制作、整理和本地保存功能用于提供服务（适用时依据 GDPR 第 6 条第 1 款 b 项）。安全所需的连接信息基于保护服务的合法利益进行处理（第 6 条第 1 款 f 项）。技术偏好仅用于应用你的选择，不进行广告跟踪。'],
    ['偏好设置与跟踪','Zapstick 会记住你选择的语言和主题。应用不含广告或访问量分析，也不使用广告跟踪器。'],
@@ -128,6 +133,7 @@ const documents:Record<Exclude<Locale,'fr'>,TranslatedDocument>={
  },
  ja:{
   privacy:[
+   ['音声を追加するとき','動画の元の音声、読み込んだ音声ファイル、録音はブラウザー内で処理され、Zapstickのサーバーには送信されません。マイクへのアクセスは録音ボタンを押したときにのみ要求されます。スタンプに追加した音声はこの端末に保存され、バックアップにも含まれます。ローカルデータを消去するとマイクと音声の再生が停止します。すでにダウンロードしたバックアップとファイルは、自分で削除するまで端末に残ります。'],
    ['ファイルは端末に保存されます','画像、動画、ステッカー、名前、お気に入り、パックはブラウザーの IndexedDB に保存されます。Zapstick のサーバーには送信されません。アプリ内で編集、書き出し、削除ができます。'],
    ['データの利用目的','要求された読み込み、作成、整理、ローカル保存の機能は、サービスの提供を目的とします（該当する場合、GDPR 第6条第1項b号）。安全確保に必要な接続情報は、サービスを保護する正当な利益に基づいて処理されます（同f号）。技術設定は広告追跡を行わず、利用者の選択を適用します。'],
    ['設定とトラッキング','Zapstick は言語とテーマの選択を記憶します。アプリには広告やアクセス解析はなく、広告トラッカーも使用しません。'],
@@ -146,6 +152,7 @@ const documents:Record<Exclude<Locale,'fr'>,TranslatedDocument>={
  },
  ru:{
   privacy:[
+   ['При добавлении звука','Исходный звук видео, импортированные аудиофайлы и записи обрабатываются в браузере и не отправляются на сервер Zapstick. Доступ к микрофону запрашивается только при нажатии кнопки записи. Звук, добавленный к стикеру, хранится на этом устройстве и включается в резервные копии. Стирание локальных данных останавливает микрофон и воспроизведение звука; резервные копии и ранее загруженные файлы остаются на устройстве, пока ты их не удалишь.'],
    ['Ваши файлы остаются на устройстве','Изображения, видео, стикеры, названия, избранное и наборы хранятся в IndexedDB вашего браузера. Они не отправляются на сервер Zapstick. Вы можете изменять, экспортировать или удалять их в приложении.'],
    ['Для чего используются данные','Запрошенные функции — импорт, создание, организация и локальное сохранение — обеспечивают предоставление сервиса (статья 6(1)(b) GDPR, когда она применима). Сведения о подключении, необходимые для безопасности, обрабатываются на основании законного интереса в защите сервиса (статья 6(1)(f)). Технические настройки применяют ваш выбор без рекламного отслеживания.'],
    ['Настройки и отслеживание','Zapstick запоминает выбранные язык и тему. В приложении нет рекламы или аналитики посещаемости, и оно не использует рекламные трекеры.'],

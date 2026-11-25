@@ -12,6 +12,10 @@ export const privacyConfig = {
 
 export const privacySections = [
   {
+    title: 'Quand tu ajoutes un son',
+    body: 'Le son d’origine d’une vidéo, les fichiers audio importés et les enregistrements sont traités dans ton navigateur, sans envoi au serveur Zapstick. L’accès au microphone est demandé uniquement quand tu appuies sur un bouton d’enregistrement. Le son ajouté à un sticker est conservé sur cet appareil et inclus dans les sauvegardes. L’effacement local arrête le microphone et les lectures audio ; les sauvegardes et fichiers déjà téléchargés restent sur ton appareil jusqu’à leur suppression.',
+  },
+  {
     title: 'Tes fichiers restent sur ton appareil',
     body: 'Les images, vidéos, stickers, noms, favoris et packs sont conservés dans IndexedDB, dans ton navigateur. Ils ne sont pas envoyés au serveur Zapstick. Tu peux les modifier, les exporter ou les supprimer dans l’app.',
   },

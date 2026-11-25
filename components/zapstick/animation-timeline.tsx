@@ -63,7 +63,7 @@ export function AnimationTimeline({ duration, selection, thumbnails, currentTime
  </div>;
 }
 
-export function GifAnimationCanvas({ preview, playing, active, start, length, seek, onTimeUpdate, onError, style, label }: { preview: AnimationPreview; playing: boolean; active: boolean; start: number; length: number; seek: { time: number; revision: number }; onTimeUpdate: (time: number) => void; onError: (error: unknown) => void; style: CSSProperties; label: string }) {
+export function GifAnimationCanvas({ preview, playing, active, start, length, seek, clock, onTimeUpdate, onError, style, label }: { clock?:()=>number|null; preview: AnimationPreview; playing: boolean; active: boolean; start: number; length: number; seek: { time: number; revision: number }; onTimeUpdate: (time: number) => void; onError: (error: unknown) => void; style: CSSProperties; label: string }) {
  const canvas = useRef<HTMLCanvasElement>(null), lastTime = useRef(seek.time);
  const callbacks = useRef({ onTimeUpdate, onError });
  callbacks.current = { onTimeUpdate, onError };
@@ -73,13 +73,14 @@ export function GifAnimationCanvas({ preview, playing, active, start, length, se
   const initial = lastTime.current >= start && lastTime.current < start + length ? lastTime.current : start, began = performance.now();
   async function render() {
    if (!canvas.current || !preview.drawAt || cancelled) return;
-   const time = playing && active && length > 0 ? start + ((initial - start + (performance.now() - began) / 1000) % length) : seek.time;
+   const external=playing&&active?clock?.():null;
+   const time = external ?? (playing && active && length > 0 ? start + ((initial - start + (performance.now() - began) / 1000) % length) : seek.time);
    try { await preview.drawAt(canvas.current, time); if (cancelled) return; lastTime.current = time; callbacks.current.onTimeUpdate(time); }
    catch (error) { if (!cancelled && !(error instanceof DOMException && error.name === 'AbortError')) callbacks.current.onError(error); }
    if (!cancelled && playing && active) timer = setTimeout(render, 60);
   }
   void render();
   return () => { cancelled = true; clearTimeout(timer); };
- }, [preview, playing, active, start, length, seek]);
+ }, [preview, playing, active, start, length, seek,clock]);
  return <canvas className="stage-media" ref={canvas} width={0} height={0} role="img" aria-label={label} style={style}/>;
 }

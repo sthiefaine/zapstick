@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, type PointerEvent as ReactPointerEvent } from 'react';
-import { ClipboardPaste, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Check, Download, LoaderCircle, Plus, Type, Palette, SlidersHorizontal, RotateCw, Play, Pause, Move, RefreshCw, X, FolderPlus, Smile } from 'lucide-react';
+import { ClipboardPaste, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Check, Download, LoaderCircle, Plus, Type, Palette, SlidersHorizontal, RotateCw, Play, Pause, Move, RefreshCw, X, FolderPlus, Smile, AudioLines } from 'lucide-react';
 import { defaults, loadImage, type EditOptions } from '@/lib/stickers/convert';
 import type { Sticker, Pack } from '@/lib/stickers/types';
 import { resolveImport, downloadRemote, type RemoteMedia } from '@/lib/stickers/import';
@@ -18,6 +18,10 @@ import {BackgroundRemovalControl} from './background-removal-control';
 import {MediaImportCard} from './media-import-card';
 import {HomeMemes} from './home-memes';
 import {AnimatedDownloads} from './animated-downloads';
+import {SoundControls} from './sound-controls';
+import {SoundDownload} from './sound-download';
+import {useSoundEditor} from './use-sound-editor';
+import {useSoundTransport} from './use-sound-transport';
 import type {EmojiOverlay,TextStyle,OverlaySelection} from '@/lib/stickers/overlays';
 import './studio-controls.css';
 const message = (e: unknown) => e instanceof Error ? e.message : 'Impossible de charger ce média.';
@@ -34,16 +38,17 @@ type Props = {
     onHelp: () => void;
     onWorking: (value: boolean) => void;
 };
-type BackgroundOriginal={blob:Blob;mime:string;kind:Sticker['kind'];isSticker:boolean;start:number;duration:number;animated:boolean};
-type Tool = 'crop' | 'text' | 'emoji' | 'background' | 'animation' | 'organize' | null;
+type BackgroundOriginal={blob:Blob;mime:string;kind:Sticker['kind'];isSticker:boolean;start:number;duration:number;animated:boolean;audioOrigin:number};
+type Tool = 'crop' | 'text' | 'emoji' | 'background' | 'animation' | 'sound' | 'organize' | null;
 export function Studio({ draft, active, packs, stickers, onDraft, onSave, onError, onCollection, onHelp, onWorking }: Props) {
     const { t,reduceMotion } = usePreferences();
     const [link, setLink] = useState(''), [remote, setRemote] = useState<RemoteMedia[]>([]), [remoteSource, setRemoteSource] = useState('');
     const [o, setOptions] = useState<EditOptions>({ ...defaults }), [tool, setTool] = useState<Tool>(null), [name, setName] = useState(''), [packId, setPackId] = useState('');
     const [loading, setLoading] = useState(''), [error, setError] = useState(''), [progress, setProgress] = useState(-1), [duration, setDuration] = useState(0), [playing, setPlaying] = useState(!reduceMotion), [result, setResult] = useState<Sticker | null>(null), [dragging, setDragging] = useState(false), [staticFrame, setStaticFrame] = useState('');
     const [animationPreview, setAnimationPreview] = useState<AnimationPreview | null>(null), [timelineLoading, setTimelineLoading] = useState(false), [playhead, setPlayhead] = useState(0), [seekRequest, setSeekRequest] = useState({ time: 0, revision: 0 });
-    const [overlaySelection,setOverlaySelection]=useState<OverlaySelection>(null),[backgroundBusy,setBackgroundBusy]=useState(false),[gifBusy,setGifBusy]=useState(false),[backgroundOriginal,setBackgroundOriginal]=useState<BackgroundOriginal|null>(null);
+    const [overlaySelection,setOverlaySelection]=useState<OverlaySelection>(null),[backgroundBusy,setBackgroundBusy]=useState(false),[gifBusy,setGifBusy]=useState(false),[soundExportBusy,setSoundExportBusy]=useState(false),[backgroundOriginal,setBackgroundOriginal]=useState<BackgroundOriginal|null>(null);
     const [clipboardWaiting,setClipboardWaiting]=useState(false),[clipboardSession]=useState(createClipboardReadSession);
+    const [audioOrigin,setAudioOrigin]=useState(0);
     const clipboardAbort=useRef<AbortController|null>(null);
     const file = useRef<HTMLInputElement>(null), video = useRef<HTMLVideoElement>(null), alive = useRef(true), generation = useRef(0), importOperation=useRef(false), pointers = useRef(new Map<number, {
         x: number;
@@ -52,11 +57,14 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     const src = useMediaUrl(draft?.blob, draft?.src), resultSrc = useMediaUrl(result?.blob, result?.src);
     const canAnimate = !!draft && (draft.mime === 'image/gif' || draft.mime.startsWith('video/') || draft.mime==='image/webp'&&draft.kind==='animated');
     const isAnimated = canAnimate && o.animated, kind = isAnimated ? 'animated' : 'static';
+    const sound=useSoundEditor(draft,active,()=>setPlaying(false),setError);
+    const soundRecipe={...sound.recipe,start:sound.track?.source==='original'?audioOrigin+o.start:sound.recipe.start};
+    const soundTransport=useSoundTransport({track:isAnimated?sound.track:null,recipe:soundRecipe,length:o.duration,start:o.start,playing:playing&&!result,active,seek:seekRequest,onError:setError});
     const matchingPacks = packs.filter(p => p.kind === kind);
     useEffect(() => { if(!active){cancelClipboard();inactiveDraftId.current=draft?.id;}if (active && !wasActive.current && result && draft?.id===inactiveDraftId.current)
         reset(); wasActive.current = active; }, [active]);
     useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++;clipboardAbort.current?.abort();clipboardAbort.current=null; }; }, []);
-    useEffect(() => { cancelClipboard();generation.current++;setOptions({ ...defaults, animated: draft?.kind === 'animated' }); setName(draft?.name ?? ''); setPackId(''); setTool(null); setResult(null); setError(''); setDuration(0); setPlaying(!reduceMotion); setOverlaySelection(null); setBackgroundOriginal(null); setPlayhead(0); setSeekRequest({ time: 0, revision: 0 }); pointers.current.clear(); }, [draft?.id]);
+    useEffect(() => { cancelClipboard();generation.current++;setOptions({ ...defaults,duration:draft?.sound?.duration??defaults.duration, animated: draft?.kind === 'animated' }); setName(draft?.name ?? ''); setPackId(''); setTool(null); setResult(null); setError(''); setDuration(0); setPlaying(!reduceMotion&&!draft?.sound); setOverlaySelection(null); setBackgroundOriginal(null);setAudioOrigin(0); setPlayhead(0); setSeekRequest({ time: 0, revision: 0 }); pointers.current.clear(); }, [draft?.id]);
     useEffect(() => {
         const controller = new AbortController(); let preview: AnimationPreview | undefined;
         setAnimationPreview(null); setTimelineLoading(false);
@@ -71,6 +79,12 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
         return () => { controller.abort(); preview?.dispose(); };
     }, [draft?.id, draft?.blob, canAnimate]);
     useEffect(()=>{if(reduceMotion)setPlaying(false);},[reduceMotion]);
+    useEffect(()=>{
+        if(!sound.track||!playing||!isAnimated||!active||result)return;
+        let frame=0,last=0;
+        const sync=(now:number)=>{const time=soundTransport.clock();if(time!==null){const v=video.current;if(v&&!v.seeking&&Math.abs(v.currentTime-time)>.09)v.currentTime=time;if(now-last>60){setPlayhead(time);last=now;}}frame=requestAnimationFrame(sync);};
+        frame=requestAnimationFrame(sync);return()=>cancelAnimationFrame(frame);
+    },[sound.track,playing,isAnimated,active,result,soundTransport.clock]);
     useEffect(() => { const v = video.current; if (!v)
         return; if (active && playing && isAnimated && !result)
         v.play().catch(() => { });
@@ -87,11 +101,12 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
         if (video.current) video.current.currentTime = value;
     }
     function changeSelection(selection: TrimSelection, time: number) { setOptions(current => ({ ...current, ...selection })); seekPreview(time); }
-    function togglePlayback() {
+    async function togglePlayback() {
         if (playing) {
-            const time = video.current?.currentTime ?? playhead;
+            const time = soundTransport.clock() ?? video.current?.currentTime ?? playhead;
             setSeekRequest(current => ({ time, revision: current.revision + 1 })); setPlaying(false);
         } else {
+            if(sound.track&&!await soundTransport.unlock())return;
             const time = playhead >= o.start && playhead < o.start + o.duration ? playhead : o.start;
             if (video.current) video.current.currentTime = time;
             setSeekRequest(current => ({ time, revision: current.revision + 1 })); setPlaying(true);
@@ -209,6 +224,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
         if (!draft?.blob || progress >= 0)
             return;
         setError('');
+        setPlaying(false);soundTransport.stop();
         setProgress(0);
         onWorking(true);
         try {
@@ -219,7 +235,14 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
                 setProgress(n); });
             if (!alive.current)
                 return;
-            const sticker: Sticker = { id: crypto.randomUUID(), name: name.trim() || t("Mon sticker"), packId, kind: converted.animated ? 'animated' : 'static', mime: 'image/webp', blob: converted.blob, favorite: false, createdAt: Date.now(), isSticker: true, sourceUrl: draft.sourceUrl };
+            let savedSound:Sticker['sound'];
+            if(converted.animated&&sound.track){
+                const {createAnimationPreview}=await import('@/lib/stickers/animation-preview');
+                const preview=await createAnimationPreview(converted.blob,new AbortController().signal,{thumbnails:false});
+                try{const {renderAudio,encodeWav}=await import('@/lib/stickers/audio');const buffer=renderAudio(sound.track,soundRecipe,preview.duration);savedSound={blob:encodeWav(buffer),duration:buffer.duration,name:sound.track.name};}finally{preview.dispose();}
+            }
+            if(!alive.current)return;
+            const sticker: Sticker = { id: crypto.randomUUID(), name: name.trim() || t("Mon sticker"), packId, kind: converted.animated ? 'animated' : 'static', mime: 'image/webp', blob: converted.blob, favorite: false, createdAt: Date.now(), isSticker: true, sourceUrl: draft.sourceUrl,...(savedSound?{sound:savedSound}:{}) };
             onSave(sticker);
             setResult(sticker);
             setTool(null);
@@ -236,11 +259,12 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             onWorking(false);
         }
     }
-    function reset() { cancelClipboard();generation.current++; onDraft(null); setResult(null); setLoading(''); setRemote([]); setLink(''); setError(''); }
-    const disabled = !!loading || progress >= 0 || backgroundBusy || gifBusy;
+    function reset() { cancelClipboard();sound.cancel();soundTransport.stop();generation.current++; onDraft(null); setResult(null); setLoading(''); setRemote([]); setLink(''); setError(''); }
+    const disabled = !!loading || progress >= 0 || backgroundBusy || gifBusy || soundExportBusy || sound.pending || sound.microphone!=='idle';
     const overlayControls={text:o.text,textStyle:o.textStyle,emojis:o.emojis,selectedId:overlaySelection,onSelect:setOverlaySelection,onChangeTextStyle:(value:TextStyle)=>update('textStyle',value),onChangeEmojis:(value:EmojiOverlay[])=>update('emojis',value),disabled};
     function backgroundWorking(value:boolean){setBackgroundBusy(value);onWorking(value);}
-    function gifWorking(value:boolean){setGifBusy(value);onWorking(value);}
+    function gifWorking(value:boolean){setGifBusy(value);onWorking(value||soundExportBusy);}
+    function soundWorking(value:boolean){setSoundExportBusy(value);onWorking(value||gifBusy);}
     async function prepareBackgroundSource(signal:AbortSignal,onProgress:(percent:number)=>void){
         if(!draft?.blob)throw new Error('Le média est introuvable.');
         if(!canAnimate)return draft.blob;
@@ -251,15 +275,15 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     }
     function removedBackground(blob:Blob){
         if(!draft?.blob)return;
-        if(!backgroundOriginal)setBackgroundOriginal({blob:draft.blob,mime:draft.mime,kind:draft.kind,isSticker:draft.isSticker,start:o.start,duration:o.duration,animated:o.animated});
+        if(!backgroundOriginal)setBackgroundOriginal({blob:draft.blob,mime:draft.mime,kind:draft.kind,isSticker:draft.isSticker,start:o.start,duration:o.duration,animated:o.animated,audioOrigin});
         onDraft({...draft,blob,mime:blob.type,kind:isAnimated?'animated':'static',isSticker:false});
-        if(canAnimate){setOptions(current=>({...current,start:0}));setPlayhead(0);setSeekRequest(current=>({time:0,revision:current.revision+1}));}
+        if(canAnimate){setAudioOrigin(value=>value+o.start);setOptions(current=>({...current,start:0}));setPlayhead(0);setSeekRequest(current=>({time:0,revision:current.revision+1}));}
     }
     function restoreBackground(){
         if(!draft||!backgroundOriginal)return;
         const original=backgroundOriginal;
         onDraft({...draft,blob:original.blob,mime:original.mime,kind:original.kind,isSticker:original.isSticker});
-        setOptions(current=>({...current,start:original.start,duration:original.duration,animated:original.animated}));setPlayhead(original.start);setSeekRequest(current=>({time:original.start,revision:current.revision+1}));setBackgroundOriginal(null);
+        setAudioOrigin(original.audioOrigin);setOptions(current=>({...current,start:original.start,duration:original.duration,animated:original.animated}));setPlayhead(original.start);setSeekRequest(current=>({time:original.start,revision:current.revision+1}));setBackgroundOriginal(null);
     }
     return <section className={`studio screen ${draft ? 'has-media' : ''} ${result ? 'studio-complete' : ''} ${tool ? 'has-active-tool' : ''}`} aria-label={t("Créer un sticker")} hidden={!active}>
   {draft || result ? <div className="screen-title studio-title"><div><h1>{result ? t("Enregistré") : t("Modifier")}</h1></div>{draft && !result ? <button className="round-button" title={t("Changer de média")} aria-label={t("Changer de média")} disabled={disabled} onClick={() => file.current?.click()}><RefreshCw size={19}/></button> : null}</div> : <h1 className="sr-only">{t("Créer un sticker")}</h1>}
@@ -275,7 +299,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             setError(t("Cette vidéo ne peut pas être lue."));
             return;
         } setDuration(d); setOptions(p => p.animated ? ({ ...p, ...normalizeTrim(d, p.start, p.duration) }) : ({...p,start:Math.min(Math.max(0,p.start),Math.max(0,d-.001))})); }} onTimeUpdate={e => { if (playing && isAnimated && e.currentTarget.currentTime >= Math.min(duration, o.start + o.duration) && duration > 0)
-            e.currentTarget.currentTime = o.start; setPlayhead(e.currentTarget.currentTime); }} onEnded={e => { if (playing && isAnimated) { e.currentTarget.currentTime = o.start; e.currentTarget.play().catch(() => {}); } }} onError={() => setError(t("Vidéo illisible dans ce navigateur."))}/> : !draft.mime.startsWith('video/') && animationPreview?.drawAt ? <GifAnimationCanvas preview={animationPreview} playing={playing && isAnimated} active={active && !result} start={o.start} length={o.duration} seek={seekRequest} onTimeUpdate={setPlayhead} onError={reason => setError(message(reason))} label={draft.name} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }}/> : <img className="stage-media" src={staticFrame || src} alt={draft.name} draggable={false} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }} onError={() => setError(t("Cette image ne peut pas être lue."))}/>}
+            e.currentTarget.currentTime = o.start; if(soundTransport.clock()===null)setPlayhead(e.currentTarget.currentTime); }} onEnded={e => { if (playing && isAnimated) { e.currentTarget.currentTime = o.start; e.currentTarget.play().catch(() => {}); } }} onError={() => setError(t("Vidéo illisible dans ce navigateur."))}/> : !draft.mime.startsWith('video/') && animationPreview?.drawAt ? <GifAnimationCanvas clock={soundTransport.clock} preview={animationPreview} playing={playing && isAnimated} active={active && !result} start={o.start} length={o.duration} seek={seekRequest} onTimeUpdate={setPlayhead} onError={reason => setError(message(reason))} label={draft.name} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }}/> : <img className="stage-media" src={staticFrame || src} alt={draft.name} draggable={false} style={{ left: `${50 + (o.offsetX ?? 0) / 512 * 100}%`, top: `${50 + (o.offsetY ?? 0) / 512 * 100}%`, transform: `translate(-50%, -50%) rotate(${o.rotation}deg) scale(${o.zoom})` }} onError={() => setError(t("Cette image ne peut pas être lue."))}/>}
      <OverlayStage {...overlayControls} onSelect={id=>{setOverlaySelection(id);if(id)setTool(id==='text'?'text':'emoji');}}/>
     </> : <><MediaImportCard onChoose={() => file.current?.click()} disabled={disabled} dragActive={dragging}/><HomeMemes disabled={disabled}/></>}
     {(loading && !clipboardWaiting) || progress >= 0 ? <div className="stage-loading" role="status"><LoaderCircle className="spin" size={27}/><strong>{progress >= 0 ? t("Création du sticker…") : t(loading)}</strong>{progress >= 0 ? <><div className="progress-track"><span style={{ width: `${Math.max(4, progress)}%` }}/></div><small>{progress} %</small></> : null}</div> : null}
@@ -284,15 +308,16 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
    {result ? <span className="success-seal"><Check size={20}/></span> : null}
   </div>
   {error ? <div className="inline-error" role="alert">{t(error)}<button aria-label={t("Fermer le message")} onClick={() => setError('')}><X size={16}/></button></div> : null}
-  {result ? <div className="completed-actions"><p>{result.kind === 'animated' ? t("Sticker animé") : t("Sticker fixe")} <span>·</span> {Math.round((result.blob?.size ?? 0) / 1024)} {t("Ko")}</p>{result.kind==='animated'?<AnimatedDownloads blob={result.blob!} name={result.name} onBusyChange={gifWorking} onError={setError}/>:<button className="button primary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t("Télécharger")}</button>}<div className="two-actions"><button className="button secondary" disabled={gifBusy} onClick={reset}><Plus size={17}/>{t("Un autre")}</button><button className="button secondary" disabled={gifBusy} onClick={onCollection}>{t("Ma collection")}<ArrowRight size={16}/></button></div><button className="help-link" disabled={gifBusy} onClick={onHelp}>{t("Comment les ajouter à WhatsApp ?")}<ArrowRight size={14}/></button></div> : draft ? <>
+  {result ? <div className="completed-actions"><p>{result.kind === 'animated' ? t("Sticker animé") : t("Sticker fixe")} <span>·</span> {Math.round((result.blob?.size ?? 0) / 1024)} {t("Ko")}</p>{result.sound?<SoundDownload sticker={result} disabled={gifBusy||soundExportBusy} onBusy={soundWorking}/>:null}{result.kind==='animated'?<AnimatedDownloads disabled={soundExportBusy} blob={result.blob!} name={result.name} onBusyChange={gifWorking} onError={setError}/>:<button className="button primary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t("Télécharger")}</button>}<div className="two-actions"><button className="button secondary" disabled={gifBusy||soundExportBusy} onClick={reset}><Plus size={17}/>{t("Un autre")}</button><button className="button secondary" disabled={gifBusy||soundExportBusy} onClick={onCollection}>{t("Ma collection")}<ArrowRight size={16}/></button></div><button className="help-link" disabled={gifBusy||soundExportBusy} onClick={onHelp}>{t("Comment les ajouter à WhatsApp ?")}<ArrowRight size={14}/></button></div> : draft ? <>
    <span id="sticker-keyboard-help" className="sr-only">{t("Utilise les flèches pour déplacer le sticker ; + et − pour zoomer.")}</span><p className="gesture-hint"><Move size={12}/>{t("Déplace au doigt · pince pour zoomer")}</p>{draft.kind === 'animated' && !canAnimate ? <p className="subtle-note">{t("Cette variante sera fixe. Utilise le GIF ou la vidéo d’origine pour garder l’animation.")}</p> : null}
-   <div className="toolbelt" role="group" aria-label={t("Personnaliser le sticker")}>{([{ id: 'crop', label: t("Cadrer"), icon: SlidersHorizontal }, { id: 'text', label: t("Texte"), icon: Type }, { id: 'emoji', label: t("Émojis"), icon: Smile }, { id: 'background', label: t("Fond"), icon: Palette }, ...(canAnimate ? [{ id: 'animation', label: t("Animation"), icon: Play }] : [])] as const).map(item => <button key={item.id} className={tool === item.id ? 'selected' : ''} aria-pressed={tool === item.id} aria-expanded={tool === item.id} aria-controls="studio-inline-settings" onClick={() => {setTool(tool === item.id ? null : item.id as Tool);if(item.id==='text')setOverlaySelection('text');if(item.id==='emoji'&&overlaySelection==='text')setOverlaySelection(null);}} disabled={disabled}><span><item.icon size={20}/></span>{item.label}</button>)}</div>
+   <div className="toolbelt" role="group" aria-label={t("Personnaliser le sticker")}>{([{ id: 'crop', label: t("Cadrer"), icon: SlidersHorizontal }, { id: 'text', label: t("Texte"), icon: Type }, { id: 'emoji', label: t("Émojis"), icon: Smile }, { id: 'background', label: t("Fond"), icon: Palette }, ...(canAnimate ? [{ id: 'animation', label: t("Animation"), icon: Play }] : []), ...(isAnimated ? [{id:'sound',label:t('Son'),icon:AudioLines}] : [])] as const).map(item => <button key={item.id} className={tool === item.id ? 'selected' : ''} aria-pressed={tool === item.id} aria-expanded={tool === item.id} aria-controls="studio-inline-settings" onClick={() => {setTool(tool === item.id ? null : item.id as Tool);if(item.id==='text')setOverlaySelection('text');if(item.id==='emoji'&&overlaySelection==='text')setOverlaySelection(null);}} disabled={disabled}><span><item.icon size={20}/></span>{item.label}</button>)}</div>
    {tool ? <div className="studio-inline-settings" id="studio-inline-settings" role="group" aria-labelledby="studio-settings-label">
-    <span className="sr-only" id="studio-settings-label">{{ crop: t("Cadrage"), text: t("Texte"), emoji:t("Émojis"), background: t("Fond"), animation: t("Animation"), organize: t("Nom et pack") }[tool]}</span>
+    <span className="sr-only" id="studio-settings-label">{{ crop: t("Cadrage"), text: t("Texte"), emoji:t("Émojis"), background: t("Fond"), animation: t("Animation"), sound:t("Son"), organize: t("Nom et pack") }[tool]}</span>
     {tool === 'crop' ? <><div className="range-row"><span>{t("Zoom")}</span><input aria-label={t("Zoom")} type="range" min=".35" max="3" step=".01" value={o.zoom} onChange={e => update('zoom', Number(e.target.value))}/><span>{Math.round(o.zoom * 100)} %</span></div><div className="position-controls">{[{key:'left',label:'Vers la gauche',icon:ArrowLeft,x:-10,y:0},{key:'up',label:'Vers le haut',icon:ArrowUp,x:0,y:-10},{key:'down',label:'Vers le bas',icon:ArrowDown,x:0,y:10},{key:'right',label:'Vers la droite',icon:ArrowRight,x:10,y:0}].map(direction=><button className="button light" key={direction.key} aria-label={t(direction.label)} onClick={()=>setOptions(p=>({...p,offsetX:Math.max(-400,Math.min(400,(p.offsetX??0)+direction.x)),offsetY:Math.max(-400,Math.min(400,(p.offsetY??0)+direction.y))}))}><direction.icon size={17}/></button>)}</div><div className="two-actions"><button className="button light" onClick={() => update('rotation', (o.rotation + 90) % 360)}><RotateCw size={16}/>{t("Tourner")}</button><button className="button light" onClick={() => setOptions(p => ({ ...p, zoom: 1, rotation: 0, offsetX: 0, offsetY: 0 }))}><RefreshCw size={16}/>{t("Recentrer")}</button></div></> : null}
     {tool==='text'||tool==='emoji'?<TextStyleControls {...overlayControls} mode={tool==='emoji'?'emoji':'text'} onChangeText={value=>update('text',value)}/>:null}
     {tool === 'background' ? <>{draft.blob?<><BackgroundRemovalControl blob={draft.blob} animated={isAnimated} prepareSource={canAnimate?prepareBackgroundSource:undefined} disabled={progress>=0||timelineLoading} onResult={removedBackground} onBusyChange={backgroundWorking}/>{backgroundOriginal?<button className="button light background-restore" disabled={backgroundBusy} onClick={restoreBackground}>{t('Rétablir le fond')}</button>:null}</>:null}<div className="swatches">{['transparent', '#ffffff', '#bfe8b0', '#e7f0df', '#f6c1a3', '#25252b'].map(color => <button key={color} className={`${color === 'transparent' ? 'checker' : ''} ${o.background === color ? 'chosen' : ''}`} style={{ backgroundColor: color === 'transparent' ? undefined : color, color: color === '#25252b' ? '#fff' : '#222' }} aria-label={color === 'transparent' ? t("Fond transparent") : t('Fond {color}', { color })} aria-pressed={o.background === color} onClick={() => update('background', color)}>{o.background === color ? <Check size={18}/> : null}</button>)}</div></> : null}
     {tool === 'animation' ? <><div className="segmented"><button className={o.animated ? 'selected' : ''} aria-pressed={o.animated} onClick={() => { setOptions(current => ({ ...current, animated: true, ...(duration ? normalizeTrim(duration, current.start, current.duration) : {}) })); setPackId(''); }}>{t("Animé")}</button><button className={!o.animated ? 'selected' : ''} aria-pressed={!o.animated} onClick={() => { setOptions(current => ({ ...current, animated: false, start: playhead })); setPackId(''); seekPreview(playhead); }}>{t("Image fixe")}</button></div>{o.animated ? <AnimationTimeline duration={duration} selection={{ start: o.start, duration: o.duration }} thumbnails={animationPreview?.thumbnails ?? []} currentTime={playhead} playing={playing && isAnimated} disabled={progress >= 0} loading={timelineLoading} onChange={changeSelection} onSeek={seekPreview} onTogglePlay={togglePlayback}/> : null}</> : null}
+    {tool==='sound'?<><AnimationTimeline duration={duration} selection={{start:o.start,duration:o.duration}} thumbnails={animationPreview?.thumbnails??[]} currentTime={playhead} playing={playing&&isAnimated} disabled={disabled} loading={timelineLoading} onChange={changeSelection} onSeek={seekPreview} onTogglePlay={togglePlayback}/><SoundControls track={sound.track} recipe={soundRecipe} length={o.duration} currentTime={playhead-o.start} disabled={progress>=0||backgroundBusy||gifBusy||soundExportBusy} pending={sound.pending} microphone={sound.microphone} elapsed={sound.elapsed} hasOriginal={sound.hasOriginal} onOriginal={sound.chooseOriginal} onFile={sound.chooseFile} onRecord={sound.record} onStop={sound.stop} onCancel={sound.cancel} onRemove={sound.remove} onChange={sound.setRecipe}/></>:null}
     {tool === 'organize' ? <><input className="field" aria-label={t("Nom du sticker")} maxLength={120} value={name} placeholder={t("Nom du sticker")} onChange={e => setName(e.target.value)}/><select className="field" aria-label={t("Pack du nouveau sticker")} value={packId} onChange={e => setPackId(e.target.value)}><option value="">{t("Sans pack")}</option>{matchingPacks.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></> : null}
    </div> : null}
    <div className="studio-save"><button className="button primary" disabled={disabled || !draft.blob} onClick={save}>{progress >= 0 ? <><LoaderCircle className="spin" size={18}/>{progress} %</> : <><Check size={19}/>{t("Créer mon sticker")}<ArrowRight size={19}/></>}</button><button className="organize-shortcut" onClick={() => setTool(tool === 'organize' ? null : 'organize')} disabled={disabled}><FolderPlus size={14}/>{packId ? packs.find(p => p.id === packId)?.name : t("Nom et pack")}<span>·</span><span>{isAnimated ? t("Animé") : t("Fixe")}</span></button><button className="quiet-button" disabled={disabled} onClick={() => { if (draft.blob) {

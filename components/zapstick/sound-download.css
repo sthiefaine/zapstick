@@ -1,0 +1,7 @@
+.sound-download{width:100%;margin:12px 0}
+.sound-download>.button{width:100%}
+.sound-download>.quiet-button{margin-top:3px}
+.sound-download-note,.sound-download-format{font-size:14px;line-height:1.5;margin:8px 0;color:var(--muted)}
+.sound-download-format{font-weight:600}
+.sound-download-error{font-size:13px;line-height:1.5;color:#b42318;margin:8px 0}
+.sound-download video{display:block;width:100%;max-height:300px;border-radius:12px;background:#fff;object-fit:contain}
