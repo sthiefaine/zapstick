@@ -1,6 +1,6 @@
 export type Pack = { id: string; name: string; color: string; kind: 'static' | 'animated' };
 export type CollectionFolder = { id: string; name: string; color: string };
-export type StickerSound = { blob: Blob; duration: number; name: string; volume?: number };
+export type StickerSound = { blob: Blob; duration: number; name: string; volume?: number; offset?: number };
 export type Sticker = { id: string; name: string; packId: string; folderId?: string; kind: 'static' | 'animated'; mime: string; src?: string; blob?: Blob; sound?: StickerSound; soundLayers?: StickerSound[]; favorite: boolean; createdAt: number; isSticker: boolean; sourceUrl?: string };
 export type Collection = { stickers: Sticker[]; packs: Pack[]; folders?: CollectionFolder[]; starterMemesVersion?:1; version: 1 };
 export const colors = ['#e4e4e7', '#ddd7ce', '#d2ddd7', '#d1d8e0', '#ddd7e2', '#e0d7d7'];

@@ -3,6 +3,9 @@ import {SUPPORTED_LOCALES,type Locale} from './config';
 // French, English, Brazilian Portuguese, Spanish, German, Chinese, Japanese, Russian.
 type Row=readonly [string,string,string,string,string,string,string,string];
 const rows:readonly Row[]=[
+ ['Durée','Duration','Duração','Duración','Dauer','时长','長さ','Длительность'],
+ ['Durée de la piste {number}','Track {number} duration','Duração da faixa {number}','Duración de la pista {number}','Dauer von Spur {number}','音轨 {number} 时长','トラック {number}の長さ','Длительность дорожки {number}'],
+ ['À la suite de la piste 1','After track 1','Depois da faixa 1','Después de la pista 1','Nach Spur 1','接在音轨 1 后','トラック1の後に配置','После дорожки 1'],
  ['Pistes audio','Audio tracks','Faixas de áudio','Pistas de audio','Audiospuren','音轨','音声トラック','Аудиодорожки'],
  ['Piste {number}','Track {number}','Faixa {number}','Pista {number}','Spur {number}','音轨 {number}','トラック {number}','Дорожка {number}'],
  ['Sélectionner la piste {number}','Select track {number}','Selecionar a faixa {number}','Seleccionar la pista {number}','Spur {number} auswählen','选择音轨 {number}','トラック {number} を選択','Выбрать дорожку {number}'],

@@ -35,6 +35,52 @@ test('audio window maps positive delays, negative clipping and source trim onto 
  assert.throws(() => plan({}, NaN), /durée audio/);
  assert.throws(() => plan({}, 0), /durée audio/);
 });
+test('an explicit source excerpt ends before later samples even when shifted before zero', () => {
+ const plan = recipe => audio.planAudioWindow(80000, 20000, {...audio.defaultAudioRecipe, ...recipe}, 3);
+ assert.deepEqual(plan({start: 1, duration: .5, offset: .25}), {length: 60000, sourceStart: 20000, targetStart: 5000, count: 10000, volume: 1, fadeSamples: 60});
+ assert.equal(plan({start: 1, duration: .5, offset: -.2}).sourceStart, 24000);
+ assert.equal(plan({start: 1, duration: .5, offset: -.2}).count, 6000);
+ assert.equal(plan({start: 1, duration: .5, offset: -.75}).count, 0);
+ assert.equal(plan({start: 1, duration: 0}).count, 0);
+ assert.equal(plan({start: 1, duration: -.5}).count, 0);
+ assert.equal(plan({start: 1, duration: undefined}).count, 60000);
+ assert.equal(plan({start: 1, duration: NaN}).count, 60000);
+});
+test('sequence arrangement splits a full first clip, preserves chosen short clips and bounds tiny timelines', () => {
+ const recipe = audio.defaultAudioRecipe;
+ assert.deepEqual(audio.arrangeAudioSequence(recipe, recipe, 6, 30, 30).map(({offset,duration}) => ({offset,duration})), [{offset: 0, duration: 3}, {offset: 3, duration: 3}]);
+ const [first, second] = audio.arrangeAudioSequence({...recipe, start: .5, offset: 1, duration: 1.2}, {...recipe, start: 1, duration: .7}, 6, 3, 4);
+ assert.equal(first.offset, 1); assert.equal(first.start, .5); assert.equal(first.duration, 1.2);
+ assert.equal(second.offset, 2.2); assert.equal(second.start, 1); assert.equal(second.duration, .7);
+ const [negative, next] = audio.arrangeAudioSequence({...recipe, start: .5, offset: -2}, recipe, 3, 2, 9);
+ assert.equal(negative.offset, 0); assert.equal(negative.duration, 1.5); assert.equal(next.offset, 1.5); assert.equal(next.duration, 1.5);
+ for (const length of [.001, .04, .08, .1, .7, 3, 6, 9]) for (const offset of [-2, 0, .02, length, length + 3]) {
+  const [a, b] = audio.arrangeAudioSequence({...recipe, offset}, recipe, length, 8, 8), end = Math.min(6, length);
+  assert.ok(a.offset >= 0 && a.duration > 0 && b.duration > 0);
+  assert.equal(b.offset, a.offset + a.duration);
+  assert.ok(b.offset + b.duration <= end + 1e-10);
+ }
+ const [,empty] = audio.arrangeAudioSequence(recipe, {...recipe, start: 5}, 1, 1, 3);
+ assert.equal(empty.duration, 0); assert.equal(empty.start, 3);
+});
+test('actual sequential PCM changes from the first sound to the second without overlapping their excerpts', () => {
+ const previous = globalThis.AudioBuffer; globalThis.AudioBuffer = BufferAudio;
+ try {
+  const firstTrack = source(new Float32Array(40000).fill(.2), 20000), secondTrack = source(new Float32Array(96000).fill(-.3), 48000);
+  const [first, second] = audio.arrangeAudioSequence({start: .2, offset: .25, volume: 1, duration: .5}, {start: .1, offset: 0, volume: 1, duration: .75}, 1.5, 2, 2);
+  const output = audio.renderAudioMix([{track: firstTrack, recipe: first}, {track: secondTrack, recipe: second}], 1.5), samples = output.getChannelData(0);
+  assert.ok(samples.subarray(0, 12000).every(sample => sample === 0));
+  assert.ok(Math.abs(samples[24000] - .2) < .00001); assert.ok(Math.abs(samples[48000] + .3) < .00001);
+  assert.ok(samples.subarray(0, 36000).every(sample => sample >= 0));
+  assert.ok(samples.subarray(36000).every(sample => sample <= 0));
+  const negative = audio.renderAudio(firstTrack, {start: .2, offset: -.2, volume: 1, duration: .5}, 1);
+  assert.ok(Math.abs(negative.getChannelData(0)[2000] - .2) < .00001);
+  assert.ok(negative.getChannelData(0).subarray(6000).every(sample => sample === 0), 'negative offset does not expose audio after the selected excerpt');
+  const tiny = audio.arrangeAudioSequence(audio.defaultAudioRecipe, audio.defaultAudioRecipe, .04, 2, 2);
+  const short = audio.renderAudioMix([{track: firstTrack, recipe: tiny[0]}, {track: secondTrack, recipe: tiny[1]}], .04).getChannelData(0);
+  assert.ok(short.subarray(0, 960).some(sample => sample > .1)); assert.ok(short.subarray(960).some(sample => sample < -.1));
+ } finally { globalThis.AudioBuffer = previous; }
+});
 test('sample rendering preserves silence gaps, fades only audible boundaries and leaves source untouched', () => {
  const previous = globalThis.AudioBuffer; globalThis.AudioBuffer = BufferAudio;
  try {

@@ -44,14 +44,32 @@ export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>voi
     const restored:Pair<AudioTrack|null>=[null,null];
     try{
      for(let index=0;index<layers.length;index++){
-      try{restored[index as SoundSlot]=await decodeAudio(layers[index].blob,{name:layers[index].name,source:'original',signal:controller.signal});}
+      try{
+       const track=await decodeAudio(layers[index].blob,{name:layers[index].name,source:'original',signal:controller.signal});
+       restored[index as SoundSlot]=layers[index].offset!==undefined?{...track,compositionBound:true}:track;
+      }
       catch(error){if(!controller.signal.aborted)callbacks.current.onError(audioMessage(error));}
       if(controller.signal.aborted)return;
      }
      setTracks(restored);
-     setRecipes(emptyRecipes().map((recipe,index)=>({...recipe,volume:layers[index]?.volume??1})) as Pair<AudioRecipe>);
+     setRecipes(emptyRecipes().map((recipe,index)=>{
+      const layer=layers[index];
+      return {...recipe,volume:layer?.volume??1,...(layer?.offset!==undefined?{offset:layer.offset,duration:layer.duration}:{})};
+     }) as Pair<AudioRecipe>);
     }finally{if(operation.current?.controller===controller){operation.current=null;setPending(false);setBusySlot(null);}}
    })();
+  }else if(video&&active){
+   // Choose the video's audio once on import, before a user can save a silent
+   // conversion. GIF-like MP4s often have no audio track: that is a normal case.
+   const controller=new AbortController();operation.current={controller,index:0};setPending(true);setBusySlot(0);
+   void decodeAudio(video,{name:draft?.name??'Original',source:'original',signal:controller.signal}).then(track=>{
+    if(controller.signal.aborted)return;
+    callbacks.current.onPause();setTracks([track,null]);
+   }).catch(error=>{
+    if(controller.signal.aborted)return;
+    if(error instanceof Error&&error.message==='Aucun son détecté dans ce média.')setOriginalAvailable([false,false]);
+    else callbacks.current.onError(audioMessage(error));
+   }).finally(()=>{if(operation.current?.controller===controller){operation.current=null;setPending(false);setBusySlot(null);}});
   }
   return cancel;
  // eslint-disable-next-line react-hooks/exhaustive-deps

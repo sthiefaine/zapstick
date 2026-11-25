@@ -11,7 +11,7 @@ const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 
 /** Saved sound is normalized PCM16 WAV, never a browser recorder's opaque output. */
 export async function validateStickerSound(sound: StickerSound): Promise<void> {
-  if (!sound || !(sound.blob instanceof Blob) || sound.blob.type !== 'audio/wav' || typeof sound.name !== 'string' || sound.name.length > 120 || /[\u0000-\u001f\u007f]/.test(sound.name) || !Number.isFinite(sound.duration) || sound.duration <= 0 || sound.duration > MAX_SAVED_AUDIO_SECONDS || (sound.volume !== undefined && (!Number.isFinite(sound.volume) || sound.volume < 0 || sound.volume > 1))) throw new Error('Son enregistré invalide.');
+  if (!sound || !(sound.blob instanceof Blob) || sound.blob.type !== 'audio/wav' || typeof sound.name !== 'string' || sound.name.length > 120 || /[\u0000-\u001f\u007f]/.test(sound.name) || !Number.isFinite(sound.duration) || sound.duration <= 0 || sound.duration > MAX_SAVED_AUDIO_SECONDS || (sound.volume !== undefined && (!Number.isFinite(sound.volume) || sound.volume < 0 || sound.volume > 1)) || (sound.offset !== undefined && (!Number.isFinite(sound.offset) || sound.offset < -6 || sound.offset > 6))) throw new Error('Son enregistré invalide.');
   if (sound.blob.size > MAX_SAVED_AUDIO_BYTES) throw new Error('La piste audio dépasse 2,4 Mo.');
   const invalid = () => new Error('La piste audio n’est pas un WAV valide.');
   const bytes = new Uint8Array(await sound.blob.arrayBuffer());
@@ -45,7 +45,7 @@ function soundLayers(sticker: Pick<Sticker, 'sound' | 'soundLayers'>): StickerSo
   if (layers === undefined) return undefined;
   if (!Array.isArray(layers) || layers.length < 1 || layers.length > 2 || !sticker.sound) throw new Error('Son enregistré invalide.');
   for (const layer of layers) {
-    if (!layer || !(layer.blob instanceof Blob) || !Number.isFinite(layer.duration) || layer.duration <= 0 || layer.duration > 6 || (layer.volume !== undefined && (!Number.isFinite(layer.volume) || layer.volume < 0 || layer.volume > 1))) throw new Error('Son enregistré invalide.');
+    if (!layer || !(layer.blob instanceof Blob) || !Number.isFinite(layer.duration) || layer.duration <= 0 || layer.duration > 6 || (layer.volume !== undefined && (!Number.isFinite(layer.volume) || layer.volume < 0 || layer.volume > 1)) || (layer.offset !== undefined && (!Number.isFinite(layer.offset) || layer.offset < -6 || layer.offset > 6))) throw new Error('Son enregistré invalide.');
   }
   return layers;
 }
@@ -59,7 +59,7 @@ async function restoreSound(saved: any): Promise<StickerSound> {
   if(!saved||saved.mime!=='audio/wav'||typeof saved.data!=='string'||!saved.data.startsWith(prefix)||saved.data.length>prefix.length+4*Math.ceil(MAX_SAVED_AUDIO_BYTES/3))throw new Error('Son enregistré invalide.');
   const encoded=saved.data.slice(prefix.length);
   if(!encoded.length||encoded.length%4||!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))throw new Error('Son enregistré invalide.');
-  const sound={blob:await(await fetch(saved.data)).blob(),duration:saved.duration,name:saved.name,...(saved.volume!==undefined?{volume:saved.volume}:{})};
+  const sound={blob:await(await fetch(saved.data)).blob(),duration:saved.duration,name:saved.name,...(saved.volume!==undefined?{volume:saved.volume}:{}),...(saved.offset!==undefined?{offset:saved.offset}:{})};
   await validateStickerSound(sound);
   return sound;
 }
@@ -163,13 +163,13 @@ export function clearLocalData(): Promise<void> {
 export function download(blob:Blob,name:string){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 export async function createBackup(collection:Collection):Promise<Blob> {
   const value=normalizeFolders(collection);
-  type BackupSound={name:string;duration:number;mime:'audio/wav';data:string;volume?:number};
+  type BackupSound={name:string;duration:number;mime:'audio/wav';data:string;volume?:number;offset?:number};
   type BackupSticker=Omit<Sticker,'blob'|'sound'|'soundLayers'> & {blob?:undefined;data?:string;sound?:BackupSound;soundLayers?:BackupSound[]};
   const prepared=value.stickers.map(s=>{
     const sourceSound=s.sound,sourceLayers=soundLayers(s);
     if(sourceSound!==undefined&&(!sourceSound||!(sourceSound.blob instanceof Blob)))throw new Error('Son enregistré invalide.');
     const localGif=!s.blob&&s.src?.startsWith('/memes/')?s.src:undefined;
-    const emptySound=(sound:StickerSound):BackupSound=>({name:sound.name,duration:sound.duration,mime:'audio/wav',data:'',...(sound.volume!==undefined?{volume:sound.volume}:{})});
+    const emptySound=(sound:StickerSound):BackupSound=>({name:sound.name,duration:sound.duration,mime:'audio/wav',data:'',...(sound.volume!==undefined?{volume:sound.volume}:{}),...(sound.offset!==undefined?{offset:sound.offset}:{})});
     const serialized:BackupSticker={...s,blob:undefined,sound:sourceSound===undefined?undefined:emptySound(sourceSound),soundLayers:sourceLayers?.map(emptySound),...(s.blob||localGif?{src:undefined,data:''}:{})};
     return {serialized,sourceSound,sourceLayers,blob:s.blob,localGif};
   });

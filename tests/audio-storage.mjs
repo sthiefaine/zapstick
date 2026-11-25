@@ -104,6 +104,46 @@ test('legacy single-sound backups stay single-sound while one editable layer is 
  assert.equal(restored.stickers[0].soundLayers.length,1);
  assert.equal(restored.stickers[0].soundLayers[0].name,'Voix');
  assert.equal(Object.hasOwn(restored.stickers[0].soundLayers[0],'volume'),false);
+ assert.equal(Object.hasOwn(restored.stickers[0].soundLayers[0],'offset'),false);
+});
+
+test('raw one- and two-second clips retain their zero and delayed timeline positions through IndexedDB and JSON',async()=>{
+ const value=collection({blob:new Blob([wav({duration:6})],{type:'audio/wav'}),duration:6,name:'Mix six seconds'});
+ value.stickers[0].soundLayers=[
+  {blob:new Blob([wav({duration:1,channels:1})],{type:'audio/wav'}),duration:1,name:'First clip',volume:1,offset:0},
+  {blob:new Blob([wav({duration:2,rate:44100})],{type:'audio/wav'}),duration:2,name:'Later clip',volume:.25,offset:3},
+ ];
+ await store.saveCollection(value);
+ const loaded=await store.loadCollection();assert.deepEqual(loaded.stickers[0].soundLayers.map(layer=>layer.offset),[0,3]);
+ const data=await backupData(loaded);assert.deepEqual(data.stickers[0].soundLayers.map(layer=>layer.offset),[0,3]);
+ assert.equal(Object.hasOwn(data.stickers[0].sound,'offset'),false);
+ await store.clearLocalData();const restored=await store.restore(backupFile(data));await store.saveCollection(restored);
+ const saved=(await store.loadCollection()).stickers[0];
+ assert.equal(saved.sound.duration,6);assert.deepEqual(saved.soundLayers.map(layer=>layer.duration),[1,2]);
+ assert.deepEqual(saved.soundLayers.map(layer=>layer.offset),[0,3]);
+ assert.deepEqual(saved.soundLayers.map(layer=>layer.volume),[1,.25]);
+ for(const [index,layer] of saved.soundLayers.entries())assert.deepEqual(new Uint8Array(await layer.blob.arrayBuffer()),new Uint8Array(await value.stickers[0].soundLayers[index].blob.arrayBuffer()));
+});
+
+test('negative timeline offsets and both six-second bounds remain editable metadata',async()=>{
+ for(const offsets of [[-1.25,0],[-6,6]]){
+  const value=layeredCollection();value.stickers[0].soundLayers.forEach((layer,index)=>{layer.offset=offsets[index];});
+  await store.saveCollection(value);const loaded=await store.loadCollection();
+  assert.deepEqual(loaded.stickers[0].soundLayers.map(layer=>layer.offset),offsets);
+  const restored=await store.restore(backupFile(await backupData(loaded)));
+  assert.deepEqual(restored.stickers[0].soundLayers.map(layer=>layer.offset),offsets);
+ }
+});
+
+test('layer offsets reject non-finite values, invalid types and values outside minus-six to six',async()=>{
+ const data=await backupData(layeredCollection());
+ for(const offset of [-6.01,6.01,NaN,Infinity,-Infinity,null,'0',{}]){
+  const value=layeredCollection();value.stickers[0].soundLayers[1].offset=offset;
+  await assert.rejects(store.saveCollection(value),/Son enregistré/);
+  await assert.rejects(store.createBackup(value),/Son enregistré/);
+  const input=structuredClone(data);input.stickers[0].soundLayers[1].offset=offset;
+  await assert.rejects(store.restore(backupFile(input)),/Son enregistré/);
+ }
 });
 
 test('muted and quiet layer volumes survive reload and backup while their editable WAV samples remain intact',async()=>{

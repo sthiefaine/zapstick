@@ -10,3 +10,9 @@ export const HOME_MEMES = [
 ] as const;
 
 export type HomeMeme = (typeof HOME_MEMES)[number];
+
+/** Home-only sound previews. The six saved collection starters stay unchanged. */
+export const HOME_SOUND_MEMES = [
+  {...HOME_MEMES[2],video:'/memes/sound/working-cat.mp4'},
+  {...HOME_MEMES[4],video:'/memes/sound/side-eye-dog.mp4'},
+] as const;

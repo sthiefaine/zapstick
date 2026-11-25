@@ -1,14 +1,22 @@
 .decor{position:absolute;inset:0;z-index:2;pointer-events:none}
-.reactions{position:absolute;inset:0;overflow:hidden;border-radius:14px;pointer-events:none}
-.reaction{position:absolute;width:clamp(45px,17%,60px);height:clamp(45px,17%,60px);display:grid;place-items:center;pointer-events:none;user-select:none}
-.reaction img{width:100%;height:100%;object-fit:contain;border-radius:8px;pointer-events:none}
-.reaction0{left:5%;top:7%;transform:rotate(-12deg)}
-.reaction1{right:5%;top:8%;transform:rotate(11deg)}
-.reaction2{left:3%;top:41%;transform:rotate(8deg)}
-.reaction3{right:4%;top:39%;transform:rotate(-9deg)}
-.reaction4{left:9%;bottom:9%;transform:rotate(-7deg)}
-.reaction5{right:9%;bottom:10%;transform:rotate(10deg)}
-.motion{position:absolute;right:5px;bottom:3px;width:44px;height:44px;display:grid;place-items:center;pointer-events:auto;border-radius:50%;color:var(--muted);background:var(--surface);border:1px solid var(--line)}
-.motion:hover{color:var(--ink);border-color:var(--control-border)}
-.motion:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
-@media(prefers-reduced-motion:reduce){.reaction{transform:none}}
+.reactions{position:absolute;inset:0;pointer-events:none}
+.reaction{position:absolute;width:clamp(72px,23%,94px);height:clamp(62px,20%,80px);display:block;pointer-events:auto;user-select:none;padding:3px;border:1.5px solid var(--control-border);background:var(--surface);border-radius:12px;box-shadow:0 3px 0 var(--line);touch-action:manipulation;transition:transform .15s ease,border-color .15s ease}
+.reaction img,.reaction video{width:100%;height:100%;object-fit:cover;border-radius:8px;pointer-events:none}
+.reaction0{left:3%;top:7%;transform:rotate(-10deg)}
+.reaction1{right:3%;bottom:12%;transform:rotate(9deg)}
+.reaction:hover,.reaction:focus-visible{transform:rotate(0) scale(1.04);border-color:var(--ink);z-index:2}
+.reaction:focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+.reaction:disabled{opacity:.55;cursor:default}
+.audible{border-color:var(--focus);box-shadow:0 0 0 3px var(--accent),0 4px 0 var(--line)}
+.soundBadge{position:absolute;right:2px;bottom:-12px;display:flex;align-items:center;gap:3px;min-height:23px;padding:3px 6px;background:var(--surface);color:var(--ink);border:1px solid var(--control-border);border-radius:8px;font-size:11px;font-weight:700;line-height:1;pointer-events:none}
+.audible .soundBadge{background:var(--accent);color:var(--accent-text)}
+.motion,.credits{position:absolute;display:grid;place-items:center;width:44px;height:44px;pointer-events:auto;border-radius:50%;color:var(--muted)}
+.motion{right:4px;top:2px;background:var(--surface);border:1px solid var(--line)}
+.credits{left:3px;bottom:1px}
+.motion:hover,.credits:hover{color:var(--ink)}
+.motion:focus-visible,.credits:focus-visible{outline:3px solid var(--focus);outline-offset:-2px}
+.error{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);max-width:calc(100% - 100px);font-size:12px;color:var(--ink);background:var(--surface);padding:4px 6px;border-radius:6px;text-align:center}
+@media(max-width:370px){.reaction{width:74px;height:62px}.reaction0{left:2%;top:6%}.reaction1{right:2%;bottom:13%}}
+@media(prefers-reduced-motion:reduce){.reaction,.reaction:hover,.reaction:focus-visible{transform:none;transition:none}}
+[data-reduced-motion=true] .reaction,[data-reduced-motion=true] .reaction:hover,[data-reduced-motion=true] .reaction:focus-visible{transform:none;transition:none}
+@media(forced-colors:active){.reaction,.soundBadge,.motion{border-color:ButtonText;background:ButtonFace;color:ButtonText}.audible{outline:3px solid Highlight;box-shadow:none}}

@@ -1,5 +1,5 @@
-export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone' };
-export type AudioRecipe = { start: number; offset: number; volume: number };
+export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone'; compositionBound?: boolean };
+export type AudioRecipe = { start: number; offset: number; volume: number; duration?: number };
 export type AudioLayer = { track: AudioTrack; recipe: AudioRecipe };
 export const defaultAudioRecipe: AudioRecipe = { start: 0, offset: 0, volume: 1 };
 export const MAX_AUDIO_SOURCE_SECONDS = 30;
@@ -115,10 +115,36 @@ export function planAudioWindow(sourceLength: number, sampleRate: number, recipe
  if (!Number.isFinite(sampleRate) || sampleRate <= 0 || !Number.isFinite(duration) || duration <= 0) throw new Error('Choisis une durée audio valide.');
  const length = Math.max(1, Math.round(Math.min(MAX_OUTPUT_SECONDS, duration) * sampleRate));
  const sourceSize = Math.max(0, Math.floor(finite(sourceLength))), start = Math.min(sourceSize, Math.round(Math.max(0, finite(recipe.start)) * sampleRate));
+ const sourceEnd = recipe.duration !== undefined && Number.isFinite(recipe.duration)
+  ? Math.min(sourceSize, start + Math.round(Math.max(0, recipe.duration) * sampleRate)) : sourceSize;
  const shift = Math.round(Math.max(-MAX_AUDIO_SOURCE_SECONDS, Math.min(MAX_AUDIO_SOURCE_SECONDS, finite(recipe.offset))) * sampleRate);
- const sourceStart = Math.min(sourceSize, start + Math.max(0, -shift)), targetStart = Math.min(length, Math.max(0, shift));
- const count = Math.max(0, Math.min(sourceSize - sourceStart, length - targetStart));
+ const sourceStart = Math.min(sourceEnd, start + Math.max(0, -shift)), targetStart = Math.min(length, Math.max(0, shift));
+ const count = Math.max(0, Math.min(sourceEnd - sourceStart, length - targetStart));
  return { length, sourceStart, targetStart, count, volume: Math.max(0, Math.min(2, finite(recipe.volume, 1))), fadeSamples: Math.min(Math.round(.003 * sampleRate), Math.floor(count / 2)) };
+}
+
+/** Place the second excerpt immediately after the first. The availability
+ * arguments are total source durations, before subtracting each source start. */
+export function arrangeAudioSequence(first: AudioRecipe, second: AudioRecipe, length: number, availableFirst: number, availableSecond: number): [AudioRecipe, AudioRecipe] {
+ if (!Number.isFinite(length) || length <= 0) throw new Error('Choisis une durée audio valide.');
+ const duration = Math.min(MAX_OUTPUT_SECONDS, length);
+ const totalFirst = Math.max(0, finite(availableFirst)), totalSecond = Math.max(0, finite(availableSecond));
+ const startFirst = Math.min(totalFirst, Math.max(0, finite(first.start))), startSecond = Math.min(totalSecond, Math.max(0, finite(second.start)));
+ const remainingFirst = totalFirst - startFirst, remainingSecond = totalSecond - startSecond;
+ // Keep room at the extreme right so this one-click command can actually play
+ // both sounds. On very short animations the reserve shrinks with the clip.
+ const reserve = remainingFirst > 0 && remainingSecond > 0 ? Math.min(.1, duration) : 0;
+ const offsetFirst = Math.max(0, Math.min(duration - reserve, finite(first.offset)));
+ const space = Math.max(0, duration - offsetFirst);
+ const requestedFirst = first.duration !== undefined && Number.isFinite(first.duration) ? Math.max(0, first.duration) : remainingFirst;
+ let durationFirst = Math.min(remainingFirst, requestedFirst, space);
+ if (remainingSecond > 0 && durationFirst >= space && space > 0) durationFirst = space / 2;
+ const offsetSecond = offsetFirst + durationFirst, requestedSecond = second.duration !== undefined && Number.isFinite(second.duration) ? Math.max(0, second.duration) : remainingSecond;
+ const durationSecond = Math.min(remainingSecond, requestedSecond, Math.max(0, duration - offsetSecond));
+ return [
+  {...first, start: startFirst, offset: offsetFirst, duration: durationFirst},
+  {...second, start: startSecond, offset: offsetSecond, duration: durationSecond},
+ ];
 }
 export function renderAudio(track: AudioTrack, recipe: AudioRecipe, duration: number): AudioBuffer {
  const source = track.buffer, plan = planAudioWindow(source.length, source.sampleRate, recipe, duration);

@@ -1,7 +1,7 @@
 Zapstick — local reaction media
 Retrieved from public Tenor pages on 2026-11-11 at the user’s request.
 
-All six GIFs and static WebP posters are served by Zapstick. No Tenor request,
+All six GIFs, static WebP posters and the two added sound previews are served by Zapstick. No Tenor request,
 embed, remote script, analytics call or audio plays when the home page opens.
 The uploader names below are the attribution displayed by Tenor. They are not
 confirmation of original authorship. No Creative Commons or public-domain
@@ -78,3 +78,33 @@ happy-dog
   Local dimensions / frames: 160×160 / 20
   Original SHA-256: 76f251b04650e952cda41bea9b11412d00424fa53eedc697c9f42b82bf731041
   Local SHA-256: 57641752a3f8e4b68936a0321bd2733fecdfb8e16c785f01a576eb1ccba51931
+
+
+Home sound reactions — added 2026-11-25
+
+The home page presents two of the existing reactions as local MP4 previews.
+They animate muted. A tap plays the added sound once, never on page load.
+The collection's six original silent GIF files and saved user media are unchanged.
+These added effects are not the original soundtrack of the Tenor uploads.
+
+working-cat.mp4
+  Visual: working-cat, attributed above (three repeats, 160x120, 20fps).
+  Added audio: IBM M2 sound, Anonimski, 17 May 2014.
+  Source: https://commons.wikimedia.org/wiki/File:IBM_M2_sound.ogg
+  Original audio: https://upload.wikimedia.org/wikipedia/commons/1/16/IBM_M2_sound.ogg
+  License: CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/
+  Changes: excerpt 0-2.85s, mono48kHz, fades, level adjusted to -20LUFS, AAC.
+  Local audiovisual preview: /memes/sound/working-cat.mp4
+
+side-eye-dog.mp4
+  Visual: side-eye-dog, attributed above (two repeats, 160x120, 20fps).
+  Added audio: Dun dun duuun! (Shock Horror (A)), copyc4t, 15 February 2012.
+  Source: https://commons.wikimedia.org/wiki/File:Dun_dun_duuun!.ogg
+  Original uploader: https://freesound.org/people/copyc4t/sounds/146434/
+  Original audio: https://upload.wikimedia.org/wikipedia/commons/8/81/Dun_dun_duuun%21.ogg
+  License: CC BY 4.0, https://creativecommons.org/licenses/by/4.0/
+  Changes: excerpt 0-4.4s, mono48kHz, fades, level adjusted to -20LUFS, AAC.
+  Local audiovisual preview: /memes/sound/side-eye-dog.mp4
+
+The CC0/CC BY licenses above apply to their respective added audio recordings,
+not to the underlying Tenor visuals, whose rights remain with their owners.
