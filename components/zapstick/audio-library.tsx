@@ -1,10 +1,12 @@
 'use client';
 
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {BookmarkPlus, Check, LoaderCircle, Music2, Pencil, Play, Plus, Square, Trash2, Upload, X} from 'lucide-react';
+import {BookmarkPlus, Check, Link as LinkIcon, LoaderCircle, Mic, Music2, Pencil, Play, Plus, Square, Trash2, Upload, X} from 'lucide-react';
 import {usePreferences} from '@/components/preferences-provider';
 import {decodeAudio, registerAudioWork, type AudioTrack} from '@/lib/stickers/audio';
 import {AUDIO_LIBRARY_CHANGED, loadAudioLibrary, removeSavedAudio, renameSavedAudio, saveAudioToLibrary, type SavedAudio} from '@/lib/stickers/audio-library';
+import {importAudioUrl} from '@/lib/stickers/audio-url';
+import {createMicrophoneSession,type MicrophoneState} from '@/lib/stickers/microphone';
 import {useConfirmAction} from './confirm-action';
 import './audio-library.css';
 
@@ -29,22 +31,28 @@ export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
   const {t, locale} = usePreferences(),confirm=useConfirmAction();
   const [entries, setEntries] = useState<SavedAudio[] | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<string | null>(null), [name, setName] = useState(''), [playing, setPlaying] = useState<string | null>(null);
+  const [linkOpen,setLinkOpen]=useState(false),[link,setLink]=useState(''),[microphone,setMicrophone]=useState<MicrophoneState>('idle'),[elapsed,setElapsed]=useState(0);
   const file = useRef<HTMLInputElement>(null), audio = useRef<HTMLAudioElement>(null), audioUrl = useRef(''), playingId = useRef<string | null>(null), alive = useRef(true), operation = useRef<AbortController | null>(null);
+  const mic=useRef<ReturnType<typeof createMicrophoneSession>|null>(null);
   const locked = disabled || busy;
   const stop = useCallback(() => {
     audio.current?.pause(); playingId.current = null;
     if (audioUrl.current) { URL.revokeObjectURL(audioUrl.current); audioUrl.current = ''; }
     if (alive.current) setPlaying(null);
   }, []);
+  const cancel=useCallback(()=>{
+    operation.current?.abort();operation.current=null;mic.current?.cancel();mic.current=null;
+    if(alive.current){setBusy(false);setMicrophone('idle');}
+  },[]);
   useEffect(() => {
     alive.current = true;
     const refresh = () => { void loadAudioLibrary().then(value => { if (alive.current) setEntries(value); }).catch(reason => { if (alive.current) setError(message(reason)); }); };
     refresh(); window.addEventListener(AUDIO_LIBRARY_CHANGED, refresh); window.addEventListener('focus', refresh);
     const player = audio.current;
-    const unregister = registerAudioWork(() => { operation.current?.abort(); operation.current = null; if (alive.current) setBusy(false); stop(); });
-    return () => { alive.current = false; operation.current?.abort(); player?.pause(); stop(); unregister(); window.removeEventListener(AUDIO_LIBRARY_CHANGED, refresh); window.removeEventListener('focus', refresh); };
-  }, [stop]);
-  useEffect(() => { if (disabled) { operation.current?.abort(); operation.current = null; setBusy(false); stop(); } }, [disabled, stop]);
+    const unregister = registerAudioWork(() => { cancel(); stop(); });
+    return () => { alive.current = false; cancel(); player?.pause(); stop(); unregister(); window.removeEventListener(AUDIO_LIBRARY_CHANGED, refresh); window.removeEventListener('focus', refresh); };
+  }, [stop,cancel]);
+  useEffect(() => { if (disabled) { cancel(); stop(); } }, [disabled, stop,cancel]);
   async function preview(entry: SavedAudio) {
     if (locked) return;
     if (playingId.current === entry.id) { stop(); return; }
@@ -53,15 +61,27 @@ export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
     try { await player.play(); }
     catch { if (playingId.current === entry.id) { stop(); setError('Ce son ne peut pas être lu dans ce navigateur.'); } }
   }
-  async function importFile(source: File) {
+  async function importTrack(resolve:(signal:AbortSignal)=>Promise<AudioTrack>) {
     if (locked || operation.current) return;
-    const controller = new AbortController(); operation.current = controller; setBusy(true); setError(''); stop();
+    const controller = new AbortController(); operation.current = controller; setBusy(true); setError(''); stop(); onListen?.();
     try {
-      const track = await decodeAudio(source, {name: source.name.replace(/\.[^.]+$/, ''), source: 'file', signal: controller.signal});
+      const track = await resolve(controller.signal);
       const saved = await saveAudioToLibrary(track, track.name, controller.signal);
-      if (!controller.signal.aborted && alive.current) { setEntries(await loadAudioLibrary()); onChoose?.(saved); }
-    } catch (reason) { if (!controller.signal.aborted && alive.current) setError(message(reason)); }
-    finally { if (operation.current === controller) { operation.current = null; if (alive.current) setBusy(false); } }
+      if (!controller.signal.aborted && alive.current) { setEntries(await loadAudioLibrary()); setLinkOpen(false);setLink('');onChoose?.(saved); }
+    } catch (reason) { if (!controller.signal.aborted && alive.current && !(reason instanceof DOMException && reason.name==='AbortError')) setError(message(reason)); }
+    finally { if (operation.current === controller) { operation.current = null;mic.current=null;if (alive.current){setBusy(false);setMicrophone('idle');} } }
+  }
+  function importFile(source:File){return importTrack(signal=>decodeAudio(source,{name:source.name.replace(/\.[^.]+$/,''),source:'file',signal}));}
+  function importLink(){
+    return importTrack(async signal=>{const source=await importAudioUrl(link,signal);return decodeAudio(source.blob,{name:source.name,source:'url',signal});});
+  }
+  function record(){
+    setLinkOpen(false);setElapsed(0);
+    return importTrack(async signal=>{
+      const session=createMicrophoneSession({onState:value=>{if(alive.current)setMicrophone(value);},onElapsed:value=>{if(alive.current)setElapsed(value);}});mic.current=session;
+      const blob=await session.record(signal);
+      return decodeAudio(blob,{name:t('Micro'),source:'microphone',signal});
+    });
   }
   async function rename(entry: SavedAudio) {
     if (locked || !name.trim()) return;
@@ -79,11 +99,17 @@ export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
   }
   const seconds = (value: number) => new Intl.NumberFormat(locale, {maximumFractionDigits: 1}).format(value);
   return <div className="audio-library" aria-busy={busy}>
-    <div className="audio-library-heading"><span>{entries ? t('Sons enregistrés : {count}', {count: entries.length}) : t('Chargement du son…')}</span><button type="button" disabled={locked} onClick={() => file.current?.click()}><Upload size={17}/>{t('Importer')}</button></div>
+    <div className="audio-library-heading"><span>{entries ? t('Sons enregistrés : {count}', {count: entries.length}) : t('Chargement du son…')}</span></div>
+    <div className="audio-library-sources" role="group" aria-label={t('Ajouter un son')}>
+      <button type="button" data-action="save" disabled={locked} onClick={()=>file.current?.click()}><Upload size={18}/>{t('Fichier')}</button>
+      <button type="button" data-action="edit" disabled={locked} aria-expanded={linkOpen} onClick={()=>setLinkOpen(value=>!value)}><LinkIcon size={18}/>{t('Lien')}</button>
+      <button type="button" data-action="organize" disabled={locked} onClick={()=>void record()}><Mic size={18}/>{t('Micro')}</button>
+    </div>
+    {linkOpen?<form className="audio-library-link" onSubmit={event=>{event.preventDefault();if(link.trim())void importLink();}}><input type="url" aria-label={t('Lien audio')} placeholder={t('Lien audio ou MyInstants')} maxLength={2048} required autoComplete="off" value={link} disabled={locked} onChange={event=>setLink(event.target.value)}/><button type="submit" data-action="save" disabled={locked||!link.trim()}>{t('Importer')}</button></form>:null}
     <input ref={file} hidden type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac,.webm" onChange={event => { const next = event.target.files?.[0]; event.target.value = ''; if (next) void importFile(next); }}/>
     <audio ref={audio} hidden preload="metadata" onEnded={stop}/>
     {error ? <p className="audio-library-error" role="alert">{t(error)}</p> : null}
-    {busy ? <p className="audio-library-status" role="status"><LoaderCircle size={17} className="spin"/>{t('Chargement du son…')}</p> : null}
+    {busy ? <div className="audio-library-status"><span role="status">{microphone==='waiting'?t('En attente du microphone…'):microphone==='recording'?<><Mic size={17}/>{t('Enregistrement…')} {seconds(elapsed)} / 6 s</>:<><LoaderCircle size={17} className="spin"/>{t('Chargement du son…')}</>}</span>{microphone==='recording'?<button type="button" data-action="save" onClick={()=>mic.current?.stop()}><Square size={16}/>{t('Enregistrer')}</button>:null}<button type="button" className="quiet-button" onClick={cancel}>{t('Annuler')}</button></div> : null}
     {entries?.length === 0 ? <div className="audio-library-empty"><Music2 size={27}/><p>{t('Aucun son enregistré')}</p></div> : null}
     <div className="audio-library-list">{entries?.map(entry => <div className="audio-library-row" key={entry.id}>
       <button type="button" className="audio-library-preview" disabled={locked} aria-label={t(playing === entry.id ? 'Arrêter {name}' : 'Écouter {name}', {name: entry.name})} aria-pressed={playing === entry.id} onClick={() => void preview(entry)}>{playing === entry.id ? <Square size={17}/> : <Play size={18}/>}</button>
