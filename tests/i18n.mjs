@@ -19,6 +19,10 @@ const config=loadTS('lib/i18n/config.ts'),messages=loadTS('lib/i18n/messages.ts'
 const {privacyTranslations,privacyUiSources}=loadTS('lib/privacy/translations.ts');
 const {privacySections,backgroundPrivacySection,legalSections}=loadTS('lib/privacy/content.ts');
 const {audioSources,audioTranslations}=loadTS('lib/i18n/audio.ts');
+const {whatsappSources,whatsappTranslations}=loadTS('lib/i18n/whatsapp-translations.ts');
+test('WhatsApp transfer labels and errors cover every requested language',()=>{
+ for(const locale of config.SUPPORTED_LOCALES)for(const source of whatsappSources){assert.ok(whatsappTranslations[locale][source]?.trim(),`${locale}: ${source}`);assert.equal(messages.translate(locale,source),whatsappTranslations[locale][source]);}
+});
 const {studioSources,studioTranslations}=loadTS('lib/i18n/studio-translations.ts');
 test('two-track controls, preview actions and conditional WhatsApp audio help cover all locales',()=>{
  for(const locale of config.SUPPORTED_LOCALES)for(const source of studioSources){assert.ok(studioTranslations[locale][source]?.trim(),`${locale}: ${source}`);assert.equal(messages.translate(locale,source),studioTranslations[locale][source]);}
@@ -55,7 +59,7 @@ test('locale normalization and links use canonical language codes',()=>{
  assert.equal(config.localizedPath('/legal','de'),'/de/legal');
 });
 test('every literal translation call in the app has a translation source',()=>{
- const files=['components/zapstick/color-wheel.tsx','components/zapstick/zapstick-app.tsx','components/zapstick/collections-board.tsx','components/zapstick/share-zapstick.tsx','components/zapstick/animated-downloads.tsx','components/zapstick/background-removal-control.tsx','components/zapstick/home-memes.tsx','components/zapstick/media-import-card.tsx','components/language-switcher.tsx','components/zapstick/text-style-controls.tsx','components/zapstick/overlay-stage.tsx','components/zapstick/studio.tsx','components/zapstick/animation-timeline.tsx','components/zapstick/audio-excerpt-timeline.tsx','components/zapstick/privacy-settings.tsx','components/zapstick/privacy-document.tsx'];
+ const files=['components/zapstick/whatsapp-transfer.tsx','components/zapstick/color-wheel.tsx','components/zapstick/zapstick-app.tsx','components/zapstick/collections-board.tsx','components/zapstick/share-zapstick.tsx','components/zapstick/animated-downloads.tsx','components/zapstick/background-removal-control.tsx','components/zapstick/home-memes.tsx','components/zapstick/media-import-card.tsx','components/language-switcher.tsx','components/zapstick/text-style-controls.tsx','components/zapstick/overlay-stage.tsx','components/zapstick/studio.tsx','components/zapstick/animation-timeline.tsx','components/zapstick/audio-excerpt-timeline.tsx','components/zapstick/privacy-settings.tsx','components/zapstick/privacy-document.tsx'];
  files.push(...['sound-controls.tsx','sound-download.tsx','sound-downloads.tsx'].map(file=>`components/zapstick/${file}`).filter(file=>fs.existsSync(path.join(root,file))));
  for(const file of files){const source=ts.createSourceFile(file,fs.readFileSync(path.join(root,file),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);function walk(node){if(ts.isCallExpression(node)&&ts.isIdentifier(node.expression)&&node.expression.text==='t'&&ts.isStringLiteral(node.arguments[0])){const key=node.arguments[0].text;assert.ok(Object.hasOwn(messages.UI_TRANSLATIONS.fr,key)||Object.hasOwn(privacyTranslations.en,key),`${file}: ${key}`);}ts.forEachChild(node,walk);}walk(source);}
 });

@@ -2,6 +2,8 @@
 
 Le `Dockerfile` construit l’application avec Next.js en mode standalone et Node.js 22. Un garde HTTP écoute sur le port public et démarre Next sur un port aléatoire privé, lié à `127.0.0.1`. Le build est isolé dans `.next-coolify` ; il ne dépend ni de Cloudflare, ni de l’authentification Sites, ni d’une base de données serveur. Les fichiers, packs et préférences restent dans le navigateur de chaque visiteur.
 
+La passerelle WhatsApp est **optionnelle et désactivée par défaut**. Elle ajoute un service privé distinct ; le Dockerfile public et ce déploiement simple restent utilisables sans elle. Son activation, les volumes, les secrets, l'association privée et les tests Android sont décrits dans [WHATSAPP_SETUP.md](WHATSAPP_SETUP.md). Pour ce parcours, sélectionner uniquement `docker-compose.whatsapp.yml`, qui hérite du service web de `docker-compose.yml`. La session du bot est persistée côté serveur et seul le sticker explicitement demandé est transféré temporairement ; la collection reste locale.
+
 ## Configuration Coolify
 
 1. Créer une application à partir de `https://github.com/sthiefaine/zapstick`, branche `main`.
@@ -73,7 +75,7 @@ Le garde fonctionne par défaut avec Docker et `npm start`, sans clé ni service
 - Budget global : 80 requêtes/s, rafale de 160. Budget par adresse du pair TCP : 20/s, rafale de 80. Une première page et environ 40 fichiers peuvent se charger normalement.
 - Pages et chemins non reconnus comme fichiers publics existants : 10/s, rafale de 30, au maximum 12 réponses SSR simultanées. Un faux chemin `/_next/static/...` n’échappe pas à ce budget.
 - Au maximum 64 transferts vers Next, sans file d’attente. Le dépassement répond `429` avec `Retry-After: 1`.
-- GET, HEAD et OPTIONS seuls ; les corps de requêtes sont refusés. Les imports, GIF, images et sauvegardes de Zapstick sont traités côté navigateur et n’envoient aucun POST au serveur. Une future fonctionnalité serveur POST devra adapter explicitement cette règle.
+- GET, HEAD et OPTIONS pour les pages et fichiers ; les corps restent refusés hors des routes explicites de transfert WhatsApp. Cette exception bornée accepte POST pour préparer un transfert, GET pour son état et DELETE pour l'annuler. Elle ne crée aucun proxy d'import général : les images, GIF et sauvegardes ordinaires restent traités côté navigateur. La passerelle demeure désactivée sans configuration d'exécution.
 - URL limitée à 2048 octets, en-têtes à 8192 octets et 48 champs ; délais de lecture et connexions persistantes bornés. Au maximum 256 connexions, dont 8 places réservées aux connexions de contrôle locales lorsque les clients externes occupent les autres places.
 - Délai total SSR de 15 secondes ; fichiers de 120 secondes pour permettre le téléchargement du moteur WASM sur mobile. Les réponses sont transmises en flux avec contrôle de débit mémoire ; les en-têtes de cache des fichiers sont conservés.
 - `/api/health` répond depuis l’état de supervision, avec un contrôle périodique du Next privé. Il ne consomme pas de rendu SSR et reste accessible au contrôle local lorsque les budgets publics sont épuisés. Ce mécanisme ne garantit pas la disponibilité si le système ou le réseau est saturé.

@@ -13,11 +13,11 @@ export const privacyConfig = {
 export const privacySections = [
   {
     title: 'Quand tu ajoutes un son',
-    body: 'Le son d’origine d’une vidéo, les fichiers audio importés et les enregistrements sont traités dans ton navigateur, sans envoi au serveur Zapstick. L’accès au microphone est demandé uniquement quand tu appuies sur un bouton d’enregistrement. Le son ajouté à un sticker est conservé sur cet appareil et inclus dans les sauvegardes. L’effacement local arrête le microphone et les lectures audio ; les sauvegardes et fichiers déjà téléchargés restent sur ton appareil jusqu’à leur suppression. Pour un lien audio direct, ton navigateur télécharge le son auprès de son hébergeur, qui reçoit ton adresse IP. Pour MyInstants, le serveur Zapstick récupère la page publique et le fichier audio, puis te le transmet sans l’enregistrer durablement ; MyInstants reçoit alors l’adresse IP du serveur.',
+    body: 'Le montage du son d’origine d’une vidéo, des fichiers audio importés et des enregistrements se fait dans ton navigateur. L’accès au microphone est demandé uniquement quand tu appuies sur un bouton d’enregistrement. Le son ajouté à un sticker est conservé sur cet appareil et inclus dans les sauvegardes. L’effacement local arrête le microphone et les lectures audio ; les sauvegardes et fichiers déjà téléchargés restent sur ton appareil jusqu’à leur suppression. Pour un lien audio direct, ton navigateur télécharge le son auprès de son hébergeur, qui reçoit ton adresse IP. Pour MyInstants, le serveur Zapstick récupère la page publique et le fichier audio, puis te le transmet sans l’enregistrer durablement ; MyInstants reçoit alors l’adresse IP du serveur.',
   },
   {
     title: 'Tes fichiers restent sur ton appareil',
-    body: 'Les images, vidéos, stickers, noms, favoris et packs sont conservés dans IndexedDB, dans ton navigateur. Ils ne sont pas envoyés au serveur Zapstick. Tu peux les modifier, les exporter ou les supprimer dans l’app.',
+    body: 'Les images, vidéos, stickers, noms, favoris et packs sont conservés dans IndexedDB, dans ton navigateur. La collection n’est pas envoyée automatiquement au serveur Zapstick. Tu peux la modifier, l’exporter ou la supprimer dans l’app. La réception sur WhatsApp, si tu la demandes, transfère uniquement le sticker choisi et son mix sonore éventuel.',
   },
   {
     title: 'Pourquoi ces données sont utilisées',
@@ -43,6 +43,10 @@ export const privacySections = [
     title: 'Tes droits et tes choix',
     body: 'Tu peux exporter ta collection, corriger ses éléments et effacer les données locales depuis les réglages. Pour toute question ou demande concernant des données traitées par l’éditeur, contacte l’adresse ci-dessous. Selon la situation, les droits d’accès, de rectification, d’effacement, de limitation, d’opposition et de portabilité prévus par le RGPD peuvent s’appliquer. Tu peux aussi adresser une réclamation à la CNIL.',
   },
+  {
+    title: 'Quand tu reçois un sticker sur WhatsApp',
+    body: 'Quand cette fonction est activée et que tu appuies sur « Recevoir sur WhatsApp », seul le WebP final et son mix sonore éventuel sont transférés temporairement au serveur Zapstick. Le bot utilise ton message et ton identifiant WhatsApp pour répondre dans cette conversation. Le code expire après dix minutes ; les copies temporaires sont supprimées après traitement ou expiration. Des états techniques et empreintes de déduplication, sans média ni numéro en clair, peuvent rester jusqu’à vingt-quatre heures après la fin du transfert. L’effacement local tente d’annuler les transferts connus ; hors connexion, leur expiration reste applicable. Les copies déjà remises à WhatsApp ne sont pas supprimées par cet effacement et suivent le fonctionnement de WhatsApp.',
+  },
 ] as const;
 
 export const backgroundPrivacySection = {
@@ -53,7 +57,7 @@ export const backgroundPrivacySection = {
 export const legalSections = [
   {
     title: 'Objet du service',
-    body: 'Zapstick permet de créer et d’organiser des stickers à partir de tes médias. Le traitement et la collection sont locaux au navigateur. Le service n’est ni affilié à WhatsApp ni approuvé par WhatsApp ou Meta.',
+    body: 'Zapstick permet de créer et d’organiser des stickers à partir de tes médias. Le montage et la collection sont locaux au navigateur. La réception facultative sur WhatsApp utilise le transfert temporaire décrit dans la confidentialité. Le service n’est ni affilié à WhatsApp ni approuvé par WhatsApp ou Meta.',
   },
   {
     title: 'Tes contenus',

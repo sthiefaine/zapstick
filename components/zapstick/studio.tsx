@@ -22,6 +22,7 @@ import {IntroVideo} from './intro-video';
 import {AnimatedDownloads} from './animated-downloads';
 import {SoundControls} from './sound-controls';
 import {SoundDownload} from './sound-download';
+import {WhatsAppTransfer} from './whatsapp-transfer';
 import {useSoundEditor} from './use-sound-editor';
 import {useSoundTransport} from './use-sound-transport';
 import {resolveAudioRecipes,type AudioLayer} from '@/lib/stickers/audio';
@@ -42,10 +43,11 @@ type Props = {
     onCollection: () => void;
     onHelp: () => void;
     onWorking: (value: boolean) => void;
+    onEnsureSaved?: () => Promise<void>;
 };
 type BackgroundOriginal={blob:Blob;mime:string;kind:Sticker['kind'];isSticker:boolean;start:number;duration:number;animated:boolean;audioOrigin:number};
 type Tool = 'crop' | 'text' | 'emoji' | 'background' | 'animation' | 'sound' | 'organize' | null;
-export function Studio({ draft, active, packs, stickers, onDraft, onSave, onError, onCollection, onHelp, onWorking }: Props) {
+export function Studio({ draft, active, packs, stickers, onDraft, onSave, onError, onCollection, onHelp, onWorking, onEnsureSaved }: Props) {
     const { t,reduceMotion } = usePreferences();
     const [link, setLink] = useState(''), [remote, setRemote] = useState<RemoteMedia[]>([]), [remoteSource, setRemoteSource] = useState('');
     const [o, setOptions] = useState<EditOptions>({ ...defaults }), [tool, setTool] = useState<Tool>(null), [name, setName] = useState(''), [packId, setPackId] = useState('');
@@ -59,7 +61,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     const file = useRef<HTMLInputElement>(null), video = useRef<HTMLVideoElement>(null), alive = useRef(true), generation = useRef(0), importOperation=useRef(false), pointers = useRef(new Map<number, {
         x: number;
         y: number;
-    }>()), wasActive = useRef(active),inactiveDraftId=useRef<string|undefined>(undefined);
+    }>());
     const src = useMediaUrl(draft?.blob, draft?.src), resultSrc = useMediaUrl(result?.blob, result?.src);
     const canAnimate = !!draft && (draft.mime === 'image/gif' || draft.mime.startsWith('video/') || draft.mime==='image/webp'&&draft.kind==='animated');
     const isAnimated = canAnimate && o.animated, kind = isAnimated ? 'animated' : 'static';
@@ -68,8 +70,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     const soundLayers=useMemo<AudioLayer[]>(()=>sound.tracks.flatMap((track,index)=>track?[{track,recipe:soundRecipes[index]}]:[]),[sound.tracks,soundRecipes]);
     const soundTransport=useSoundTransport({layers:isAnimated?soundLayers:EMPTY_SOUND_LAYERS,length:o.duration,start:o.start,playing:playing&&!result,active,seek:seekRequest,onError:setError});
     const matchingPacks = packs.filter(p => p.kind === kind);
-    useEffect(() => { if(!active){cancelClipboard();inactiveDraftId.current=draft?.id;}if (active && !wasActive.current && result && draft?.id===inactiveDraftId.current)
-        reset(); wasActive.current = active; }, [active]);
+    useEffect(() => { if(!active)cancelClipboard(); }, [active]);
     useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++;clipboardAbort.current?.abort();clipboardAbort.current=null; }; }, []);
     useEffect(() => { cancelClipboard();generation.current++;setOptions({ ...defaults,duration:draft?.sound?.duration??defaults.duration, animated: draft?.kind === 'animated' }); setName(draft?.name ?? ''); setPackId(''); setTool(draft?'crop':null);setPreviewExpanded(false); setResult(null); setError(''); setDuration(0); setPlaying(!reduceMotion&&!draft?.sound); setOverlaySelection(null); setBackgroundOriginal(null);setAudioOrigin(0); setPlayhead(0); setSeekRequest({ time: 0, revision: 0 }); pointers.current.clear(); }, [draft?.id]);
     useEffect(() => {
@@ -326,7 +327,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
   {error ? <div className="inline-error" role="alert">{t(error)}<button aria-label={t("Fermer le message")} onClick={() => setError('')}><X size={16}/></button></div> : null}
   </div>
   {!draft&&!result?<IntroVideo active={active&&!disabled}/>:null}
-  {result ? <div className="completed-actions"><p>{result.kind === 'animated' ? t("Sticker animé") : t("Sticker fixe")} <span>·</span> {Math.round((result.blob?.size ?? 0) / 1024)} {t("Ko")}</p>{result.sound?<SoundDownload sticker={result} disabled={gifBusy||soundExportBusy} onBusy={soundWorking}/>:null}{result.kind==='animated'?<AnimatedDownloads disabled={soundExportBusy} blob={result.blob!} name={result.name} onBusyChange={gifWorking} onError={setError}/>:<button className="button primary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t("Télécharger")}</button>}<div className="two-actions"><button className="button secondary" disabled={gifBusy||soundExportBusy} onClick={reset}><Plus size={17}/>{t("Un autre")}</button><button className="button secondary" disabled={gifBusy||soundExportBusy} onClick={onCollection}>{t("Ma collection")}<ArrowRight size={16}/></button></div><button className="help-link" disabled={gifBusy||soundExportBusy} onClick={onHelp}>{t("Comment les ajouter à WhatsApp ?")}<ArrowRight size={14}/></button></div> : draft ? <>
+  {result ? <div className="completed-actions"><p>{result.kind === 'animated' ? t("Sticker animé") : t("Sticker fixe")} <span>·</span> {Math.round((result.blob?.size ?? 0) / 1024)} {t("Ko")}</p><WhatsAppTransfer sticker={result} active={active} disabled={gifBusy||soundExportBusy} beforePrepare={onEnsureSaved}/>{result.sound?<SoundDownload sticker={result} disabled={gifBusy||soundExportBusy} onBusy={soundWorking}/>:null}{result.kind==='animated'?<AnimatedDownloads disabled={soundExportBusy} blob={result.blob!} name={result.name} onBusyChange={gifWorking} onError={setError}/>:<button className="button primary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t("Télécharger")}</button>}<div className="two-actions"><button className="button secondary" disabled={gifBusy||soundExportBusy} onClick={reset}><Plus size={17}/>{t("Un autre")}</button><button className="button secondary" disabled={gifBusy||soundExportBusy} onClick={onCollection}>{t("Ma collection")}<ArrowRight size={16}/></button></div></div> : draft ? <>
    <span id="sticker-keyboard-help" className="sr-only">{t("Utilise les flèches pour déplacer le sticker ; + et − pour zoomer.")}</span><p className="gesture-hint sr-only"><Move size={12}/>{t("Déplace au doigt · pince pour zoomer")}</p>{draft.kind === 'animated' && !canAnimate ? <p className="subtle-note">{t("Cette variante sera fixe. Utilise le GIF ou la vidéo d’origine pour garder l’animation.")}</p> : null}
    <div className="toolbelt" role="group" aria-label={t("Personnaliser le sticker")}>{([{ id: 'crop', label: t("Cadrer"), icon: SlidersHorizontal }, { id: 'text', label: t("Texte"), icon: Type }, { id: 'emoji', label: t("Émojis"), icon: Smile }, { id: 'background', label: t("Fond"), icon: Palette }, ...(canAnimate ? [{ id: 'animation', label: t("Animation"), icon: Play }] : []), ...(isAnimated ? [{id:'sound',label:t('Son'),icon:AudioLines}] : [])] as const).map(item => <button key={item.id} data-tool={item.id} className={tool === item.id ? 'selected' : ''} aria-pressed={tool === item.id} aria-expanded={tool === item.id} aria-controls="studio-inline-settings" onClick={() => {setTool(item.id as Tool);setPreviewExpanded(item.id==='crop');inspector.current?.scrollTo({top:0});if(item.id==='text')setOverlaySelection('text');if(item.id==='emoji'&&overlaySelection==='text')setOverlaySelection(null);}} disabled={disabled}><span><item.icon size={20}/></span>{item.label}</button>)}</div>
    <div className="studio-inspector" ref={inspector}>

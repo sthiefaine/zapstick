@@ -24,3 +24,5 @@ npm-debug.log*
 .claude
 .vscode
 public/vendor/onnx
+# The private bot has its own build context. Never include its state or dependencies in the website image.
+services/whatsapp-bridge

@@ -134,9 +134,10 @@ export function clearLocalData(): Promise<void> {
   starterMemesSuppressed=true;
   // Start cancellation before waiting for queued storage operations.
   const stoppedAudio = import('./audio').then(({stopAllAudioWork}) => stopAllAudioWork()).catch(() => {});
+  const stoppedTransfers = import('./whatsapp-transfer').then(({clearWhatsAppTransfers}) => clearWhatsAppTransfers()).catch(() => {});
   return ordered(async () => {
     // Import lazily: opening the library must not initialize audio or request a microphone.
-    await stoppedAudio;
+    await Promise.all([stoppedAudio, stoppedTransfers]);
     const db = await database();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('workspace', 'readwrite');

@@ -1,0 +1,63 @@
+# Optional deployment: docker compose --env-file .env.whatsapp.local \
+#   -f docker-compose.whatsapp.yml config --quiet
+# The ordinary deployment does not load this file or start a WhatsApp session.
+services:
+  zapstick:
+    # Select this single optional file in Coolify: the existing
+    # web service is inherited without duplicating its build or protections.
+    extends:
+      file: docker-compose.yml
+      service: zapstick
+    environment:
+      WHATSAPP_BRIDGE_URL: http://whatsapp-bridge:3001
+      WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:?Configure the private bridge token}
+      WHATSAPP_BRIDGE_ENABLED: ${WHATSAPP_BRIDGE_ENABLED:-false}
+      WHATSAPP_SOUND_ENABLED: ${WHATSAPP_SOUND_ENABLED:-false}
+
+  whatsapp-bridge:
+    build:
+      context: ./services/whatsapp-bridge
+      dockerfile: Dockerfile
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3001
+      WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:?Configure the private bridge token}
+      WHATSAPP_TRANSFER_KEY: ${WHATSAPP_TRANSFER_KEY:?Configure the private transfer key}
+      WHATSAPP_AUTH_KEY: ${WHATSAPP_AUTH_KEY:-}
+      WHATSAPP_BOT_NUMBER: ${WHATSAPP_BOT_NUMBER:-}
+      # Independent switches let an administrator test the bot while the public
+      # website remains disabled. No socket is created while BOT_ENABLED=false.
+      WHATSAPP_BRIDGE_ENABLED: ${WHATSAPP_BOT_ENABLED:-false}
+      WHATSAPP_SOUND_ENABLED: ${WHATSAPP_BOT_SOUND_ENABLED:-false}
+      WHATSAPP_DATA_DIR: /data/transfers
+      WHATSAPP_AUTH_DIR: /data/auth
+    volumes:
+      - whatsapp-auth:/data/auth
+      - whatsapp-transfers:/data/transfers
+    # No ports, domain, public router or connection to another resource's
+    # predefined network. The project network permits outbound WhatsApp access.
+    restart: unless-stopped
+    init: true
+    user: "1001:1001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    cpus: 1.0
+    mem_limit: 768m
+    pids_limit: 128
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+volumes:
+  whatsapp-auth:
+  # Exclude this entire volume from backups and host snapshots. This comment
+  # does not configure the backup tool: the operator must verify its exclusions.
+  whatsapp-transfers:

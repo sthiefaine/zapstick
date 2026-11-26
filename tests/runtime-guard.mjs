@@ -110,3 +110,35 @@ test('client disconnection aborts private audio work and releases both audio and
  await until(()=>reached===1);assert.equal(guard.snapshot().audioInflight,1);outgoing.destroy();
  await until(()=>closed&&guard.snapshot().audioInflight===0);assert.equal(guard.snapshot().ssrInflight,0);assert.equal((await request(port,'/api/audio?url=y')).status,200);
 });
+
+test('WhatsApp accepts only canonical upload, status and receipt routes and streams a chunked body',async t=>{
+ const seen=[];const {port}=await setup(t,(req,res)=>{let body='';req.on('data',chunk=>body+=chunk);req.on('end',()=>{seen.push({path:req.url,method:req.method,body});res.end('ok');});},{limits:{...roomy,whatsappBurst:30,transferBurst:10}});
+ const id='a'.repeat(22),headers={'Content-Type':'multipart/form-data; boundary=test'};
+ assert.equal((await request(port,'/api/whatsapp/transfers',{method:'POST',headers,body:'a body'})).status,200);
+ const chunked=await raw(port,'POST /api/whatsapp/transfers HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary=test\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n3\r\nabc\r\n2\r\nde\r\n0\r\n\r\n');assert.match(chunked,/^HTTP\/1\.1 200/);
+ assert.equal((await request(port,'/api/whatsapp/status')).status,200);
+ assert.equal((await request(port,'/api/whatsapp/transfers/'+id)).status,200);
+ assert.equal((await request(port,'/api/whatsapp/transfers/'+id,{method:'DELETE'})).status,200);
+ for(const path of ['/api/whatsapp/transfers/','/api/whatsapp/status?x=1','/api/whatsapp/transfers/'+id+'?x=1','/api/%77hatsapp/status','/api/whatsapp/transfers/'+id+'extra','/other/../api/whatsapp/status'])assert.equal((await request(port,path)).status,404,path);
+ assert.equal((await request(port,'/api/whatsapp/transfers/'+id,{method:'POST',headers,body:'x'})).status,405);
+ assert.equal(seen.length,5);assert.equal(seen[0].body,'a body');assert.equal(seen[1].body,'abcde');
+});
+test('WhatsApp bounds declared and chunked uploads before downstream completion',async t=>{
+ let completed=0;const {port,guard}=await setup(t,(req,res)=>{req.on('data',()=>{});req.on('end',()=>{completed++;res.end('ok');});},{limits:{...roomy,maxTransferBytes:8,transferBurst:10}});
+ const headers={'Content-Type':'multipart/form-data; boundary=test','Content-Length':'9'};
+ assert.equal((await request(port,'/api/whatsapp/transfers',{method:'POST',headers,body:'123456789'})).status,413);
+ const chunked=await raw(port,'POST /api/whatsapp/transfers HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary=test\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\n12345\r\n4\r\n6789\r\n0\r\n\r\n');assert.match(chunked,/^HTTP\/1\.1 413/);
+ await until(()=>guard.snapshot().transferUploads===0);assert.equal(completed,0);
+ assert.equal((await request(port,'/fr',{method:'POST',headers,body:'123456789'})).status,405);
+ assert.equal((await request(port,'/api/whatsapp/transfers',{method:'POST',body:'x'})).status,415);
+});
+test('WhatsApp upload slots and timeout cannot consume health or remain after client disconnection',async t=>{
+ let reached=0;const {port,guard}=await setup(t,(req,res)=>{reached++;if(req.url==='/fr')res.end('page');},{limits:{...roomy,transferBurst:20,maxTransferUploads:1,transferTimeoutMs:100,maxSsrInflight:4}});
+ const headers={'Content-Type':'multipart/form-data; boundary=test'};
+ const first=request(port,'/api/whatsapp/transfers',{method:'POST',headers,body:'part'});await until(()=>reached===1);
+ assert.equal((await request(port,'/api/whatsapp/transfers',{method:'POST',headers,body:'part'})).status,429);
+ assert.equal((await request(port,'/api/health')).status,200);assert.equal((await request(port,'/fr')).status,200);
+ assert.equal((await first).status,504);await until(()=>guard.snapshot().transferUploads===0);
+ const outgoing=http.request({host:'127.0.0.1',port,path:'/api/whatsapp/transfers',method:'POST',headers,agent:false});outgoing.on('error',()=>{});outgoing.write('partial');await until(()=>guard.snapshot().transferUploads===1);outgoing.destroy();
+ await until(()=>guard.snapshot().transferUploads===0);assert.equal(guard.snapshot().whatsappInflight,0);
+});

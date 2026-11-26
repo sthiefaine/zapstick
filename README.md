@@ -35,7 +35,7 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 - Atelier avec aperçu animé, déplacement, zoom, rotation et choix du fond. Texte déplaçable avec trois polices, couleurs et fond ; jusqu’à huit émojis déplaçables et redimensionnables, depuis la grille ou le clavier du téléphone. Placement direct au doigt dans la vignette, sans devoir agrandir l’aperçu ni arrêter l’animation.
 - Fond personnalisable avec présélections, roue teinte/saturation, luminosité et code hexadécimal. Bouton Recommencer contrasté pour vider le brouillon sans toucher à la collection.
 - Outil Son pour les animations : deux blocs déplaçables, sélection de l’extrait sur sa forme d’onde avec deux poignées, écoute séparée de l’extrait. Le deuxième son se place automatiquement après le premier et suit ses ajustements. Sources vidéo, fichier audio, microphone (prise de 6 s maximum) ou lien HTTPS. Une corbeille visible retire chaque piste séparément. Le son original des vidéos est sélectionné automatiquement quand il est décodable ; un passage choisi explicitement reste indépendant de la découpe vidéo. Audio traité localement, conservé avec le sticker dans IndexedDB et les sauvegardes JSON.
-- Export vidéo avec son en MP4 H.264/AAC, ou WebM VP8/Opus si ces encodeurs MP4 sont indisponibles. Aperçu du fichier produit ; les exports GIF/WebP restent silencieux. Aucun envoi ni compte WhatsApp connecté.
+- Export vidéo avec son en MP4 H.264/AAC, ou WebM VP8/Opus si ces encodeurs MP4 sont indisponibles. Aperçu du fichier produit ; les exports GIF/WebP restent silencieux. Une passerelle facultative permet de préparer une réception native sur WhatsApp, après association privée et validation sur téléphone ; elle reste désactivée par défaut.
 - Barre de montage avec vignettes et poignées pour choisir l’extrait d’un GIF ou d’une vidéo ; sélection et aperçu au clavier également disponibles. Le mode fixe capture l’image choisie.
 - Détourage des images fixes avec U²-Net-P, calculé sur l’appareil : chargement au clic, progression, annulation et rétablissement du fond original. Premier usage : environ 19 Mo de moteur et modèle ; qualité variable selon l’image. Voir [les détails et licences](docs/BACKGROUND_REMOVAL.md).
 - WebP fixe en 512 × 512, 100 Ko maximum ; GIF/vidéo vers WebP animé, 500 Ko maximum, extrait de 6 secondes maximum. Compression adaptée au poids, sans marge transparente ajoutée par défaut.
@@ -45,7 +45,7 @@ La version de production se construit avec `npm run build`. `npm start` lance le
 
 ## Données et limites
 
-La collection est propre au navigateur et à l’origine du site : aucun compte, stockage serveur ou synchronisation entre appareils. Exporter une sauvegarde pour la transférer ou avant de supprimer les données du navigateur. Les imports et les montages sont traités dans le navigateur ; seule la récupération des sons MyInstants utilise le relais temporaire décrit ci-dessous. Les liens X sont résolus directement auprès de FxTwitter, puis le média est téléchargé directement depuis son hébergeur, sans relais par Zapstick. Les téléchargements sont limités à des hôtes explicitement autorisés et à 20 Mo. Les restrictions CORS des hébergeurs peuvent empêcher un import ; utiliser alors un fichier local.
+La collection est propre au navigateur et à l’origine du site, sans compte Zapstick ni synchronisation entre appareils. Exporter une sauvegarde pour la transférer ou avant de supprimer les données du navigateur. Les imports et les montages sont traités dans le navigateur ; la récupération des sons MyInstants utilise le relais temporaire décrit ci-dessous. Si la passerelle WhatsApp est activée, un appui volontaire transfère uniquement le sticker final et son mix sonore éventuel pendant dix minutes maximum ; la session du bot dispose d’un stockage privé distinct. Les liens X sont résolus directement auprès de FxTwitter, puis le média est téléchargé directement depuis son hébergeur, sans relais par Zapstick. Les téléchargements sont limités à des hôtes explicitement autorisés et à 20 Mo. Les restrictions CORS des hébergeurs peuvent empêcher un import ; utiliser alors un fichier local.
 
 L’import X dépend d’un service tiers et du caractère public du post. Les pages Giphy/Tenor ne sont pas résolues : utiliser un lien direct vers leur média ou importer le fichier localement. Les médias animés X peuvent être servis en MP4.
 
@@ -59,6 +59,8 @@ Le son importé est limité à 5 Mio et 30 s ; la piste originale des vidéos es
 
 Un MP4 sonore est une vidéo ordinaire, avec un fond blanc pour les zones transparentes. Ce téléchargement ne garantit pas sa conversion en sticker sonore dans WhatsApp : aucun parcours natif n’a été validé sur Android. Les fichiers WebP et GIF ne contiennent pas de piste audio.
 
+La [passerelle privée WhatsApp](docs/WHATSAPP_SETUP.md) utilise le WebP terminé et son WAV déjà mixé pour répondre au message contenant un code à usage unique. Elle possède ses propres commutateurs de réception et de son, désactivés par défaut. Le format sonore natif expérimental doit être vérifié physiquement sur Android, y compris après ajout aux favoris et réenvoi, avant activation publique. Le service et sa configuration optionnelle ne sont pas intégrés au déploiement web ordinaire.
+
 ## Architecture
 
 React 19 / TypeScript / Next.js 16, serveur Node.js standalone conteneurisé pour Coolify. L’ancien hébergement Sites a été désactivé ; les scripts historiques Sites sont séparés du parcours principal. FxTwitter et les médias sont appelés directement par le navigateur avec des requêtes CORS sans identifiants. Pour les sons MyInstants uniquement, `/api/audio` récupère la page publique et relaie le fichier audio sans stockage durable (hôtes HTTPS exacts, redirections validées, deux requêtes simultanées, 5 Mio maximum, délai total de 15 s). Les autres liens audio directs sont téléchargés dans le navigateur si leur hébergeur autorise CORS. IndexedDB conserve les objets Blob ; aucun fichier utilisateur n’est stocké dans le dépôt.
@@ -71,6 +73,8 @@ node --test tests/*.mjs
 docker build -t zapstick .
 docker run --rm -p 3000:3000 zapstick
 ```
+
+Pour vérifier aussi le service privé sans connexion WhatsApp : installer ses dépendances avec `npm --prefix services/whatsapp-bridge ci --ignore-scripts`, puis lancer `node --test services/whatsapp-bridge/test/*.test.mjs`. Les tests de transport simulent les sockets ; les conversions audio utilisent FFmpeg lorsqu’il est disponible.
 
 Renseigner le domaine public et les coordonnées réelles de l’hébergeur dans les variables de build décrites dans [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Par défaut, l’indexation est désactivée ; la basculer explicitement après configuration du domaine HTTPS. Aucun volume serveur n’est nécessaire pour les collections.
 

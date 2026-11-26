@@ -1,5 +1,8 @@
 # Dependencies
 /node_modules/
+**/node_modules/
+/services/whatsapp-bridge/.data/
+/services/whatsapp-bridge/data/
 /.pnp
 .pnp.*
 # Keep authored Yarn tooling if the project adopts Yarn.
@@ -28,6 +31,7 @@ yarn-error.log*
 
 # Local environment and keys
 .env*
+!.env.whatsapp.example
 .dev.vars*
 *.pem
 

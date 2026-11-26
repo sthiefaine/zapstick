@@ -1,0 +1,14 @@
+node_modules
+.git
+.env
+.env.*
+.data
+data
+auth
+transfers
+test
+coverage
+*.sqlite*
+*.pem
+npm-debug.log*
+.DS_Store

@@ -1,0 +1,74 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import {Readable} from 'node:stream';
+import {randomBytes} from 'node:crypto';
+import {mkdtemp,readFile,rm,access} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import ts from 'typescript';
+import {BridgeStore} from '../services/whatsapp-bridge/src/store.mjs';
+import {createBridgeServer} from '../services/whatsapp-bridge/src/server.mjs';
+import {BridgeWorker} from '../services/whatsapp-bridge/src/worker.mjs';
+import {createRuntimeGuard} from '../scripts/runtime-guard-server.mjs';
+import {fixtureData} from '../services/whatsapp-bridge/src/fixtures.mjs';
+
+const module={exports:{}};
+new Function('exports','module',ts.transpileModule(await readFile(new URL('../lib/server/whatsapp-bridge.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText)(module.exports,module);
+const {createWhatsAppBridgeHandler}=module.exports;
+const listen=server=>new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',()=>resolve(server.address().port));});
+const capability=bytes=>randomBytes(bytes).toString('base64url');
+
+test('real guard → BFF → private bridge preserves a transfer through claim, native handoff and purge',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'zapstick-bridge-e2e-'));
+ const store=new BridgeStore({dir,key:randomBytes(32),botNumber:'33612345678'});
+ const privateApp=createBridgeServer({store,serviceToken:'s'.repeat(43),enabled:true,soundEnabled:true,isReady:()=>true});
+ const privatePort=await listen(privateApp.server);
+ let env;
+ const handler=createWhatsAppBridgeHandler({env:()=>env});
+ const web=http.createServer(async(req,res)=>{
+  try {
+   const body=['POST'].includes(req.method)?Readable.toWeb(req):undefined;
+   const request=new Request(env.SITE_URL+req.url,{method:req.method,headers:req.headers,body,duplex:'half'});
+   const result=await handler(request);
+   res.writeHead(result.status,Object.fromEntries(result.headers));
+   if(result.body)Readable.fromWeb(result.body).pipe(res);else res.end();
+  }catch{res.writeHead(500);res.end();}
+ });
+ const webPort=await listen(web);
+ const guard=createRuntimeGuard({upstreamPort:webPort,limits:{whatsappBurst:50,transferBurst:10}});
+ const port=await listen(guard.server),origin='http://127.0.0.1:'+port;
+ env={SITE_URL:origin,WHATSAPP_BRIDGE_ENABLED:'true',WHATSAPP_BRIDGE_URL:'http://127.0.0.1:'+privatePort,WHATSAPP_BRIDGE_TOKEN:'s'.repeat(43)};
+ let worker;
+ t.after(async()=>{await worker?.close();await guard.close(100);web.closeAllConnections();await new Promise(resolve=>web.close(resolve));await privateApp.close();store.close();await rm(dir,{recursive:true,force:true});});
+ const visual=await readFile(new URL('../services/whatsapp-bridge/test/fixtures/sticker-lossless.webp',import.meta.url));
+ const id=capability(16),receipt=capability(32);
+ const headers={Origin:origin,Authorization:'Bearer '+receipt,'X-Transfer-Receipt':'forged-client-header'};
+ const form=()=>{const data=new FormData();data.append('manifest',JSON.stringify({version:1,id,locale:'fr'}));data.append('visual',new Blob([visual],{type:'image/webp'}),'visual.webp');return data;};
+ const posted=await fetch(origin+'/api/whatsapp/transfers',{method:'POST',headers,body:form()});
+ assert.equal(posted.status,201);const transfer=await posted.json();
+ assert.equal(transfer.state,'awaiting_message');assert.equal(transfer.id,id);
+ const repeated=await fetch(origin+'/api/whatsapp/transfers',{method:'POST',headers,body:form()});
+ assert.equal(repeated.status,200);assert.deepEqual(await repeated.json(),transfer);
+ const statusUrl=origin+'/api/whatsapp/transfers/'+id;
+ assert.equal((await fetch(statusUrl,{headers:{Origin:origin,Authorization:'Bearer '+capability(32)}})).status,404);
+ assert.equal(store.claim({providerMessageId:'incoming-test-1',recipient:'123456789@lid',code:transfer.claimCode}).id,id);
+ assert.equal(store.claim({providerMessageId:'incoming-test-2',recipient:'987654321@s.whatsapp.net',code:transfer.claimCode}),null);
+ const sent=[];
+ worker=new BridgeWorker({store,enabled:true,transport:{isReady:()=>true,async send(job){sent.push(job);await job.onHandoff({messageId:'outgoing-test-1'});return {messageId:'outgoing-test-1'};}},encodeOpus:()=>{throw new Error('Unexpected audio conversion');}});
+ await worker.kick();
+ const finished=await(await fetch(statusUrl,{headers})).json();
+ assert.equal(finished.state,'accepted');assert.equal(finished.waUrl,undefined);assert.equal(finished.claimCode,undefined);
+ assert.equal(sent.length,1);assert.equal(sent[0].recipient,'123456789@lid');
+ await assert.rejects(access(store.folder(id)));
+ assert.equal(store.row(id).recipient_cipher,null);
+ assert.equal(store.confirmReceipt({messageId:'outgoing-test-1',recipient:'123456789@lid',state:'delivered'}),true);
+ assert.equal((await(await fetch(statusUrl,{headers})).json()).state,'delivered');
+ assert.equal((await fetch(statusUrl,{method:'DELETE',headers})).status,409);
+ const audio=fixtureData(),audioId=capability(16),audioForm=new FormData();
+ audioForm.append('manifest',JSON.stringify({version:1,id:audioId,locale:'fr'}));
+ audioForm.append('visual',new Blob([audio['animated.webp']],{type:'image/webp'}),'visual.webp');
+ audioForm.append('sound',new Blob([audio['sound.wav']],{type:'audio/wav'}),'sound.wav');
+ const denied=await fetch(origin+'/api/whatsapp/transfers',{method:'POST',headers,body:audioForm});
+ assert.equal(denied.status,422);assert.deepEqual(await denied.json(),{error:'sound_unavailable'});assert.equal(store.row(audioId),undefined);
+});
