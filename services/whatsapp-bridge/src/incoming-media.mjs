@@ -1,6 +1,9 @@
 import {Agent} from 'undici';
 import {createHash, timingSafeEqual} from 'node:crypto';
 import {spawn} from 'node:child_process';
+import {mkdtemp, writeFile, rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
 import {BridgeError} from './config.mjs';
 
 const invalid = (reason = 'structure') => { const error = new BridgeError('invalid_media', 422); error.reason = reason; return error; };
@@ -79,46 +82,34 @@ export async function downloadIncomingMedia(sdk, message, type, maximum, signal,
   } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); stream?.destroy(); await agent.destroy().catch(() => {}); }
 }
 
-function opusInfo(bytes) {
-  if (!Buffer.isBuffer(bytes) || bytes.length > 512 * 1024) throw invalid();
-  let at = 0, sequence = 0, serial, skip, channels, granule;
-  while (at < bytes.length) {
-    if (at + 27 > bytes.length || bytes.toString('ascii', at, at + 4) !== 'OggS' || bytes[at + 4] !== 0) throw invalid();
-    const flags = bytes[at + 5], stream = bytes.readUInt32LE(at + 14), segments = bytes[at + 26], body = at + 27 + segments;
-    if (flags & 0xf8 || bytes.readUInt32LE(at + 18) !== sequence++ || body > bytes.length) throw invalid();
-    let length = 0;
-    for (let i = at + 27; i < body; i++) length += bytes[i];
-    if (body + length > bytes.length) throw invalid();
-    if (serial === undefined) {
-      if (flags !== 2 || length !== 19 || bytes.toString('ascii', body, body + 8) !== 'OpusHead' || bytes[body + 8] !== 1 || ![1, 2].includes(bytes[body + 9]) || bytes[body + 18] !== 0) throw invalid();
-      serial = stream; skip = bytes.readUInt16LE(body + 10); channels = bytes[body + 9];
-    } else if (serial !== stream || flags & 2) throw invalid();
-    at = body + length;
-    if (flags & 4) { if (at !== bytes.length) throw invalid(); granule = bytes.readBigUInt64LE(body - segments - 21); }
-  }
-  if (granule === undefined || granule <= BigInt(skip) || granule - BigInt(skip) > BigInt(Math.ceil(6.1 * 48000))) throw invalid();
-  return {channels, duration: Number(granule - BigInt(skip)) / 48000};
-}
-
-export function incomingOpusDuration(bytes) { return opusInfo(bytes).duration; }
-
-export async function decodeIncomingOpus({bytes, duration, signal}) {
-  const {channels} = opusInfo(bytes);
-  if (!Number.isFinite(duration) || duration <= 0 || duration > 6 || signal?.aborted) throw invalid();
-  const frames = Math.round(duration * 48000), expected = frames * channels * 2;
+/** Native sound attachments do not all use the same container or duration.
+ * Decode their first six seconds before aligning the visual and PCM together.
+ * A private, seekable input also supports M4A with metadata after its audio. */
+export async function decodeIncomingAudio({bytes, duration, signal}) {
+  if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 512 * 1024) throw invalid('audio_size');
+  if (!Number.isFinite(duration) || duration < 0 || duration > 6 || signal?.aborted) throw invalid('audio_duration');
+  const channels = 2, maximum = 6 * 48000 * channels * 2;
+  const directory = await mkdtemp(path.join(tmpdir(), 'zapstick-incoming-audio-'));
+  try {
+  const input = path.join(directory, 'source');
+  await writeFile(input, bytes, {flag:'wx', mode:0o600});
+  if (signal?.aborted) throw invalid('timeout');
   const pcm = await new Promise((resolve, reject) => {
-    const args = ['-hide_banner','-loglevel','error','-nostdin','-max_alloc','16777216','-threads','1','-filter_threads','1','-protocol_whitelist','pipe','-f','ogg','-i','pipe:0','-map','0:a:0','-vn','-sn','-dn','-map_metadata','-1','-ar','48000','-ac',String(channels),'-af',`apad=whole_len=${frames},atrim=end_sample=${frames}`,'-c:a','pcm_s16le','-f','s16le','pipe:1'];
+    const args = ['-hide_banner','-loglevel','error','-nostdin','-max_alloc','16777216','-threads','1','-filter_threads','1','-protocol_whitelist','file,pipe','-format_whitelist','ogg,mov,mp3,wav,aac,matroska,webm','-probesize','524288','-analyzeduration','2000000','-i',input,'-map','0:a:0','-vn','-sn','-dn','-map_metadata','-1','-ar','48000','-ac',String(channels),'-t','6','-c:a','pcm_s16le','-f','s16le','pipe:1'];
     const child = spawn('ffmpeg', args, {shell: false, windowsHide: true, stdio: ['pipe','pipe','pipe']});
     let size = 0, diagnostics = 0, failure; const parts = [];
-    const stop = () => { failure ??= invalid(); child.kill('SIGKILL'); };
+    const stop = () => { failure ??= invalid('audio_decode'); child.kill('SIGKILL'); };
     const timer = setTimeout(stop, 15_000); timer.unref();
     signal?.addEventListener('abort', stop, {once: true});
-    child.on('error', () => { failure ??= invalid(); }); child.stdin.on('error', () => {});
-    child.stdout.on('data', chunk => { size += chunk.length; if (size > expected) stop(); else parts.push(chunk); });
+    child.on('error', () => { failure ??= invalid('audio_decode'); }); child.stdin.on('error', () => {});
+    child.stdout.on('data', chunk => { size += chunk.length; if (size > maximum) stop(); else parts.push(chunk); });
     child.stderr.on('data', chunk => { diagnostics += chunk.length; if (diagnostics > 8192) stop(); });
-    child.once('close', code => { clearTimeout(timer); signal?.removeEventListener('abort', stop); if (failure || code !== 0 || size !== expected) reject(failure ?? invalid()); else resolve(Buffer.concat(parts, size)); });
-    if (signal?.aborted) stop(); else child.stdin.end(bytes);
+    child.once('close', code => { clearTimeout(timer); signal?.removeEventListener('abort', stop); if (failure || code !== 0 || !size || size % (channels * 2)) reject(failure ?? invalid('audio_decode')); else resolve(Buffer.concat(parts, size)); });
+    child.stdin.end(); if (signal?.aborted) stop();
   });
-  const header = Buffer.alloc(44); header.write('RIFF'); header.writeUInt32LE(36 + pcm.length, 4); header.write('WAVEfmt ', 8); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(channels, 22); header.writeUInt32LE(48000, 24); header.writeUInt32LE(48000 * channels * 2, 28); header.writeUInt16LE(channels * 2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(pcm.length, 40);
-  return Buffer.concat([header, pcm]);
+  const milliseconds = Math.min(6000, Math.max(8, Math.round(duration * 1000), Math.ceil(pcm.length / (channels * 2 * 48))));
+  const aligned = Buffer.alloc(milliseconds * 48 * channels * 2); pcm.copy(aligned);
+  const header = Buffer.alloc(44); header.write('RIFF'); header.writeUInt32LE(36 + aligned.length, 4); header.write('WAVEfmt ', 8); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(channels, 22); header.writeUInt32LE(48000, 24); header.writeUInt32LE(48000 * channels * 2, 28); header.writeUInt16LE(channels * 2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(aligned.length, 40);
+  return {sound:Buffer.concat([header, aligned]), duration:milliseconds / 1000};
+  } finally { await rm(directory, {recursive:true, force:true}); }
 }

@@ -1,11 +1,11 @@
 import {validateIncomingSticker,extendIncomingVisual} from './media.mjs';
-import {decodeIncomingOpus,incomingOpusDuration} from './incoming-media.mjs';
+import {decodeIncomingAudio} from './incoming-media.mjs';
 
 const HELP = 'Envoie-moi un sticker pour le modifier : 5 liens actifs maximum, valables 10 min. Pour recevoir un sticker du site, envoie le message « Sticker ZAP … » prérempli.';
 /** Reserve synchronously, then process a bounded queue one sticker at a time.
  * Neither sender JIDs nor message contents are written to logs or raw metadata. */
 export class ReverseBridge {
-  constructor({store, transport, siteUrl, decodeSound = decodeIncomingOpus, clock = Date.now, onEvent = () => {}}) {
+  constructor({store, transport, siteUrl, decodeSound = decodeIncomingAudio, clock = Date.now, onEvent = () => {}}) {
     Object.assign(this, {store, transport, siteUrl, decodeSound, clock, onEvent});
     this.queue = []; this.running = null; this.current = null; this.stopping = false;
   }
@@ -44,9 +44,11 @@ export class ReverseBridge {
           stage = 'download_audio';
           const encoded = await this.transport.downloadIncoming({message: event.audio, type: 'audio', maximum: 512 * 1024, signal: controller.signal});
           stage = 'decode_audio';
-          visual = extendIncomingVisual(visual, Math.min(6, Math.max(media.duration, incomingOpusDuration(encoded))));
+          const decoded = await this.decodeSound({bytes: encoded, duration: media.duration, signal: controller.signal});
+          stage = 'align_audio';
+          visual = extendIncomingVisual(visual, decoded.duration);
           media = validateIncomingSticker(visual);
-          sound = await this.decodeSound({bytes: encoded, duration: media.duration, signal: controller.signal});
+          sound = decoded.sound;
           validateIncomingSticker(visual, sound);
         }
         if (controller.signal.aborted || this.stopping || job.expiresAt <= this.clock()) throw new Error();
@@ -57,7 +59,7 @@ export class ReverseBridge {
         await this.transport.sendText({recipient: event.recipient, text: `Modifie ton sticker :\n${link}\nLien temporaire (10 min max).`});
         this.report('ready');
       } catch (error) {
-        const reason = ['structure','dimensions','frame','duration','metadata','chunk','frames','metadata_flags','alpha_flag','metadata_key','metadata_size','metadata_path','http_403','http_404','http_410','http_429','http','timeout','response_size','integrity','transport'].includes(error?.reason) ? '_' + error.reason : '';
+        const reason = ['structure','dimensions','frame','duration','metadata','chunk','frames','metadata_flags','alpha_flag','metadata_key','metadata_size','metadata_path','http_403','http_404','http_410','http_429','http','timeout','response_size','integrity','transport','audio_size','audio_duration','audio_decode'].includes(error?.reason) ? '_' + error.reason : '';
         this.report('failed_' + stage + reason);
         // A link may already have been handed to WhatsApp. Keep a ready job
         // readable until expiry; failed downloads release their reservation.
