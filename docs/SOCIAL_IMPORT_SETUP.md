@@ -3,7 +3,9 @@
 Le champ de lien utilise FxTwitter dans le navigateur pour X. Les publications
 Instagram et TikTok passent par le serveur web Zapstick puis une instance Cobalt
 privée. Si Cobalt échoue sur Instagram ou ne renvoie que la couverture d'un Reel,
-Zapstick utilise yt-dlp avec curl-cffi pour récupérer la vidéo publique.
+Zapstick utilise yt-dlp avec curl-cffi pour récupérer les médias publics.
+Une extension locale expose également les vraies photos et les carrousels mixtes ;
+elle ne transforme jamais la couverture d'une vidéo en photo de remplacement.
 Aucun compte ni cookie personnel n'est utilisé. Les publications privées,
 les restrictions géographiques et certains blocages anti-bot restent indisponibles ;
 l'interface propose alors l'import du fichier depuis l'appareil.
@@ -46,7 +48,8 @@ Zapstick, uniquement à l'exécution. Sans clé, l'isolement réseau reste oblig
 - Le serveur demande à Cobalt `alwaysProxy:true`, `videoQuality:"480"`,
   `downloadMode:"auto"`, `localProcessing:"disabled"` et `disableMetadata:true`.
 - Les tunnels et vignettes doivent appartenir à l'origine Cobalt configurée et au
-  chemin exact `/tunnel`. Le secours Instagram autorise uniquement les MP4 HTTPS
+  chemin exact `/tunnel`. Le secours Instagram autorise uniquement les MP4, JPEG,
+  PNG et WebP HTTPS
   de `cdninstagram.com` et `fbcdn.net`, sans redirection. La clé privée Cobalt
   n'est jamais transmise à ces hébergeurs.
 - Le navigateur reçoit uniquement des chemins locaux temporaires
@@ -61,6 +64,9 @@ Zapstick, uniquement à l'exécution. Sans clé, l'isolement réseau reste oblig
   secondes. Il reste soumis aux quotas ci-dessus. En développement local, yt-dlp
   installé dans le `PATH` est utilisé ; `INSTAGRAM_DOWNLOADER` peut aussi désigner
   son chemin absolu. Le secours Instagram ne nécessite pas de Cobalt local.
+- Seule l'extension du dépôt `services/instagram-import/plugins` est chargée ;
+  les répertoires d'extensions personnels de yt-dlp sont désactivés. Les photos
+  sont reconnues par leur type Instagram, jamais par une simple vignette vidéo.
 
 Les journaux ne contiennent ni URL source, ni ticket, ni média. Redémarrer le site
 invalide les tickets en mémoire ; recoller le lien suffit pour préparer un nouvel

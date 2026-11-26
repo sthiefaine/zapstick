@@ -7,6 +7,8 @@ const build=resolve('.next-coolify');
 const standalone=resolve(build,'standalone');
 await access(resolve(standalone,'server.js'));
 for(const name of ['runtime-guard.mjs','runtime-guard-server.mjs'])await cp(resolve('scripts',name),resolve(standalone,name));
+await mkdir(resolve(standalone,'services/instagram-import'),{recursive:true});
+await cp(resolve('services/instagram-import/plugins'),resolve(standalone,'services/instagram-import/plugins'),{recursive:true});
 await mkdir(resolve(standalone,'.next-coolify'),{recursive:true});
 await cp(resolve('public'),resolve(standalone,'public'),{recursive:true,dereference:true});
 await cp(resolve(build,'static'),resolve(standalone,'.next-coolify','static'),{recursive:true,dereference:true});

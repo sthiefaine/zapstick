@@ -17,6 +17,7 @@ coverage
 .dev.vars*
 *.pem
 *.tsbuildinfo
+**/__pycache__
 npm-debug.log*
 .DS_Store
 .agents

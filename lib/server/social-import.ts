@@ -1,5 +1,5 @@
 import {randomBytes} from 'node:crypto';
-import {InstagramImportError,instagramMediaUrl,resolveInstagramVideo} from './instagram-import';
+import {InstagramImportError,instagramMediaUrl,resolveInstagramMedia} from './instagram-import';
 
 /** Only public Instagram/TikTok posts are resolved by the private Cobalt service. */
 export const SOCIAL_IMPORT_LIMITS=Object.freeze({requestBytes:2048,jsonBytes:64*1024,mediaBytes:20*1024*1024,timeoutMs:25_000,ticketMs:90_000,concurrent:2,tickets:128,items:20});
@@ -116,7 +116,7 @@ export function createSocialImportHandler({fetcher=fetch,env=()=>process.env,sta
         try{resolved=await resolveCobalt(source,cobaltConfig(environment),fetcher,signal);}
         catch(error){
           if(source.service!=='instagram'||signal.aborted||error instanceof ImportError&&['busy','too_large','timeout'].includes(error.code))throw error;
-          resolved=await resolveInstagramVideo(source.url,signal,environment.INSTAGRAM_DOWNLOADER);
+          resolved=await resolveInstagramMedia(source.url,signal,environment.INSTAGRAM_DOWNLOADER);
         }
         const pending:{id:string;record:Ticket;mime:string;thumbnail?:string}[]=[];
         const media=resolved.map((item)=>{
