@@ -55,8 +55,9 @@ export class ReverseBridge {
         stage = 'reply';
         await this.transport.sendText({recipient: event.recipient, text: `Modifie ton sticker :\n${link}\nLien temporaire (10 min max).`});
         this.report('ready');
-      } catch {
-        this.report('failed_' + stage);
+      } catch (error) {
+        const reason = stage === 'validate_visual' && ['structure','dimensions','frame','duration','metadata','chunk','frames','metadata_flags','alpha_flag'].includes(error?.reason) ? '_' + error.reason : '';
+        this.report('failed_' + stage + reason);
         // A link may already have been handed to WhatsApp. Keep a ready job
         // readable until expiry; failed downloads release their reservation.
         this.store.failReverse(job.id);

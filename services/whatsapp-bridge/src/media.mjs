@@ -24,7 +24,7 @@ export class MediaValidationError extends Error {
   }
 }
 
-const invalid = () => { throw new MediaValidationError(); };
+const invalid = (reason = 'structure') => { const error = new MediaValidationError(); error.reason = reason; throw error; };
 const tooLarge = () => { throw new MediaValidationError('media_too_large', 'Sticker media exceeds its limit.', 413); };
 const tag = (buffer, offset) => buffer.toString('ascii', offset, offset + 4);
 const u24 = (buffer, offset) => buffer.readUIntLE(offset, 3);
@@ -89,7 +89,7 @@ function frameImage(buffer, start, end, width, height) {
   return !!alpha || image.alpha;
 }
 
-function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes) {
+function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes, incoming = false) {
   riff(buffer, 'WEBP', MEDIA_LIMITS.animatedBytes);
   let extension, image, alpha, anim = false, frames = 0, durationMs = 0;
   let hasAlpha = false, seenImage = false, trailingMetadata = false;
@@ -100,7 +100,7 @@ function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes) {
       const flags = buffer[chunk.start];
       if ((flags & 0xc1) || buffer[chunk.start + 1] || buffer[chunk.start + 2] || buffer[chunk.start + 3]) invalid();
       extension = {flags, width: u24(buffer, chunk.start + 4) + 1, height: u24(buffer, chunk.start + 7) + 1};
-      if (extension.width !== 512 || extension.height !== 512) invalid();
+      if (extension.width !== 512 || extension.height !== 512) invalid('dimensions');
     } else if (chunk.name === 'ANIM') {
       if (!extension || !(extension.flags & 2) || anim || seenImage || trailingMetadata || chunk.size !== 6) invalid();
       anim = true;
@@ -109,9 +109,9 @@ function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes) {
       const at = chunk.start, x = u24(buffer, at) * 2, y = u24(buffer, at + 3) * 2;
       const width = u24(buffer, at + 6) + 1, height = u24(buffer, at + 9) + 1;
       const delay = u24(buffer, at + 12);
-      if (x + width > 512 || y + height > 512 || (buffer[at + 15] & 0xfc) || delay < 8) invalid();
-      durationMs += delay;
-      if (++frames > MEDIA_LIMITS.frames || durationMs > MEDIA_LIMITS.seconds * 1000) invalid();
+      if (x + width > 512 || y + height > 512 || (buffer[at + 15] & 0xfc) || !incoming && delay < 8) invalid('frame');
+      durationMs += incoming ? delay || 100 : delay;
+      if (++frames > MEDIA_LIMITS.frames || durationMs > MEDIA_LIMITS.seconds * 1000) invalid('duration');
       hasAlpha = frameImage(buffer, at + 16, chunk.end, width, height) || hasAlpha;
       seenImage = true;
     } else if (chunk.name === 'ALPH') {
@@ -120,24 +120,24 @@ function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes) {
     } else if (chunk.name === 'VP8 ' || chunk.name === 'VP8L') {
       if (image || anim || extension?.flags & 2 || trailingMetadata || (alpha && chunk.name !== 'VP8 ')) invalid();
       image = imageHeader(buffer, chunk);
-      if (image.width !== 512 || image.height !== 512) invalid();
+      if (image.width !== 512 || image.height !== 512) invalid('dimensions');
       if (alpha) alphaHeader(buffer, alpha, 512, 512);
       hasAlpha = !!alpha || image.alpha;
       seenImage = true;
     } else if (['ICCP', 'EXIF', 'XMP '].includes(chunk.name)) {
       if (!extension || !chunk.size || metadata.has(chunk.name) || (chunk.name === 'ICCP' && (seenImage || anim))
-        || (chunk.name !== 'ICCP' && !seenImage)) invalid();
+        || (!incoming && chunk.name !== 'ICCP' && !seenImage)) invalid('metadata');
       metadata.add(chunk.name);
-      if (chunk.name !== 'ICCP') trailingMetadata = true;
-    } else invalid();
+      if (!incoming && chunk.name !== 'ICCP') trailingMetadata = true;
+    } else if (!incoming) invalid('chunk');
   }
-  if (!seenImage || (anim && frames < 2) || (!anim && !image) || (!!(extension?.flags & 2) !== anim)) invalid();
+  if (!seenImage || (anim && frames < (incoming ? 1 : 2)) || (!anim && !image) || (!!(extension?.flags & 2) !== anim)) invalid('frames');
   if (extension) {
     for (const [name, flag] of [['ICCP', 0x20], ['EXIF', 8], ['XMP ', 4]]) {
-      if (!!(extension.flags & flag) !== metadata.has(name)) invalid();
+      if (!!(extension.flags & flag) !== metadata.has(name)) invalid('metadata_flags');
     }
     // Zapstick's muxer conservatively advertises alpha even for opaque frames.
-    if (hasAlpha && !(extension.flags & 0x10)) invalid();
+    if (hasAlpha && !(extension.flags & 0x10)) invalid('alpha_flag');
   }
   if (!anim && buffer.length > staticBytes) tooLarge();
   return {kind: anim ? 'animated' : 'static', duration: durationMs / 1000};
@@ -314,7 +314,7 @@ export async function encodeOpus({inputPath, outputPath, signal} = {}) {
 
 /** Incoming native stickers may use the full 500 KiB visual budget. */
 export function validateIncomingSticker(visual, sound) {
-  const result = webp(visual, MEDIA_LIMITS.animatedBytes);
+  const result = webp(visual, MEDIA_LIMITS.animatedBytes, true);
   if (sound !== undefined) {
     if (result.kind !== 'animated') invalid();
     const audio = wav(sound);
