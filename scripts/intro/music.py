@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Zapstick V4: original, rhythm-led score and synthetic film sound design.
+"""Zapstick V5: original, rhythm-led score and synthetic film sound design.
 
-python3 scripts/intro/music.py --preview  # first 11.2s, /tmp/zapstick-intro-v4-preview.wav
-python3 scripts/intro/music.py            # /tmp/zapstick-intro-v4-music.wav, exactly30s
+python3 scripts/intro/music.py --preview  # first 11.2s, /tmp/zapstick-intro-v5-preview.wav
+python3 scripts/intro/music.py            # /tmp/zapstick-intro-v5-music.wav, exactly 35s
 python3 scripts/intro/music.py /absolute/output.wav
 
 Stdlib synthesis + installed ffmpeg. No new downloads, sampled music or generated voices.
-150 BPM; 30 seconds; 23 varied shots with immediate cut impacts.
+150 BPM; 35 seconds; 26 varied shots with immediate cut impacts.
 Three short audio demos reuse the credited home-page media.
 Original syncopated bass, short chord stabs, dry drums,
 whooshes, typing and plops. Measured two-pass target -16LUFS, -1.8dBTP ceiling.
@@ -167,11 +167,11 @@ def compose(duration: int) -> tuple[array.array, array.array]:
         if cut:
             whoosh(max(0, cut - .09), .15, .045 if major else .027, -.35 if index % 2 else .35)
         hit(cut + .025, .16 if major else .045, 'impact' if major else 'plop')
-    for start in (1.1, 2.25, 6.25, 11.75, 12.7, 14.0, 15.65, 22.85, 23.95):
+    for start in (1.1, 2.25, 6.25, 11.75, 12.7, 14.0, 15.65, 22.85, 23.95, 26.85, 28.35):
         for j in range(3):
             hit(start + j * .045, .027, 'type', (j - 1) * .15)
     # The signature lands decisively, with a short resolved final chord.
-    for start in (26.4, 28.0, 29.2):
+    for start in (31.4, 33.0, 34.2):
         hit(start + .02, .16, 'impact')
         for i, pitch in enumerate((62, 66, 69, 74)):
             note(start + .02 + i * .025, pitch, .38, .035, (i - 1.5) * .12, 'stab')
@@ -234,12 +234,12 @@ def main() -> None:
     preview = '--preview' in sys.argv
     duration = 11.2 if preview else DURATION
     paths = [arg for arg in sys.argv[1:] if arg != '--preview']
-    output = Path(paths[0] if paths else f'/tmp/zapstick-intro-v4-{"preview" if preview else "music"}.wav')
+    output = Path(paths[0] if paths else f'/tmp/zapstick-intro-v5-{"preview" if preview else "music"}.wav')
     output.parent.mkdir(parents=True, exist_ok=True)
     if not shutil.which('ffmpeg'):
         raise SystemExit('ffmpeg is required for measured two-pass loudness normalization.')
-    print(f'Rendering Zapstick V4: {duration}s,150 BPM, 23 fast shots, energetic original score + synthetic gestures.', flush=True)
-    with tempfile.TemporaryDirectory(prefix='zapstick-score-v4-') as temporary:
+    print(f'Rendering Zapstick V5: {duration}s,150 BPM, 26 fast shots, energetic original score + synthetic gestures.', flush=True)
+    with tempfile.TemporaryDirectory(prefix='zapstick-score-v5-') as temporary:
         raw = Path(temporary) / 'score-raw.wav'
         left, right = compose(duration)
         peak = max(max(map(abs, left)), max(map(abs, right)))

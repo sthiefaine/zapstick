@@ -1,6 +1,6 @@
 {
-  "version": 4,
-  "duration": 30,
+  "version": 5,
+  "duration": 35,
   "fps": 30,
   "bpm": 150,
   "locales": [
@@ -14,8 +14,8 @@
     "ru"
   ],
   "style": {
-    "format": "Fast full-frame mobile motion: 23 varied shots, immediate shaped display type, no explanatory body text.",
-    "palette": "Pale green, white and black, with sky-blue audio 1, coral audio 2 and yellow accents.",
+    "format": "Fast full-frame mobile motion: 26 varied shots, direct WhatsApp delivery, immediate shaped display type, no explanatory body text.",
+    "palette": "Pale green, white and black, with sky-blue audio 1, coral audio 2 and a gold WhatsApp CTA.",
     "typography": "Lilita One display, Rubik Black Cyrillic, heavy Japanese and Simplified Chinese; local OFL subsets.",
     "sound": "150 BPM original percussive score. Real source waveforms and audible original → added audio, with music ducked during the demonstration."
   },
@@ -126,14 +126,29 @@
       "end": 26.4
     },
     {
-      "id": "create",
+      "id": "whatsapp-cta",
       "start": 26.4,
       "end": 28
     },
     {
-      "id": "signature",
+      "id": "whatsapp-send",
       "start": 28,
-      "end": 30
+      "end": 29.4
+    },
+    {
+      "id": "whatsapp-received",
+      "start": 29.4,
+      "end": 31.4
+    },
+    {
+      "id": "create",
+      "start": 31.4,
+      "end": 33
+    },
+    {
+      "id": "signature",
+      "start": 33,
+      "end": 35
     }
   ],
   "audio": {
@@ -162,6 +177,20 @@
         "media": "side-eye-dog.mp4",
         "start": 0.7,
         "duration": 3.2
+      },
+      {
+        "id": "whatsapp-original",
+        "at": 29.4,
+        "media": "working-cat.mp4",
+        "start": 0,
+        "duration": 0.6
+      },
+      {
+        "id": "whatsapp-added",
+        "at": 30,
+        "media": "side-eye-dog.mp4",
+        "start": 0.7,
+        "duration": 1.2
       }
     ]
   },
@@ -524,45 +553,89 @@
       "text": {
         "fr": {
           "title": "Enregistre.",
-          "body": "Télécharge le GIF ou le MP4 avec audio."
+          "body": "Enregistre le résultat sur ton appareil."
         },
         "en": {
           "title": "Save it.",
-          "body": "Download a GIF or an MP4 with audio."
+          "body": "Save the result on your device."
         },
         "pt-BR": {
           "title": "Salve.",
-          "body": "Baixe o GIF ou o MP4 com áudio."
+          "body": "Salve o resultado no seu aparelho."
         },
         "es": {
           "title": "Guárdalo.",
-          "body": "Descarga el GIF o el MP4 con audio."
+          "body": "Guarda el resultado en tu dispositivo."
         },
         "de": {
           "title": "Speichern.",
-          "body": "Lade ein GIF oder ein MP4 mit Ton herunter."
+          "body": "Speichere das Ergebnis auf deinem Gerät."
         },
         "zh-CN": {
           "title": "保存。",
-          "body": "下载 GIF 或带声音的 MP4。"
+          "body": "将结果保存到设备。"
         },
         "ja": {
           "title": "保存。",
-          "body": "GIFか音声付きMP4をダウンロード。"
+          "body": "できあがりを端末に保存。"
         },
         "ru": {
           "title": "Сохрани.",
-          "body": "Скачай GIF или MP4 со звуком."
+          "body": "Сохрани результат на устройстве."
+        }
+      }
+    },
+    {
+      "id": "whatsapp",
+      "start": 26.4,
+      "end": 31.4,
+      "cuts": [
+        26.4,
+        28,
+        29.4
+      ],
+      "text": {
+        "fr": {
+          "title": "Direct sur WhatsApp.",
+          "body": "Touche Recevoir sur WhatsApp, puis Envoyer : ton sticker arrive dans la conversation."
+        },
+        "en": {
+          "title": "Straight to WhatsApp.",
+          "body": "Tap Receive on WhatsApp, then Send: your sticker arrives in the chat."
+        },
+        "pt-BR": {
+          "title": "Direto no WhatsApp.",
+          "body": "Toque em Receber no WhatsApp e depois em Enviar: sua figurinha chega na conversa."
+        },
+        "es": {
+          "title": "Directo a WhatsApp.",
+          "body": "Toca Recibir en WhatsApp y luego Enviar: tu sticker llega al chat."
+        },
+        "de": {
+          "title": "Direkt zu WhatsApp.",
+          "body": "Tippe auf Auf WhatsApp erhalten, dann auf Senden: Dein Sticker kommt im Chat an."
+        },
+        "zh-CN": {
+          "title": "直接发送到 WhatsApp。",
+          "body": "点击在 WhatsApp 接收，再点击发送：贴纸就会出现在聊天中。"
+        },
+        "ja": {
+          "title": "そのまま WhatsAppへ。",
+          "body": "WhatsAppで受け取る、送信の順にタップ。チャットにスタンプが届く。"
+        },
+        "ru": {
+          "title": "Сразу в WhatsApp.",
+          "body": "Нажми Получить в WhatsApp, затем Отправить: стикер появится в чате."
         }
       }
     },
     {
       "id": "outro",
-      "start": 26.4,
-      "end": 30,
+      "start": 31.4,
+      "end": 35,
       "cuts": [
-        26.4,
-        28
+        31.4,
+        33
       ],
       "text": {
         "fr": {

@@ -14,7 +14,7 @@ from fontTools import subset
 
 ROOT = Path(__file__).resolve().parent
 COPY = json.loads((ROOT / 'copy.json').read_text())
-COMMON = 'zapstickXx.com/…audio.mp3GIFMP4+0123456789.,:s'
+COMMON = 'zapstickXx.com/…audio.mp3GIFMP4+0123456789.,:sSticker ZAP WhatsApp'
 FAMILIES = {
     'display': ('lilitaone', 'LilitaOne-Regular.ttf', ['fr', 'en', 'pt-BR', 'es', 'de']),
     'cyrillic': ('rubik', 'Rubik[wght].ttf', ['ru']),
@@ -51,7 +51,7 @@ for key, (directory, filename, locales) in FAMILIES.items():
     sub.subset(font)
     # Modified font names avoid retaining any upstream Reserved Font Names.
     family = f'Zapstick Film {key.title()}'
-    names = {1: family, 2: 'Regular', 3: family + '-V4', 4: family,
+    names = {1: family, 2: 'Regular', 3: family + '-V5', 4: family,
              6: family.replace(' ', ''), 16: family, 17: 'Regular'}
     for record in font['name'].names:
         if record.nameID in names:

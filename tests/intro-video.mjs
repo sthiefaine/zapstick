@@ -41,7 +41,7 @@ test('the film loads no MP4 or captions before a click and uses the matching loc
   assert.equal(html.includes('<track'),false);
   assert.ok(html.includes(`/videos/zapstick-intro-${film}.jpg`));
   assert.ok(html.includes('Lire le film de présentation de Zapstick'));
-  assert.ok(html.includes('30 s'));assert.equal(html.includes('2 min'),false);
+  assert.ok(html.includes('35 s'));assert.equal(html.includes('2 min'),false);
   assert.ok(html.includes('.jpg?v=4'));
   assert.equal((html.match(/Découvrir Zapstick/g)??[]).length,1);
  }
@@ -62,12 +62,12 @@ test('captions are available after play but stay off by default in every film la
  }finally{simulateStarted=false;booleanStates=0;}
 });
 
-test('eight localized caption tracks follow the 30-second cut and contain no fallback language',()=>{
+test('eight localized caption tracks follow the 35-second cut and contain no fallback language',()=>{
  const storyboard=JSON.parse(fs.readFileSync(path.join(root,'scripts/intro/storyboard.json'),'utf8'));
- assert.equal(storyboard.duration,30);assert.equal(storyboard.fps,30);assert.equal(storyboard.bpm,150);
+ assert.equal(storyboard.duration,35);assert.equal(storyboard.fps,30);assert.equal(storyboard.bpm,150);
  assert.deepEqual(storyboard.locales,['fr','en','pt-BR','es','de','zh-CN','ja','ru']);
- assert.equal(storyboard.scenes[0].id,'link');assert.equal(storyboard.shots.length,23);
- let end=0;for(const shot of storyboard.shots){assert.equal(shot.start,end);assert.ok(shot.end>shot.start);assert.ok(shot.end-shot.start<=2);end=shot.end;}assert.equal(end,30);
+ assert.equal(storyboard.scenes[0].id,'link');assert.equal(storyboard.shots.length,26);
+ let end=0;for(const shot of storyboard.shots){assert.equal(shot.start,end);assert.ok(shot.end>shot.start);assert.ok(shot.end-shot.start<=2);end=shot.end;}assert.equal(end,35);
  const seconds=value=>{const[h,m,s]=value.split(':').map(Number);return h*3600+m*60+s;};
  for(const locale of storyboard.locales){
   const content=fs.readFileSync(path.join(root,`public/videos/zapstick-intro-${locale.toLowerCase()}.vtt`),'utf8');
@@ -77,7 +77,7 @@ test('eight localized caption tracks follow the 30-second cut and contain no fal
    const[id,timing,...text]=block.split('\n'),scene=storyboard.scenes[index];const[from,to]=timing.split(' --> ').map(seconds);
    assert.equal(id,scene.id);assert.equal(from,end);assert.equal(from,scene.start);assert.equal(to,scene.end);assert.ok(to>from);
    assert.ok(text.includes(scene.text[locale].title));assert.ok(text.includes(scene.text[locale].body));end=to;
-  }assert.equal(end,30);
+  }assert.equal(end,35);
  }
 });
 test('the audible montage follows the chosen excerpt and continues across its punch-in cut',()=>{

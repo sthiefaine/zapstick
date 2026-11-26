@@ -1,8 +1,8 @@
-Zapstick — presentation films, V4
+Zapstick — presentation films, V5
 
 Eight localized editions: French, English, Brazilian Portuguese, Spanish,
 German, Simplified Chinese, Japanese and Russian.
-Duration: 30 seconds each. 23 varied shots. No voice-over.
+Duration: 35 seconds each. 26 varied shots. No voice-over.
 Video: 1280 x 720, 30 fps, H.264 BT.709 limited-range yuv420p, AAC stereo.
 
 Graphics, localized storyboard and motion design created for Zapstick.
@@ -23,12 +23,12 @@ scripts/intro/fonts/ in the repository. Fonts are not fetched by visitors.
 Original procedural music: 150 BPM, dry drums, syncopated bass, short chord hits,
 and transition effects. No sampled music or generated voice is used.
 
-Three audible demonstrations reuse two credited home-page audio sources:
-- /memes/sound/working-cat.mp4, at 9.20-10.80s and 16.40-17.60s in the film.
+Five audible demonstrations reuse two credited home-page audio sources:
+- /memes/sound/working-cat.mp4, at 9.20-10.80s, 16.40-17.60s and 29.40-30.00s in the film.
   IBM M2 sound, Anonimski, 17 May 2014, CC0 1.0.
   https://commons.wikimedia.org/wiki/File:IBM_M2_sound.ogg
   https://creativecommons.org/publicdomain/zero/1.0/
-- /memes/sound/side-eye-dog.mp4, source excerpt 0.70-3.90s, at 17.60-20.80s.
+- /memes/sound/side-eye-dog.mp4, source excerpt 0.70-3.90s, at 17.60-20.80s and 30.00-31.20s (shorter excerpt).
   Dun dun duuun! (Shock Horror (A)), copyc4t, 15 February 2012, CC BY 4.0.
   https://commons.wikimedia.org/wiki/File:Dun_dun_duuun!.ogg
   https://freesound.org/people/copyc4t/sounds/146434/

@@ -17,10 +17,16 @@
     "listen": "Écoute.",
     "done": "Ton sticker.\nAvec du son.",
     "download": "Enregistre.",
-    "gif": "GIF animé",
-    "sound": "MP4 + son",
+    "gif": "Sticker animé",
+    "sound": "Avec le son",
     "create": "À toi de jouer.",
-    "audioOn": "Son activé"
+    "audioOn": "Son activé",
+    "direct": "Direct sur\nWhatsApp.",
+    "whatsapp": "Recevoir sur WhatsApp",
+    "send": "Envoyer.",
+    "received": "Reçu !",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   },
   "en": {
     "hook": "An X link.\nYour sticker.",
@@ -40,10 +46,16 @@
     "listen": "Listen.",
     "done": "Your sticker.\nWith sound.",
     "download": "Save it.",
-    "gif": "Animated GIF",
-    "sound": "MP4 + audio",
+    "gif": "Animated sticker",
+    "sound": "With sound",
     "create": "Your turn.",
-    "audioOn": "Sound on"
+    "audioOn": "Sound on",
+    "direct": "Straight to\nWhatsApp.",
+    "whatsapp": "Receive on WhatsApp",
+    "send": "Send.",
+    "received": "Delivered!",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   },
   "pt-BR": {
     "hook": "Um link do X.\nSua figurinha.",
@@ -63,10 +75,16 @@
     "listen": "Ouça.",
     "done": "Sua figurinha.\nCom som.",
     "download": "Salve.",
-    "gif": "GIF animado",
-    "sound": "MP4 + som",
+    "gif": "Figurinha animada",
+    "sound": "Com som",
     "create": "Agora é sua vez.",
-    "audioOn": "Som ligado"
+    "audioOn": "Som ligado",
+    "direct": "Direto no\nWhatsApp.",
+    "whatsapp": "Receber no WhatsApp",
+    "send": "Enviar.",
+    "received": "Recebido!",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   },
   "es": {
     "hook": "Un enlace de X.\nTu sticker.",
@@ -86,10 +104,16 @@
     "listen": "Escucha.",
     "done": "Tu sticker.\nCon sonido.",
     "download": "Guárdalo.",
-    "gif": "GIF animado",
-    "sound": "MP4 + sonido",
+    "gif": "Sticker animado",
+    "sound": "Con sonido",
     "create": "Te toca.",
-    "audioOn": "Sonido activado"
+    "audioOn": "Sonido activado",
+    "direct": "Directo a\nWhatsApp.",
+    "whatsapp": "Recibir en WhatsApp",
+    "send": "Enviar.",
+    "received": "¡Recibido!",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   },
   "de": {
     "hook": "Ein X-Link.\nDein Sticker.",
@@ -109,10 +133,16 @@
     "listen": "Hör zu.",
     "done": "Dein Sticker.\nMit Sound.",
     "download": "Speichern.",
-    "gif": "Animiertes GIF",
-    "sound": "MP4 + Ton",
+    "gif": "Animierter Sticker",
+    "sound": "Mit Sound",
     "create": "Du bist dran.",
-    "audioOn": "Ton an"
+    "audioOn": "Ton an",
+    "direct": "Direkt zu\nWhatsApp.",
+    "whatsapp": "Auf WhatsApp erhalten",
+    "send": "Senden.",
+    "received": "Angekommen!",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   },
   "zh-CN": {
     "hook": "一个 X 链接。\n你的贴纸。",
@@ -132,10 +162,16 @@
     "listen": "听听看。",
     "done": "你的贴纸。\n有声更好玩。",
     "download": "保存。",
-    "gif": "动态 GIF",
-    "sound": "MP4 + 声音",
+    "gif": "动态贴纸",
+    "sound": "带声音",
     "create": "轮到你了。",
-    "audioOn": "声音已开启"
+    "audioOn": "声音已开启",
+    "direct": "直接发送到\nWhatsApp。",
+    "whatsapp": "在 WhatsApp 接收",
+    "send": "发送。",
+    "received": "收到了！",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   },
   "ja": {
     "hook": "Xのリンク。\n自分だけのスタンプ。",
@@ -155,10 +191,16 @@
     "listen": "聴いてみて。",
     "done": "自分のスタンプ。\n音も一緒に。",
     "download": "保存。",
-    "gif": "アニメ GIF",
-    "sound": "MP4 + 音声",
+    "gif": "動くスタンプ",
+    "sound": "音も一緒に",
     "create": "次はあなたの番。",
-    "audioOn": "音声オン"
+    "audioOn": "音声オン",
+    "direct": "そのまま\nWhatsAppへ。",
+    "whatsapp": "WhatsAppで受け取る",
+    "send": "送信。",
+    "received": "届いた！",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   },
   "ru": {
     "hook": "Ссылка из X.\nТвой стикер.",
@@ -178,9 +220,15 @@
     "listen": "Послушай.",
     "done": "Твой стикер.\nСо звуком.",
     "download": "Сохрани.",
-    "gif": "Анимированный GIF",
-    "sound": "MP4 + звук",
+    "gif": "Анимированный стикер",
+    "sound": "Со звуком",
     "create": "Теперь твой ход.",
-    "audioOn": "Звук включён"
+    "audioOn": "Звук включён",
+    "direct": "Сразу в\nWhatsApp.",
+    "whatsapp": "Получить в WhatsApp",
+    "send": "Отправить.",
+    "received": "Доставлено!",
+    "message": "Sticker ZAP …",
+    "chat": "WhatsApp"
   }
 }

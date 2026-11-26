@@ -8,7 +8,7 @@
       "es",
       "de"
     ],
-    "characters": "+,-./0123456789:ABCDEFGHIKLMOPSTUWXYabcdefghijklmnopqrstuvwxyzÀÇÉáäçèéñóöü’…",
+    "characters": "!+,-./0123456789:ABCDEFGHIKLMOPRSTUWXYZabcdefghijklmnopqrstuvwxyz¡ÀÇÉáäçèéñóöü’…",
     "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/lilitaone/LilitaOne-Regular.ttf"
   },
   "cyrillic": {
@@ -16,7 +16,7 @@
     "locales": [
       "ru"
     ],
-    "characters": "+,./0123456789:FGIMPXacdikmopstuxzАВГДЗИЛМОПСТФабвгдежзийклмнопрстуфхчшыьюё…",
+    "characters": "!+,./0123456789:AFGIMPSWXZacdehikmoprstuxzАВГДЗИЛМОПСТФабвгдежзийклмнопрстуфхчшыьюё…",
     "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/rubik/Rubik%5Bwght%5D.ttf"
   },
   "japanese": {
@@ -24,7 +24,7 @@
     "locales": [
       "ja"
     ],
-    "characters": "+,./0123456789:FGIMPXacdikmopstuxz…。あいきけすそただてなにのはまみもりをァアイオクスタトニフプベマメリルンー一了付使保元再出分加動声好存完次生番瞬緒聴自読貼込追部間音順",
+    "characters": "+,./0123456789:AFGIMPSWXZacdehikmoprstuxz…。あいきくけすそただてでなにのはへまみもりるをァイオクスタトフプベマリルンー一了付使保信元再出分加動取受声好存完届次生番瞬緒聴自読貼込追送部間音順！",
     "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf"
   },
   "chinese": {
@@ -32,7 +32,7 @@
     "locales": [
       "zh-CN"
     ],
-    "characters": "+,./0123456789:FGIMPXacdikmopstuxz…。一上下个了件你依保克入到加动原听启声好存完导已开彩循态成择接播放文更有来次段片玩环留的看粘精纸贴起轮选链音频风麦",
+    "characters": "+,./0123456789:AFGIMPSWXZacdehikmoprstuxz…。一上下个了件你依保克入到加动原发听启在声好存完导已带开彩循态成择接播收放文更有来次段片玩环留的直看粘精纸贴起轮送选链音频风麦！",
     "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
   }
 }

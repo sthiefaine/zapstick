@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Zapstick V4: 30 seconds, 23 fast shots, eight languages, shaped local type. */
+/** Zapstick V5: 35 seconds, 26 fast shots, eight languages, shaped local type. */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -9,22 +9,22 @@ import {once} from 'node:events';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 // Isolate font discovery from machine-specific defaults. The bundled subsets
 // must be used, rather than silently falling back to a system sans face.
-const FONT_CONFIG=path.join(ROOT,'outputs/intro-v4/fonts.conf');
+const FONT_CONFIG=path.join(ROOT,'outputs/intro-v5/fonts.conf');
 await fs.mkdir(path.dirname(FONT_CONFIG),{recursive:true});
-await fs.writeFile(FONT_CONFIG,`<?xml version="1.0"?><fontconfig><dir>${path.join(ROOT,'scripts/intro/fonts')}</dir><cachedir>${path.join(ROOT,'outputs/intro-v4/font-cache')}</cachedir></fontconfig>`);
+await fs.writeFile(FONT_CONFIG,`<?xml version="1.0"?><fontconfig><dir>${path.join(ROOT,'scripts/intro/fonts')}</dir><cachedir>${path.join(ROOT,'outputs/intro-v5/font-cache')}</cachedir></fontconfig>`);
 process.env.FONTCONFIG_FILE=FONT_CONFIG;
 const {default:sharp}=await import('sharp');
 const args=process.argv.slice(2),option=(name,fallback)=>{const i=args.indexOf(name);return i<0?fallback:args[i+1];};
 const story=JSON.parse(await fs.readFile(new URL('./storyboard.json',import.meta.url),'utf8'));
 const copy=JSON.parse(await fs.readFile(new URL('./copy.json',import.meta.url),'utf8'));
-if(story.duration!==30||story.shots[0].start!==0||story.shots.at(-1).end!==30||story.shots.some((s,i)=>s.end<=s.start||(i&&s.start!==story.shots[i-1].end)))throw new Error('The shot list must cover exactly 30 seconds.');
+if(story.duration!==35||story.shots[0].start!==0||story.shots.at(-1).end!==story.duration||story.shots.some((s,i)=>s.end<=s.start||(i&&s.start!==story.shots[i-1].end)))throw new Error('The shot list must cover exactly 35 seconds.');
 const requested=option('--locale','all'),locales=requested==='all'?story.locales:[requested];
 if(locales.some(locale=>!story.locales.includes(locale)))throw new Error('Unknown locale.');
 const FPS=Number(option('--fps','30')),FROM=Number(option('--from','0')),DURATION=Number(option('--duration',args.includes('--preview')?'11.2':String(story.duration-FROM)));
-if(!Number.isInteger(FPS)||FPS<12||FPS>60||!Number.isFinite(FROM)||!Number.isFinite(DURATION)||FROM<0||DURATION<=0||FROM+DURATION>30)throw new Error('Invalid render interval.');
-const OUT=path.join(ROOT,'public/videos'),QA=path.join(ROOT,'outputs/intro-v4'),AUDIO=option('--audio','/tmp/zapstick-intro-v4-music.wav');
+if(!Number.isInteger(FPS)||FPS<12||FPS>60||!Number.isFinite(FROM)||!Number.isFinite(DURATION)||FROM<0||DURATION<=0||FROM+DURATION>story.duration)throw new Error('Invalid render interval.');
+const OUT=path.join(ROOT,'public/videos'),QA=path.join(ROOT,'outputs/intro-v5'),AUDIO=option('--audio','/tmp/zapstick-intro-v5-music.wav');
 await fs.mkdir(OUT,{recursive:true});await fs.mkdir(QA,{recursive:true});
-const C={ink:'#181818',white:'#FAFAFA',green:'#BFE8B0',blue:'#B8DBFF',coral:'#FFB59D',yellow:'#FFE58F'};
+const C={ink:'#181818',white:'#FAFAFA',green:'#BFE8B0',blue:'#B8DBFF',coral:'#FFB59D',yellow:'#FFE58F',gold:'#F5C74E',whatsapp:'#25D366'};
 const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n)),ease=n=>1-(1-clamp(n))**3,mix=(a,b,u)=>a+(b-a)*u;
 const xml=t=>String(t).replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[s]));
 const rr=(x,y,w,h,r=28,fill=C.white,stroke=C.ink,sw=5)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
@@ -81,7 +81,7 @@ function listen(t,q,punch=false){
 }
 function draw(t,locale){
  currentLocale=locale;serial=0;const shot=story.shots.find(s=>t<s.end)??story.shots.at(-1),q=t-shot.start,u=clamp(q/(shot.end-shot.start)),d=copy[locale];
- const backgrounds={hook:C.green,paste:C.yellow,fetch:C.white,result:C.green,animated:C.ink,trim:C.green,loop:C.blue,'animated-result':C.coral,original:C.white,sources:C.green,'audio-import':C.white,excerpt:C.coral,sequence:C.white,'listen-first':C.blue,'listen-second':C.coral,'listen-punch':C.coral,done:C.green,download:C.yellow,saved:C.white,'memes-a':C.coral,'memes-b':C.blue,create:C.green,signature:C.ink};
+ const backgrounds={hook:C.green,paste:C.yellow,fetch:C.white,result:C.green,animated:C.ink,trim:C.green,loop:C.blue,'animated-result':C.coral,original:C.white,sources:C.green,'audio-import':C.white,excerpt:C.coral,sequence:C.white,'listen-first':C.blue,'listen-second':C.coral,'listen-punch':C.coral,done:C.green,download:C.yellow,saved:C.white,'memes-a':C.coral,'memes-b':C.blue,'whatsapp-cta':C.white,'whatsapp-send':C.blue,'whatsapp-received':C.green,create:C.green,signature:C.ink};
  const bg=backgrounds[shot.id],ink=bg===C.ink?C.white:C.ink;let out='';
  if(shot.id==='hook')out+=title(d.hook,q,{y:156,h:235})+rr(150,367,205,205,45,C.ink)+text('X',{x:252,y:469,w:120,h:145,color:C.white})+line(414,468,590,468,C.ink,15)+`<path d="M550 426l44 42-44 42" fill="none" stroke="${C.ink}" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>`+card('working-cat',t,{x:890,y:475,w:435,angle:-4+u*9});
  if(shot.id==='paste')out+=title(d.paste,q,{h:180})+rr(120,280,1040,180,40)+text('x.com/…',{y:369,w:865,h:112})+pointer(mix(1140,990,ease(u*2)),mix(560,410,ease(u*2)),clamp((q-.4)/.4));
@@ -109,11 +109,21 @@ function draw(t,locale){
  if(shot.id==='sequence')out+=title(d.sequence,q,{y:100,h:145})+filmRail(365,0,{animated:false,tall:true,shift:180*(1-ease(u*1.7))})+pointer(mix(840,980,ease(u*1.7)),mix(570,407,ease(u*1.7)),clamp((q-.7)/.3));
  if(shot.id==='listen-first'||shot.id==='listen-second'||shot.id==='listen-punch')out+=listen(t,q,shot.id==='listen-punch');
  if(shot.id==='done')out+=title(d.done,q,{y:165,h:240})+card('working-cat',t,{y:490,w:455,angle:Math.sin(q*8)*2})+speaker(1010,490,2)+circle(300,470,64,C.white)+check(300,470);
- if(shot.id==='download')out+=title(d.download,q,{y:100,h:160})+card('working-cat',t,{x:355,y:395,w:415,angle:-5})+rr(640,330,520,155,35,C.green)+text(d.sound,{x:900,y:404,w:460,h:75})+pointer(mix(1160,1030,ease(u*2)),mix(570,451,ease(u*2)),clamp((q-.4)/.4));
- if(shot.id==='saved')out+=card('working-cat',t,{x:350,y:345,w:440,angle:-4})+card('working-cat',t,{x:930,y:345,w:440,angle:4})+chip(d.gif,350,596,480,C.white)+chip(d.sound,930,596,480,C.green)+circle(640,345,67,C.green)+check(640,345);
+ if(shot.id==='download')out+=title(d.download,q,{y:100,h:160})+card('working-cat',t,{x:355,y:395,w:415,angle:-5})+rr(640,330,520,155,35,C.white)+text(d.download,{x:900,y:404,w:460,h:75})+pointer(mix(1160,1030,ease(u*2)),mix(570,451,ease(u*2)),clamp((q-.4)/.4));
+ if(shot.id==='saved')out+=card('working-cat',t,{x:640,y:345,w:625,angle:-2+u*3})+chip(d.sound,640,642,500,C.white)+circle(1060,345,67,C.green)+check(1060,345);
  if(shot.id==='memes-a'||shot.id==='memes-b'){
   const names=shot.id==='memes-a'?['dancing-cat','working-cat','happy-dog']:['jumping-cat','cooking-monkey','side-eye-dog'];
   names.forEach((name,i)=>{out+=card(name,t,{x:230+i*410,y:360+Math.sin(q*9+i)*70,w:i===1?455:360,angle:(i-1)*10+Math.sin(q*8+i)*3,scale:1+.05*Math.sin(q*7+i)});});
+ }
+ if(shot.id==='whatsapp-cta'){
+  out+=title(d.direct,q,{y:125,h:192})+card('working-cat',t,{x:345,y:455,w:420,angle:-3+Math.sin(q*9)})+rr(630,352,540,155,32,C.gold)+text(d.whatsapp,{x:900,y:430,w:470,h:95})+pointer(mix(1180,1070,ease(u*2)),mix(640,472,ease(u*2)),clamp((q-.65)/.45));
+ }
+ if(shot.id==='whatsapp-send'){
+  out+=title(d.send,q,{y:100,h:150})+rr(125,220,1030,410,34,C.white)+rr(125,220,1030,95,30,C.ink)+text(d.chat,{x:380,y:267,w:360,h:52,color:C.white})+rr(205,373,745,146,30,C.green)+text(d.message,{x:577,y:445,w:640,h:77})+circle(1050,445,63,C.whatsapp)+`<path d="M1023 414l64 31-64 31 12-31Z" fill="${C.ink}" stroke="${C.ink}" stroke-width="4" stroke-linejoin="round"/>`+pointer(mix(1180,1080,ease(u*1.8)),mix(650,473,ease(u*1.8)),clamp((q-.5)/.4));
+ }
+ if(shot.id==='whatsapp-received'){
+  const elapsed=q,second=elapsed>=.6,energy=second?level('side-eye-dog',.7+elapsed-.6):level('working-cat',elapsed);
+  out+=title(d.received,q,{y:90,h:145})+rr(170,192,940,485,32,C.white)+rr(170,192,940,79,28,C.ink)+text(d.chat,{x:395,y:230,w:350,h:45,color:C.white})+card('working-cat',q,{x:587,y:465,w:440,angle:0,scale:1+energy*.02})+circle(965,460,69,C.gold)+speaker(965,460,1+energy*.3)+check(1048,620,C.whatsapp);
  }
  if(shot.id==='create')out+=title(d.create,q,{y:210,h:225})+mark(640,500,260,Math.sin(q*9)*3)+loop(1000,525,58,q*180)+speaker(280,525,1.45);
  if(shot.id==='signature')out+=mark(220,360,205,-5+Math.sin(q*8)*2)+text('zapstick',{x:790,y:360,w:790,h:208,color:C.green,locale:'fr',scale:1+.025*Math.sin(q*12)*Math.exp(-q*2)})+loop(530,565,50,q*75,C.green)+speaker(780,565,1.25,C.green);
@@ -122,16 +132,16 @@ function draw(t,locale){
 await Promise.all(['working-cat','dancing-cat','side-eye-dog','happy-dog','cooking-monkey','jumping-cat'].map(loadGif));
 await Promise.all([loadSound('working-cat'),loadSound('side-eye-dog')]);
 const frame=(t,locale)=>sharp(Buffer.from(draw(t,locale))).jpeg({quality:94,chromaSubsampling:'4:4:4'}).toBuffer();
-async function poster(locale){await sharp(Buffer.from(draw(27.1,locale))).jpeg({quality:92}).toFile(path.join(OUT,`zapstick-intro-${locale.toLowerCase()}.jpg`));}
+async function poster(locale){await sharp(Buffer.from(draw(26.95,locale))).jpeg({quality:92}).toFile(path.join(OUT,`zapstick-intro-${locale.toLowerCase()}.jpg`));}
 if(args.includes('--stills')){
  for(const locale of locales){for(const shot of story.shots.filter(s=>s.start>=FROM&&s.start<FROM+DURATION))await sharp(Buffer.from(draw(Math.min(shot.end-.05,shot.start+.55),locale))).png().toFile(path.join(QA,`${locale.toLowerCase()}-${String(shot.start).padStart(4,'0')}.png`));if(!args.includes('--preview'))await poster(locale);}
- console.log(`V4 stills ready: ${QA}`);process.exit(0);
+ console.log(`V5 stills ready: ${QA}`);process.exit(0);
 }
 await fs.access(AUDIO);
 for(const locale of locales){
- const ranged=args.includes('--preview')||FROM!==0||DURATION!==30,file=path.join(ranged?QA:OUT,ranged?`preview-${locale.toLowerCase()}.mp4`:`zapstick-intro-${locale.toLowerCase()}.mp4`),total=Math.round(DURATION*FPS);
+ const ranged=args.includes('--preview')||FROM!==0||DURATION!==story.duration,file=path.join(ranged?QA:OUT,ranged?`preview-${locale.toLowerCase()}.mp4`:`zapstick-intro-${locale.toLowerCase()}.mp4`),total=Math.round(DURATION*FPS);
  console.log(`${locale}: rendering ${total} frames, ${DURATION}s`);
- const ff=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','image2pipe','-framerate',String(FPS),'-vcodec','mjpeg','-i','pipe:0','-ss',String(FROM),'-i',AUDIO,'-map','0:v:0','-map','1:a:0','-vf','scale=in_range=pc:out_range=tv:in_color_matrix=bt601:out_color_matrix=bt709,format=yuv420p','-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709','-t',String(DURATION),'-frames:v',String(total),'-c:v','libx264','-preset','medium','-b:v','800k','-maxrate','1100k','-bufsize','2200k','-c:a','aac','-b:a','96k','-ar','44100','-movflags','+faststart',file],{stdio:['pipe','ignore','pipe']});
+ const ff=spawn('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','image2pipe','-framerate',String(FPS),'-vcodec','mjpeg','-i','pipe:0','-ss',String(FROM),'-i',AUDIO,'-map','0:v:0','-map','1:a:0','-vf','scale=in_range=pc:out_range=tv:in_color_matrix=bt601:out_color_matrix=bt709,format=yuv420p','-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709','-t',String(DURATION),'-frames:v',String(total),'-c:v','libx264','-threads','2','-preset','medium','-b:v','800k','-maxrate','1100k','-bufsize','2200k','-c:a','aac','-b:a','96k','-ar','44100','-movflags','+faststart',file],{stdio:['pipe','ignore','pipe']});
  let error='';ff.stderr.on('data',d=>error+=d);ff.stdin.on('error',()=>{});const completed=once(ff,'close');
  for(let i=0;i<total;i++){if(ff.exitCode!==null)throw new Error(error);const jpeg=await frame(FROM+i/FPS,locale);if(!ff.stdin.write(jpeg))await once(ff.stdin,'drain');if(i%(FPS*6)===0)console.log(`${locale}: ${i/FPS}s`);}
  ff.stdin.end();const [code]=await completed;if(code)throw new Error(error);if(!ranged)await poster(locale);console.log(`${locale}: done, ${(await fs.stat(file)).size} bytes`);

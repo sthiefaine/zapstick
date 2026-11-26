@@ -18,7 +18,7 @@ function IntroPlayer({language,active}:{language:Locale;active:boolean}){
  const {t}=usePreferences(),container=useRef<HTMLDivElement>(null),video=useRef<HTMLVideoElement>(null),inView=useRef(true),request=useRef(0);
  const [peer]=useState(()=>Symbol('zapstick-intro')),[started,setStarted]=useState(false),[error,setError]=useState(false);
  const base=`/videos/zapstick-intro-${language.toLowerCase()}`,captionLocale=language;
- const asset=(extension:string)=>`${base}.${extension}?v=4`;
+ const asset=(extension:string)=>`${base}.${extension}?v=5`;
  const pause=useCallback(()=>{request.current++;video.current?.pause();},[]);
  useEffect(()=>{
   const media=video.current,hide=()=>{if(document.hidden)pause();};
@@ -61,7 +61,7 @@ function IntroPlayer({language,active}:{language:Locale;active:boolean}){
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img className={styles.poster} src={asset('jpg')} alt="" width={1280} height={720} loading="lazy" decoding="async"/>
     <span className={styles.play} aria-hidden="true"><Play size={29} fill="currentColor"/></span>
-    <span className={styles.caption}><strong className="sr-only">{t('Découvrir Zapstick')}</strong><span>30 s</span></span>
+    <span className={styles.caption}><strong className="sr-only">{t('Découvrir Zapstick')}</strong><span>35 s</span></span>
    </button>:null}
   </div>
   {error?<p className={styles.error} role="status">{t('Impossible de lire cette vidéo.')}</p>:null}

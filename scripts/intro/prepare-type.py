@@ -14,7 +14,7 @@ from fontTools.pens.boundsPen import BoundsPen
 ROOT = Path(__file__).resolve().parent
 COPY = json.loads((ROOT / 'copy.json').read_text())
 FONTS = json.loads((ROOT / 'fonts/coverage.json').read_text())
-EXTRA = ['zapstick', 'X', 'x.com/…', 'audio.mp3', '1', '2', '0', '0 s',
+EXTRA = ['zapstick', 'X', 'x.com/…', 'audio.mp3', 'Sticker ZAP …', 'WhatsApp', '1', '2', '0', '0 s',
          '0.7 s', '1.2 s', '3.9 s', '4.4 s', '0,7 s', '1,2 s', '3,9 s', '4,4 s']
 result = {}
 for key, config in FONTS.items():
