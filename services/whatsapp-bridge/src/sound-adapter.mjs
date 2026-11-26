@@ -83,10 +83,39 @@ export async function withSoundSticker({ proto, message, audio }, work) {
 }
 
 const DECODER = Symbol.for('zapstick.sticker-audio.decode.v1');
+const ENVELOPE_DECODER = Symbol.for('zapstick.audio-sticker-envelope.decode.v1');
 const incomingAudio = new WeakMap();
+// Android's audio sticker envelope is Message field 134 (FutureProofMessage).
+// rc14 does not declare it, so its generated decoder would skip the sticker.
+// Keep this isolated from encoding: normal outgoing stickers stay unchanged.
+function installAudioStickerEnvelopeDecoder(proto) {
+  const schema = proto.Message;
+  if (schema.decode[ENVELOPE_DECODER]) return;
+  const original = schema.decode;
+  let envelopeDepth = 0;
+  function decode(reader, length) {
+    const start = reader?.buf ? reader.pos : 0, source = reader?.buf ?? reader;
+    const end = length === undefined ? source.length : start + length;
+    const result = original.call(this, reader, length);
+    if (!result.audioStickerMessage && source && start >= 0 && end <= source.length && end - start <= 128 * 1024 && envelopeDepth < 5) {
+      try {
+        const bytes = bytesField(Buffer.from(source.buffer, source.byteOffset + start, end - start), 134);
+        if (bytes) {
+          envelopeDepth++;
+          try { result.audioStickerMessage = proto.Message.FutureProofMessage.decode(bytes); }
+          finally { envelopeDepth--; }
+        }
+      } catch { /* Ignore malformed or oversized unknown envelopes. */ }
+    }
+    return result;
+  }
+  Object.defineProperty(decode, ENVELOPE_DECODER, {value: true});
+  schema.decode = decode;
+}
 /** Capture only StickerMessage field 26. The normal schema stays untouched and
  * neither ordinary messages nor later fromObject calls inherit an attachment. */
 export function installSoundStickerDecoder(proto) {
+  installAudioStickerEnvelopeDecoder(proto);
   const schema = proto.Message.StickerMessage;
   if (schema.decode[DECODER]) return;
   const original = schema.decode;

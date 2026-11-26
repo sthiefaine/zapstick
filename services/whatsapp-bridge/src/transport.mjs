@@ -7,6 +7,16 @@ import { loadBaileysPrivately } from './private-console.mjs';
 const noop = () => {};
 const silentLogger = { level: 'silent', trace: noop, debug: noop, info: noop, warn: noop, error: noop, fatal: noop, child() { return this; } };
 const privateJid = value => typeof value === 'string' && /^\d+(?::\d+)?@(?:s\.whatsapp\.net|lid)$/.test(value);
+const MESSAGE_ENVELOPES = ['ephemeralMessage', 'associatedChildMessage', 'lottieStickerMessage', 'audioStickerMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage'];
+function incomingContent(content) {
+  for (let depth = 0; depth < 5 && content; depth++) {
+    if (content.stickerMessage || content.conversation || content.extendedTextMessage) return content;
+    const wrappers = MESSAGE_ENVELOPES.filter(name => content[name]?.message);
+    if (wrappers.length !== 1) return undefined;
+    content = content[wrappers[0]].message;
+  }
+  return content?.stickerMessage || content?.conversation || content?.extendedTextMessage ? content : undefined;
+}
 
 function failure(code, message, messageId) {
   const error = new Error(message);
@@ -34,8 +44,7 @@ export function parseReverseMessage(message, connectedAt = 0) {
     || timestamp < Math.max(connectedAt - 5, now - 120) || timestamp > now + 60) return undefined;
   const senderAliases = [...new Set([key.remoteJid, key.remoteJidAlt].filter(jid => privateJid(jid) && jid.length <= 160).map(jid => jid.replace(/:\d+(?=@)/, '')))];
   const base = {recipient: key.remoteJid, providerMessageId: key.id, senderAliases};
-  let content = message.message;
-  for (let depth = 0; depth < 3 && content?.ephemeralMessage?.message; depth++) content = content.ephemeralMessage.message;
+  const content = incomingContent(message.message);
   const text = content?.conversation ?? content?.extendedTextMessage?.text;
   if (typeof text === 'string' && /^(?:\/?aide|\/?help)$/i.test(text.trim())) return {...base, kind: 'help'};
   const sticker = content?.stickerMessage;

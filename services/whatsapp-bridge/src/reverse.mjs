@@ -5,8 +5,8 @@ const HELP = 'Envoie-moi un sticker pour le modifier : 3 liens actifs maximum, v
 /** Reserve synchronously, then process a bounded queue one sticker at a time.
  * Neither sender JIDs nor message contents are written to logs or raw metadata. */
 export class ReverseBridge {
-  constructor({store, transport, siteUrl, decodeSound = decodeIncomingOpus, clock = Date.now}) {
-    Object.assign(this, {store, transport, siteUrl, decodeSound, clock});
+  constructor({store, transport, siteUrl, decodeSound = decodeIncomingOpus, clock = Date.now, onEvent = () => {}}) {
+    Object.assign(this, {store, transport, siteUrl, decodeSound, clock, onEvent});
     this.queue = []; this.running = null; this.current = null; this.stopping = false;
   }
   receive(event) {
@@ -17,8 +17,10 @@ export class ReverseBridge {
     try { job = this.store.reserveReverse(event); }
     catch (error) { this.reply(event, error.code === 'user_limit' ? 'Tu as déjà 3 liens actifs. Réessaie après leur expiration (10 min).' : 'Trop de demandes. Réessaie dans un instant.', 'quota'); return; }
     if (!job) return;
+    this.report('received');
     this.queue.push({event, job}); this.kick();
   }
+  report(event) { try { this.onEvent(event); } catch {} }
   reply(event, text, kind) {
     try { if (this.store.allowBotReply(event, kind)) void this.transport.sendText({recipient: event.recipient, text}).catch(() => {}); } catch {}
   }
@@ -30,24 +32,31 @@ export class ReverseBridge {
     while (!this.stopping && this.queue.length) {
       const {event, job} = this.queue.shift(), controller = new AbortController();
       this.current = {id: job.id, controller};
-      let ready = false;
+      let ready = false, stage = 'download_visual';
       const timeout = setTimeout(() => controller.abort(), Math.max(1, Math.min(45_000, job.expiresAt - this.clock()))); timeout.unref();
       try {
         if (job.expiresAt <= this.clock()) throw new Error();
         const visual = await this.transport.downloadIncoming({message: event.sticker, type: 'sticker', maximum: 500 * 1024, signal: controller.signal});
+        stage = 'validate_visual';
         const media = validateIncomingSticker(visual);
         let sound;
         if (event.audio) {
           if (media.kind !== 'animated') throw new Error();
+          stage = 'download_audio';
           const encoded = await this.transport.downloadIncoming({message: event.audio, type: 'audio', maximum: 512 * 1024, signal: controller.signal});
+          stage = 'decode_audio';
           sound = await this.decodeSound({bytes: encoded, duration: media.duration, signal: controller.signal});
           validateIncomingSticker(visual, sound);
         }
         if (controller.signal.aborted || this.stopping || job.expiresAt <= this.clock()) throw new Error();
+        stage = 'save';
         this.store.completeReverse(job.id, {visual, sound, media}); ready = true;
         const link = `${this.siteUrl}/fr#edit=${job.token}`;
+        stage = 'reply';
         await this.transport.sendText({recipient: event.recipient, text: `Modifie ton sticker :\n${link}\nLien temporaire (10 min max).`});
+        this.report('ready');
       } catch {
+        this.report('failed_' + stage);
         // A link may already have been handed to WhatsApp. Keep a ready job
         // readable until expiry; failed downloads release their reservation.
         this.store.failReverse(job.id);

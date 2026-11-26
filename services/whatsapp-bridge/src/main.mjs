@@ -19,7 +19,9 @@ const transport = config.enabled ? createWhatsAppTransport({ authDir: config.aut
   onInbound: event => reverse?.receive(event),
 }) : { isReady: () => false, close: async () => {}, getState: () => 'disabled' };
 worker = new BridgeWorker({ store, transport, encodeOpus: options => serializeCodec(() => encodeOpus(options)), enabled: config.enabled, soundEnabled: config.soundEnabled });
-reverse = new ReverseBridge({store, transport, siteUrl: config.siteUrl, decodeSound: options => serializeCodec(() => decodeIncomingOpus(options))});
+reverse = new ReverseBridge({store, transport, siteUrl: config.siteUrl, decodeSound: options => serializeCodec(() => decodeIncomingOpus(options)),
+  onEvent: event => process.stdout.write(`reverse_import_${event}\n`),
+});
 const app = createBridgeServer({ store, serviceToken: config.serviceToken, enabled: config.enabled, soundEnabled: config.soundEnabled,
   isReady: () => transport.isReady(), onWork: () => worker.kick(), onCancel: id => worker.cancel(id),
 });
