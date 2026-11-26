@@ -259,7 +259,7 @@ export class BridgeStore {
     return this.transaction(() => {
       const eventHash = this.digest('reverse-event', `${senderHash}:${providerMessageId}`), now = this.clock();
       if (this.db.prepare('SELECT 1 FROM reverse_transfers WHERE event_hash=?').get(eventHash)) return null;
-      if (this.db.prepare("SELECT COUNT(*) AS n FROM reverse_transfers WHERE sender_hash=? AND state IN ('receiving','ready') AND expires_at>?").get(senderHash, now).n >= 3) throw new BridgeError('user_limit', 429);
+      if (this.db.prepare("SELECT COUNT(*) AS n FROM reverse_transfers WHERE sender_hash=? AND state IN ('receiving','ready') AND expires_at>?").get(senderHash, now).n >= 5) throw new BridgeError('user_limit', 429);
       if (this.db.prepare('SELECT COUNT(*) AS n FROM reverse_transfers WHERE sender_hash=? AND created_at>?').get(senderHash, now - 60_000).n >= 6
         || this.db.prepare('SELECT COUNT(*) AS n FROM reverse_transfers WHERE created_at>?').get(now - 60_000).n >= 20
         || !this.capacity().available || this.db.prepare('SELECT COUNT(*) AS n FROM reverse_transfers').get().n >= 20_000) throw new BridgeError('busy', 429);

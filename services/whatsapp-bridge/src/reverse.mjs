@@ -1,7 +1,7 @@
 import {validateIncomingSticker,extendIncomingVisual} from './media.mjs';
 import {decodeIncomingOpus,incomingOpusDuration} from './incoming-media.mjs';
 
-const HELP = 'Envoie-moi un sticker pour le modifier : 3 liens actifs maximum, valables 10 min. Pour recevoir un sticker du site, envoie le message « Sticker ZAP … » prérempli.';
+const HELP = 'Envoie-moi un sticker pour le modifier : 5 liens actifs maximum, valables 10 min. Pour recevoir un sticker du site, envoie le message « Sticker ZAP … » prérempli.';
 /** Reserve synchronously, then process a bounded queue one sticker at a time.
  * Neither sender JIDs nor message contents are written to logs or raw metadata. */
 export class ReverseBridge {
@@ -15,7 +15,7 @@ export class ReverseBridge {
     if (!this.siteUrl) { this.reply(event, 'La modification de stickers est momentanément indisponible.', 'unavailable'); return; }
     let job;
     try { job = this.store.reserveReverse(event); }
-    catch (error) { this.reply(event, error.code === 'user_limit' ? 'Tu as déjà 3 liens actifs. Réessaie après leur expiration (10 min).' : 'Trop de demandes. Réessaie dans un instant.', 'quota'); return; }
+    catch (error) { this.reply(event, error.code === 'user_limit' ? 'Tu as déjà 5 liens actifs. Réessaie après leur expiration (10 min).' : 'Trop de demandes. Réessaie dans un instant.', 'quota'); return; }
     if (!job) return;
     this.report('received');
     this.queue.push({event, job}); this.kick();
