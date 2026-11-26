@@ -299,7 +299,7 @@ export class BridgeStore {
     const files = this.reversePaths(row.id);
     try {
       const visual = readFileSync(files.webpPath);
-      if (visual.length > 500 * 1024) throw new Error();
+      if (visual.length > 1024 * 1024) throw new Error();
       const result = {version: 1, kind: row.kind, expiresAt: row.expires_at, visual: {mime: 'image/webp', data: visual.toString('base64')}};
       if (row.has_sound) {
         const audio = readFileSync(files.wavPath);

@@ -115,7 +115,7 @@ export function createWhatsAppBridgeHandler({env = () => process.env, fetchImpl 
       }
       if (reverse) {
         if (value.version !== 1 || !['animated', 'static'].includes(value.kind) || !Number.isFinite(value.expiresAt) || value.expiresAt <= Date.now() || value.expiresAt > Date.now() + 601_000) return json({error: 'not_found'}, 404);
-        const visual = reverseMedia(value.visual, 'image/webp', 500 * 1024);
+        const visual = reverseMedia(value.visual, 'image/webp', 1024 * 1024);
         let sound;
         if (value.sound !== undefined) {
           if (value.kind !== 'animated' || !Number.isFinite(value.sound?.duration) || value.sound.duration <= 0 || value.sound.duration > 6.1) throw new Error('Invalid imported sound.');

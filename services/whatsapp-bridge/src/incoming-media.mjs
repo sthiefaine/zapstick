@@ -3,13 +3,19 @@ import {createHash, timingSafeEqual} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {BridgeError} from './config.mjs';
 
-const invalid = () => new BridgeError('invalid_media', 422);
+const invalid = (reason = 'structure') => { const error = new BridgeError('invalid_media', 422); error.reason = reason; return error; };
 function metadata(message, maximum) {
-  if (!message || message.invalid || !Buffer.isBuffer(message.mediaKey) && !(message.mediaKey instanceof Uint8Array)) throw invalid();
-  const key = Buffer.from(message.mediaKey), digest = Buffer.from(message.fileSha256 ?? []), size = Number(message.fileLength);
-  if (key.length !== 32 || digest.length !== 32 || !Number.isSafeInteger(size) || size <= 0 || size > maximum) throw invalid();
-  const directPath = message.directPath;
-  if (typeof directPath !== 'string' || directPath.length > 2048 || !directPath.startsWith('/') || /[\x00-\x20\x7f\\]/.test(directPath)) throw invalid();
+  if (!message || message.invalid || !Buffer.isBuffer(message.mediaKey) && !(message.mediaKey instanceof Uint8Array)) throw invalid('metadata_key');
+  const key = Buffer.from(message.mediaKey), digest = Buffer.from(message.fileSha256 ?? []), size = Number(message.fileLength ?? 0);
+  if (key.length !== 32 || digest.length !== 32) throw invalid('metadata_key');
+  // fileLength is optional in WhatsApp's protobuf. Actual downloaded bytes and
+  // their SHA-256 remain mandatory and bounded even when it is omitted.
+  if (!Number.isSafeInteger(size) || size < 0 || size > maximum) throw invalid('metadata_size');
+  let directPath = message.directPath;
+  if (!directPath && typeof message.url === 'string') {
+    try { const url = new URL(message.url); if (url.protocol === 'https:' && url.hostname === 'mmg.whatsapp.net' && !url.username && !url.password && !url.port && !url.hash) directPath = url.pathname + url.search; } catch {}
+  }
+  if (typeof directPath !== 'string' || directPath.length > 2048 || !directPath.startsWith('/') || directPath.startsWith('//') || /[\x00-\x20\x7f\\]/.test(directPath)) throw invalid('metadata_path');
   return {mediaKey: key, fileSha256: digest, fileLength: size, directPath};
 }
 
@@ -21,7 +27,8 @@ export async function downloadIncomingMedia(sdk, message, type, maximum, signal,
   const source = metadata(message, maximum), limit = maximum + 64;
   if (signal?.aborted) throw new BridgeError('cancelled', 499);
   const agent = agentFactory({connections: 1, pipelining: 1, connect: {timeout: 5000}, maxHeaderSize: 8192});
-  const abort = () => { void agent.destroy(new Error('download_cancelled')).catch(() => {}); };
+  let downloadFailure;
+  const abort = () => { downloadFailure ??= invalid('timeout'); void agent.destroy(new Error('download_cancelled')).catch(() => {}); };
   signal?.addEventListener('abort', abort, {once: true});
   const timer = setTimeout(abort, 15_000); timer.unref();
   const dispatcher = {dispatch(options, handler) {
@@ -32,18 +39,18 @@ export async function downloadIncomingMedia(sdk, message, type, maximum, signal,
       onConnect(cancel, context) { stop = cancel; handler.onConnect?.(cancel, context); },
       onHeaders(code, values, _resume, text) {
         status = code; headers = values; statusText = text;
-        if (code !== 200) { stopped = true; stop(new Error('media_unavailable')); return false; }
+        if (code !== 200) { downloadFailure = invalid([403,404,410,429].includes(code) ? `http_${code}` : 'http'); stopped = true; stop(downloadFailure); return false; }
         for (let i = 0; i < values.length; i += 2) {
           const name = String(values[i]).toLowerCase(), value = String(values[i + 1]);
           if (name === 'content-encoding' && value !== 'identity' || name === 'content-length' && (!/^\d+$/.test(value) || Number(value) > limit)) {
-            stopped = true; stop(new Error('media_too_large')); return false;
+            downloadFailure = invalid('response_size'); stopped = true; stop(downloadFailure); return false;
           }
         }
         return true;
       },
       onData(bytes) {
         size += bytes.length;
-        if (size > limit) { stopped = true; stop(new Error('media_too_large')); return false; }
+        if (size > limit) { downloadFailure = invalid('response_size'); stopped = true; stop(downloadFailure); return false; }
         parts.push(Buffer.from(bytes)); return true;
       },
       onComplete(trailers) {
@@ -61,12 +68,14 @@ export async function downloadIncomingMedia(sdk, message, type, maximum, signal,
     for await (const bytes of stream) {
       if (signal?.aborted) throw new BridgeError('cancelled', 499);
       size += bytes.length;
-      if (size > maximum) throw invalid();
+      if (size > maximum) throw invalid('response_size');
       parts.push(bytes);
     }
     const result = Buffer.concat(parts, size), digest = createHash('sha256').update(result).digest();
-    if (size !== source.fileLength || !timingSafeEqual(digest, source.fileSha256)) throw invalid();
+    if (source.fileLength > 0 && size !== source.fileLength || !timingSafeEqual(digest, source.fileSha256)) throw invalid('integrity');
     return result;
+  } catch (error) {
+    throw downloadFailure ?? (error?.reason ? error : invalid('transport'));
   } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); stream?.destroy(); await agent.destroy().catch(() => {}); }
 }
 

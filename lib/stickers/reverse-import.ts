@@ -25,7 +25,7 @@ export async function importWhatsAppSticker(token: string, name: string, soundNa
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
   const value = JSON.parse(new TextDecoder().decode(bytes));
   if (value?.version !== 1 || !['static', 'animated'].includes(value.kind) || !Number.isFinite(value.expiresAt) || value.expiresAt <= Date.now()) throw new Error('Code expiré.');
-  const blob = media(value.visual, 'image/webp', 500 * 1024);
+  const blob = media(value.visual, 'image/webp', 1024 * 1024);
   const kind = await inferMediaKind(blob);
   if (kind !== value.kind) throw new Error('Impossible de charger ce média.');
   let sound: StickerSound | undefined;

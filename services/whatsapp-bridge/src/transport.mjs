@@ -49,7 +49,7 @@ export function parseReverseMessage(message, connectedAt = 0) {
   if (typeof text === 'string' && /^(?:\/?aide|\/?help)$/i.test(text.trim())) return {...base, kind: 'help'};
   const sticker = content?.stickerMessage;
   if (!sticker) return undefined;
-  return {...base, kind: 'sticker', sticker, audio: incomingStickerAudio(sticker)};
+  return {...base, kind: 'sticker', sticker, audio: incomingStickerAudio(sticker), messageKey: {...key}};
 }
 
 /** No network access is made until connect() is explicitly called. A regular
@@ -233,9 +233,29 @@ export function createWhatsAppTransport({
       sendTail = operation.catch(noop);
       return operation;
     },
-    downloadIncoming({message, type, maximum, signal}) {
+    async downloadIncoming({message, type, maximum, signal, messageKey}) {
       if (stopped || state !== 'connected' || !baileys) throw failure('unavailable', 'WhatsApp is not connected.');
-      return downloadIncomingMedia(baileys, message, type, maximum, signal);
+      try { return await downloadIncomingMedia(baileys, message, type, maximum, signal); }
+      catch (error) {
+        if (type !== 'sticker' || !messageKey || !['http_404','http_410'].includes(error?.reason) || stopped || state !== 'connected' || signal?.aborted) throw error;
+        // A forwarded sticker can reference an expired encrypted CDN object.
+        // Ask the sender's device to restore that same media, once, using the
+        // existing authenticated socket. No URL or chat history is retained.
+        const target = socket;
+        let timer, abort;
+        try {
+          await Promise.race([
+            target.updateMediaMessage({key: messageKey, message: {stickerMessage: message}}),
+            new Promise((_, reject) => {
+              abort = () => reject(error);
+              timer = setTimeout(abort, 10_000); timer.unref();
+              signal?.addEventListener('abort', abort, {once: true});
+            }),
+          ]);
+        } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); }
+        if (stopped || socket !== target || state !== 'connected' || signal?.aborted) throw error;
+        return downloadIncomingMedia(baileys, message, type, maximum, signal);
+      }
     },
     sendText({recipient, text}) {
       if (textPending >= 16) return Promise.reject(failure('unavailable', 'WhatsApp reply queue is full.'));

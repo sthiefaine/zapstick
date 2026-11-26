@@ -36,7 +36,7 @@ export class ReverseBridge {
       const timeout = setTimeout(() => controller.abort(), Math.max(1, Math.min(45_000, job.expiresAt - this.clock()))); timeout.unref();
       try {
         if (job.expiresAt <= this.clock()) throw new Error();
-        let visual = await this.transport.downloadIncoming({message: event.sticker, type: 'sticker', maximum: 500 * 1024, signal: controller.signal});
+        let visual = await this.transport.downloadIncoming({message: event.sticker, type: 'sticker', maximum: 1024 * 1024, signal: controller.signal, messageKey: event.messageKey});
         stage = 'validate_visual';
         let media = validateIncomingSticker(visual);
         let sound;
@@ -57,7 +57,7 @@ export class ReverseBridge {
         await this.transport.sendText({recipient: event.recipient, text: `Modifie ton sticker :\n${link}\nLien temporaire (10 min max).`});
         this.report('ready');
       } catch (error) {
-        const reason = stage === 'validate_visual' && ['structure','dimensions','frame','duration','metadata','chunk','frames','metadata_flags','alpha_flag'].includes(error?.reason) ? '_' + error.reason : '';
+        const reason = ['structure','dimensions','frame','duration','metadata','chunk','frames','metadata_flags','alpha_flag','metadata_key','metadata_size','metadata_path','http_403','http_404','http_410','http_429','http','timeout','response_size','integrity','transport'].includes(error?.reason) ? '_' + error.reason : '';
         this.report('failed_' + stage + reason);
         // A link may already have been handed to WhatsApp. Keep a ready job
         // readable until expiry; failed downloads release their reservation.

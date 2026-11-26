@@ -90,7 +90,7 @@ function frameImage(buffer, start, end, width, height) {
 }
 
 function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes, incoming = false) {
-  riff(buffer, 'WEBP', MEDIA_LIMITS.animatedBytes);
+  riff(buffer, 'WEBP', incoming ? 1024 * 1024 : MEDIA_LIMITS.animatedBytes);
   let extension, image, alpha, anim = false, frames = 0, durationMs = 0;
   let hasAlpha = false, seenImage = false, trailingMetadata = false;
   const metadata = new Set();
@@ -312,9 +312,9 @@ export async function encodeOpus({inputPath, outputPath, signal} = {}) {
   }
 }
 
-/** Incoming native stickers may use the full 500 KiB visual budget. */
+/** Native imports can exceed the final export's 500 KiB visual budget. */
 export function validateIncomingSticker(visual, sound) {
-  const result = webp(visual, MEDIA_LIMITS.animatedBytes, true);
+  const result = webp(visual, 1024 * 1024, true);
   if (sound !== undefined) {
     if (result.kind !== 'animated') invalid();
     const audio = wav(sound);
