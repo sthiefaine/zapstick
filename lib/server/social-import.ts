@@ -103,7 +103,7 @@ export function createSocialImportHandler({fetcher=fetch,env=()=>process.env,sta
       state.tokens=Math.min(4,state.tokens+Math.max(0,now-state.updated)/15_000);state.updated=now;
       if(state.active>=SOCIAL_IMPORT_LIMITS.concurrent||resolve&&state.tokens<1)return fail('busy');
       if(resolve)state.tokens--;state.active++;admitted=true;
-      const config=cobaltConfig(environment),signal=AbortSignal.any([request.signal,AbortSignal.timeout(SOCIAL_IMPORT_LIMITS.timeoutMs)]);
+      const signal=AbortSignal.any([request.signal,AbortSignal.timeout(SOCIAL_IMPORT_LIMITS.timeoutMs)]);
       if(resolve){
         const length=request.headers.get('content-length');
         if(length&&(!/^\d+$/.test(length)||Number(length)>SOCIAL_IMPORT_LIMITS.requestBytes))return fail('too_large');
@@ -113,7 +113,7 @@ export function createSocialImportHandler({fetcher=fetch,env=()=>process.env,sta
         if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==1||!('url'in input)||typeof input.url!=='string')return fail('invalid_url');
         const source=validateSocialPost(input.url);
         let resolved:ResolvedMedia[];
-        try{resolved=await resolveCobalt(source,config,fetcher,signal);}
+        try{resolved=await resolveCobalt(source,cobaltConfig(environment),fetcher,signal);}
         catch(error){
           if(source.service!=='instagram'||signal.aborted||error instanceof ImportError&&['busy','too_large','timeout'].includes(error.code))throw error;
           resolved=await resolveInstagramVideo(source.url,signal,environment.INSTAGRAM_DOWNLOADER);
@@ -131,8 +131,9 @@ export function createSocialImportHandler({fetcher=fetch,env=()=>process.env,sta
         return Response.json({media,source:source.url.href},{headers});
       }
       const item=state.tickets.get(ticket!);if(!item||item.expiresAt<=clock())return fail('expired');
-      const target=item.provider==='instagram'?instagramMediaUrl(item.url):proxyTarget(item.url,config.origin);
-      const response=await fetcher(target,{method:'GET',headers:{Accept:'image/*, video/*, application/octet-stream;q=0.5',...(item.provider==='instagram'?{Referer:'https://www.instagram.com/'}:config.key?{Authorization:`Api-Key ${config.key}`}:{})},redirect:'error',cache:'no-store',signal});
+      const config=item.provider==='instagram'?undefined:cobaltConfig(environment);
+      const target=item.provider==='instagram'?instagramMediaUrl(item.url):proxyTarget(item.url,config!.origin);
+      const response=await fetcher(target,{method:'GET',headers:{Accept:'image/*, video/*, application/octet-stream;q=0.5',...(item.provider==='instagram'?{Referer:'https://www.instagram.com/'}:config?.key?{Authorization:`Api-Key ${config.key}`}:{})},redirect:'error',cache:'no-store',signal});
       if(!response.ok){void response.body?.cancel().catch(()=>{});return fail(response.status===429?'busy':'unavailable');}
       const length=response.headers.get('content-length');if(length&&Number(length)>SOCIAL_IMPORT_LIMITS.mediaBytes){void response.body?.cancel().catch(()=>{});return fail('too_large');}
       const type=(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();

@@ -58,8 +58,9 @@ Zapstick, uniquement à l'exécution. Sans clé, l'isolement réseau reste oblig
 - L'image Docker installe yt-dlp 2026.11.23 et curl-cffi 0.17.0 dans un environnement
   Python isolé. Le sous-processus récupère seulement les métadonnées, ignore toute
   configuration personnelle, ne reçoit aucun secret et s'arrête au bout de vingt
-  secondes. Il reste soumis aux quotas ci-dessus. En développement local uniquement,
-  `INSTAGRAM_DOWNLOADER` peut désigner le chemin absolu d'un exécutable yt-dlp installé.
+  secondes. Il reste soumis aux quotas ci-dessus. En développement local, yt-dlp
+  installé dans le `PATH` est utilisé ; `INSTAGRAM_DOWNLOADER` peut aussi désigner
+  son chemin absolu. Le secours Instagram ne nécessite pas de Cobalt local.
 
 Les journaux ne contiennent ni URL source, ni ticket, ni média. Redémarrer le site
 invalide les tickets en mémoire ; recoller le lien suffit pour préparer un nouvel

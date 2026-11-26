@@ -16,9 +16,9 @@ export function instagramMediaUrl(raw:unknown):string{
 
 /** Resolve metadata only. No personal cookies, media files or credentials are
  * passed to the child. The existing import quotas also cover this fallback. */
-export async function resolveInstagramVideo(url:URL,signal:AbortSignal,command=process.env.INSTAGRAM_DOWNLOADER||'/opt/zapstick-instagram/bin/yt-dlp'):Promise<InstagramMedia[]>{
+export async function resolveInstagramVideo(url:URL,signal:AbortSignal,command=process.env.INSTAGRAM_DOWNLOADER||(process.env.NODE_ENV==='development'?'yt-dlp':'/opt/zapstick-instagram/bin/yt-dlp')):Promise<InstagramMedia[]>{
  if(signal.aborted)return fail('timeout');
- if(!/^https:\/\/www\.instagram\.com\/(?:p|reels?|tv)\/[A-Za-z0-9_-]{5,64}\/?$/.test(url.href)||!command.startsWith('/')||command.includes('\0'))return fail();
+ if(!/^https:\/\/www\.instagram\.com\/(?:p|reels?|tv)\/[A-Za-z0-9_-]{5,64}\/?$/.test(url.href)||command!=='yt-dlp'&&!command.startsWith('/')||command.includes('\0'))return fail();
  const metadata=await new Promise<Buffer>((resolve,reject)=>{
   const child=spawn(command,['--ignore-config','--no-cache-dir','--no-playlist','--skip-download','--no-warnings','--no-progress','--socket-timeout','8','--retries','0','--extractor-retries','0','--use-extractors','Instagram','-f','b[ext=mp4][height<=720]/b[ext=mp4]','--dump-single-json','--',url.href],{shell:false,windowsHide:true,cwd:'/tmp',env:{NODE_ENV:process.env.NODE_ENV??'production',PATH:process.env.PATH??'/usr/local/bin:/usr/bin:/bin',LANG:'C.UTF-8',PYTHONNOUSERSITE:'1'},stdio:['ignore','pipe','pipe']});
   let size=0,diagnostics=0,failure:InstagramImportError|undefined;const parts:Buffer[]=[];
