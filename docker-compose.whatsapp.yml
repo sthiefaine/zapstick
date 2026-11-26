@@ -25,6 +25,7 @@ services:
       WHATSAPP_TRANSFER_KEY: ${WHATSAPP_TRANSFER_KEY:?Configure the private transfer key}
       WHATSAPP_AUTH_KEY: ${WHATSAPP_AUTH_KEY:-}
       WHATSAPP_BOT_NUMBER: ${WHATSAPP_BOT_NUMBER:-}
+      WHATSAPP_SITE_URL: ${WHATSAPP_SITE_URL:-}
       # Independent switches let an administrator test the bot while the public
       # website remains disabled. No socket is created while BOT_ENABLED=false.
       WHATSAPP_BRIDGE_ENABLED: ${WHATSAPP_BOT_ENABLED:-false}

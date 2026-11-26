@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto';
-import { mkdirSync, chmodSync, writeFileSync, renameSync, rmSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, chmodSync, writeFileSync, renameSync, rmSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { BridgeError, LIMITS, LOCALES, capability, equalSecret } from './config.mjs';
 
@@ -24,8 +24,9 @@ function acquireTransferLock(dir) {
 export class BridgeStore {
   constructor({ dir, key, botNumber, clock = Date.now, limits = {} }) {
     if (!Buffer.isBuffer(key) || key.length !== 32) throw new BridgeError('invalid_transfer_key', 500);
-    this.dir = path.resolve(dir); this.mediaDir = path.join(this.dir, 'media');
+    this.dir = path.resolve(dir); this.mediaDir = path.join(this.dir, 'media'); this.reverseDir = path.join(this.dir, 'reverse-media');
     this.key = Buffer.from(key); this.botNumber = botNumber; this.clock = clock; this.limits = { ...LIMITS, ...limits };
+    mkdirSync(this.reverseDir, { recursive: true, mode: 0o700 }); chmodSync(this.reverseDir, 0o700);
     mkdirSync(this.mediaDir, { recursive: true, mode: 0o700 }); chmodSync(this.dir, 0o700); chmodSync(this.mediaDir, 0o700);
     // Lock before opening/migrating jobs or interpreting interrupted sends.
     // The WhatsApp session lock is acquired later and cannot protect recovery.
@@ -41,6 +42,15 @@ export class BridgeStore {
         claim_hash TEXT UNIQUE, claim_cipher TEXT, recipient_cipher TEXT,
         message_hash TEXT UNIQUE, error TEXT, reserved_bytes INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS reverse_transfers (
+        id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, sender_hash TEXT NOT NULL, event_hash TEXT NOT NULL UNIQUE,
+        state TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+        kind TEXT, duration REAL, has_sound INTEGER NOT NULL DEFAULT 0, reserved_bytes INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS reverse_sender_active ON reverse_transfers(sender_hash,state,expires_at);
+      CREATE TABLE IF NOT EXISTS reverse_sender_aliases(alias_hash TEXT PRIMARY KEY,sender_hash TEXT NOT NULL,last_seen INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS bot_events(event_hash TEXT PRIMARY KEY,sender_hash TEXT NOT NULL,kind TEXT NOT NULL,created_at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS bot_sender_created ON bot_events(sender_hash,created_at);
       CREATE TABLE IF NOT EXISTS store_config (name TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS inbound_events (event_hash TEXT PRIMARY KEY, transfer_id TEXT NOT NULL REFERENCES transfers(id) ON DELETE CASCADE, sender_hash TEXT NOT NULL, created_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS inbound_sender_created ON inbound_events(sender_hash,created_at);
@@ -56,6 +66,7 @@ export class BridgeStore {
       else if (row.state === 'processing' && row.expires_at > this.clock()) this.db.prepare("UPDATE transfers SET state='queued' WHERE id=?").run(row.id);
       else this.finish(row.id, row.expires_at <= this.clock() ? 'expired' : 'failed', { error: 'interrupted' });
     }
+    this.db.prepare("UPDATE reverse_transfers SET state='failed' WHERE state='receiving'").run();
     this.sweep();
     const ids = new Set(this.db.prepare(`SELECT id FROM transfers WHERE state IN (${ACTIVE.map(() => '?').join(',')})`).all(...ACTIVE).map(row => row.id));
     for (const item of readdirSync(this.mediaDir, { withFileTypes: true })) if (!ids.has(item.name)) rmSync(path.join(this.mediaDir, item.name), { recursive: true, force: true });
@@ -93,17 +104,19 @@ export class BridgeStore {
   paths(id) { const dir = this.folder(id); return { dir, webpPath: path.join(dir, 'visual.webp'), wavPath: path.join(dir, 'sound.wav'), oggPath: path.join(dir, 'sound.ogg') }; }
   diskBytes() {
     let total = 0;
-    for (const folder of readdirSync(this.mediaDir, { withFileTypes: true })) {
-      if (!folder.isDirectory()) { total += statSync(path.join(this.mediaDir, folder.name)).size; continue; }
-      for (const file of readdirSync(path.join(this.mediaDir, folder.name), { withFileTypes: true })) {
+    for (const directory of [this.mediaDir, this.reverseDir]) for (const folder of readdirSync(directory, { withFileTypes: true })) {
+      if (!folder.isDirectory()) { total += statSync(path.join(directory, folder.name)).size; continue; }
+      for (const file of readdirSync(path.join(directory, folder.name), { withFileTypes: true })) {
         if (!file.isFile()) throw new BridgeError('invalid_storage', 503);
-        total += statSync(path.join(this.mediaDir, folder.name, file.name)).size;
+        total += statSync(path.join(directory, folder.name, file.name)).size;
       }
     }
     return total;
   }
   capacity() {
     const row = this.db.prepare(`SELECT COALESCE(SUM(CASE WHEN state IN (${ACTIVE.map(() => '?').join(',')}) THEN 1 ELSE 0 END),0) AS jobs, COALESCE(SUM(reserved_bytes),0) AS bytes FROM transfers`).get(...ACTIVE);
+    const reverse = this.db.prepare("SELECT COUNT(CASE WHEN state IN ('receiving','ready') THEN 1 END) AS jobs,COALESCE(SUM(reserved_bytes),0) AS bytes FROM reverse_transfers").get();
+    row.jobs += reverse.jobs; row.bytes += reverse.bytes;
     return { jobs: row.jobs, reservedBytes: row.bytes, available: row.jobs < this.limits.maxJobs && row.bytes + this.limits.reservationBytes <= this.limits.maxBytes && this.diskBytes() + this.limits.reservationBytes <= this.limits.maxBytes };
   }
   public(row) {
@@ -219,8 +232,106 @@ export class BridgeStore {
     if (row.state === 'sending') return this.finish(row.id, 'delivered', { messageId });
     return !!this.db.prepare("UPDATE transfers SET state='delivered',error=NULL WHERE id=?").run(row.id).changes;
   }
+  reversePaths(id) {
+    if (!capability(id, 16)) throw new BridgeError('not_found', 404);
+    const dir = path.join(this.reverseDir, id);
+    return {dir, webpPath: path.join(dir, 'visual.webp'), wavPath: path.join(dir, 'sound.wav')};
+  }
+  reverseSender(recipient, aliases = []) {
+    const addresses = [...new Set([recipient, ...aliases].filter(value => typeof value === 'string' && value.length <= 160 && /^[0-9]+(?::[0-9]+)?@(s\.whatsapp\.net|lid)$/.test(value)).map(value => value.replace(/:\d+(?=@)/, '')))];
+    const hashes = addresses.map(value => this.digest('reverse-address', value));
+    const identities = [...new Set(hashes.map(hash => this.db.prepare('SELECT sender_hash FROM reverse_sender_aliases WHERE alias_hash=?').get(hash)?.sender_hash).filter(Boolean))];
+    const identity = identities[0] ?? hashes[0];
+    if (!identity || this.db.prepare('SELECT COUNT(*) AS n FROM reverse_sender_aliases').get().n + hashes.length > 40_000) throw new BridgeError('busy', 429);
+    for (const previous of identities.slice(1)) {
+      this.db.prepare('UPDATE reverse_transfers SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
+      this.db.prepare('UPDATE bot_events SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
+      this.db.prepare('UPDATE reverse_sender_aliases SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
+    }
+    for (const hash of hashes) this.db.prepare('INSERT INTO reverse_sender_aliases VALUES(?,?,?) ON CONFLICT(alias_hash) DO UPDATE SET sender_hash=excluded.sender_hash,last_seen=excluded.last_seen').run(hash, identity, this.clock());
+    return identity;
+  }
+  reserveReverse({recipient, providerMessageId, senderAliases}) {
+    if (typeof recipient !== 'string' || recipient.length > 160 || !/^[0-9]+(?::[0-9]+)?@(s\.whatsapp\.net|lid)$/.test(recipient)
+      || typeof providerMessageId !== 'string' || !providerMessageId || providerMessageId.length > 160) return null;
+    this.sweep();
+    const senderHash = this.transaction(() => this.reverseSender(recipient, senderAliases));
+    return this.transaction(() => {
+      const eventHash = this.digest('reverse-event', `${senderHash}:${providerMessageId}`), now = this.clock();
+      if (this.db.prepare('SELECT 1 FROM reverse_transfers WHERE event_hash=?').get(eventHash)) return null;
+      if (this.db.prepare("SELECT COUNT(*) AS n FROM reverse_transfers WHERE sender_hash=? AND state IN ('receiving','ready') AND expires_at>?").get(senderHash, now).n >= 3) throw new BridgeError('user_limit', 429);
+      if (this.db.prepare('SELECT COUNT(*) AS n FROM reverse_transfers WHERE sender_hash=? AND created_at>?').get(senderHash, now - 60_000).n >= 6
+        || this.db.prepare('SELECT COUNT(*) AS n FROM reverse_transfers WHERE created_at>?').get(now - 60_000).n >= 20
+        || !this.capacity().available || this.db.prepare('SELECT COUNT(*) AS n FROM reverse_transfers').get().n >= 20_000) throw new BridgeError('busy', 429);
+      const id = randomBytes(16).toString('base64url'), token = randomBytes(32).toString('base64url');
+      this.db.prepare("INSERT INTO reverse_transfers(id,token_hash,sender_hash,event_hash,state,created_at,expires_at,reserved_bytes) VALUES(?,?,?,?,'receiving',?,?,?)")
+        .run(id, this.digest('reverse-token', token), senderHash, eventHash, now, now + this.limits.ttlMs, this.limits.reservationBytes);
+      try { mkdirSync(this.reversePaths(id).dir, {mode: 0o700}); }
+      catch { this.failReverse(id); throw new BridgeError('unavailable', 503); }
+      return {id, token, expiresAt: now + this.limits.ttlMs};
+    });
+  }
+  completeReverse(id, {visual, sound, media}) {
+    const row = this.db.prepare('SELECT * FROM reverse_transfers WHERE id=?').get(id);
+    if (!row || row.state !== 'receiving' || row.expires_at <= this.clock()) throw new BridgeError('not_found', 404);
+    const paths = this.reversePaths(id);
+    try {
+      for (const [file, bytes] of [[paths.webpPath, visual], ...(sound ? [[paths.wavPath, sound]] : [])]) {
+        writeFileSync(`${file}.part`, bytes, {flag: 'wx', mode: 0o600}); renameSync(`${file}.part`, file);
+      }
+      this.db.prepare("UPDATE reverse_transfers SET state='ready',kind=?,duration=?,has_sound=? WHERE id=? AND state='receiving'").run(media.kind, media.duration, sound ? 1 : 0, id);
+    } catch { this.failReverse(id); throw new BridgeError('unavailable', 503); }
+  }
+  failReverse(id) {
+    if (this.db.prepare('SELECT state FROM reverse_transfers WHERE id=?').get(id)?.state !== 'receiving') return;
+    this.db.prepare("UPDATE reverse_transfers SET state='failed' WHERE id=? AND state='receiving'").run(id);
+    this.purgeReverseFiles(id);
+  }
+  purgeReverseFiles(id) {
+    try { rmSync(this.reversePaths(id).dir, {recursive: true, force: true}); this.db.prepare('UPDATE reverse_transfers SET reserved_bytes=0 WHERE id=?').run(id); return true; }
+    catch { return false; }
+  }
+  getReverse(token) {
+    if (!capability(token, 32)) throw new BridgeError('not_found', 404);
+    this.sweep();
+    const row = this.db.prepare("SELECT * FROM reverse_transfers WHERE token_hash=? AND state='ready' AND expires_at>?").get(this.digest('reverse-token', token), this.clock());
+    if (!row) throw new BridgeError('not_found', 404);
+    const files = this.reversePaths(row.id);
+    try {
+      const visual = readFileSync(files.webpPath);
+      if (visual.length > 500 * 1024) throw new Error();
+      const result = {version: 1, kind: row.kind, expiresAt: row.expires_at, visual: {mime: 'image/webp', data: visual.toString('base64')}};
+      if (row.has_sound) {
+        const audio = readFileSync(files.wavPath);
+        if (audio.length > Math.ceil(2.4 * 1024 * 1024)) throw new Error();
+        result.sound = {mime: 'audio/wav', data: audio.toString('base64'), duration: row.duration};
+      }
+      if (Buffer.byteLength(JSON.stringify(result)) > this.limits.bodyBytes) throw new Error();
+      return result;
+    } catch { throw new BridgeError('unavailable', 503); }
+  }
+  allowBotReply({recipient, providerMessageId, senderAliases}, kind) {
+    const now = this.clock();
+    return this.transaction(() => {
+      const sender = this.reverseSender(recipient, senderAliases), event = this.digest('bot-event', `${sender}:${providerMessageId}`);
+      if (this.db.prepare('SELECT 1 FROM bot_events WHERE event_hash=?').get(event)
+        || this.db.prepare('SELECT COUNT(*) AS n FROM bot_events WHERE sender_hash=? AND created_at>?').get(sender, now - 60_000).n >= 2
+        || this.db.prepare('SELECT COUNT(*) AS n FROM bot_events WHERE created_at>?').get(now - 60_000).n >= 60
+        || this.db.prepare('SELECT COUNT(*) AS n FROM bot_events').get().n >= 20_000) return false;
+      this.db.prepare('INSERT INTO bot_events VALUES(?,?,?,?)').run(event, sender, kind, now); return true;
+    });
+  }
   sweep() {
     const now = this.clock();
+    this.db.prepare("UPDATE reverse_transfers SET state='expired' WHERE expires_at<=? AND state IN ('receiving','ready')").run(now);
+    for (const row of this.db.prepare("SELECT id FROM reverse_transfers WHERE state NOT IN ('receiving','ready') AND reserved_bytes>0").all()) this.purgeReverseFiles(row.id);
+    const reverseLive = new Set(this.db.prepare("SELECT id FROM reverse_transfers WHERE state IN ('receiving','ready')").all().map(row => row.id));
+    for (const item of readdirSync(this.reverseDir, {withFileTypes: true})) if (!reverseLive.has(item.name)) {
+      try { rmSync(path.join(this.reverseDir, item.name), {recursive: true, force: true}); this.db.prepare('UPDATE reverse_transfers SET reserved_bytes=0 WHERE id=?').run(item.name); } catch {}
+    }
+    this.db.prepare("DELETE FROM reverse_transfers WHERE state NOT IN ('receiving','ready') AND created_at<=? AND reserved_bytes=0").run(now - this.limits.retentionMs);
+    this.db.prepare('DELETE FROM bot_events WHERE created_at<=?').run(now - this.limits.retentionMs);
+    this.db.prepare('DELETE FROM reverse_sender_aliases WHERE last_seen<=?').run(now - this.limits.retentionMs);
     for (const row of this.db.prepare(`SELECT id,state FROM transfers WHERE expires_at<=? AND state IN (${ACTIVE.map(() => '?').join(',')})`).all(now, ...ACTIVE)) this.finish(row.id, row.state === 'sending' ? 'delivery_unknown' : 'expired', { error: row.state === 'sending' ? 'delivery_unknown' : null });
     for (const row of this.db.prepare('SELECT id FROM transfers WHERE finished_at IS NOT NULL AND reserved_bytes>0').all()) this.purgeFiles(row.id);
     const liveIds = new Set(this.db.prepare(`SELECT id FROM transfers WHERE state IN (${ACTIVE.map(() => '?').join(',')})`).all(...ACTIVE).map(row => row.id));

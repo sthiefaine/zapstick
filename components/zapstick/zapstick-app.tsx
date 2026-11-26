@@ -34,6 +34,7 @@ export default function Home() {
     } | null>(null), [pendingRestore, setPendingRestore] = useState<RestoredBackup | null>(null), [packTarget, setPackTarget] = useState<string | null>(null), [studioBusy, setStudioBusy] = useState(false);
     const exportAbort=useRef<AbortController|null>(null);
     const saveQueue = useRef(Promise.resolve()), restoreInput = useRef<HTMLInputElement>(null), alive = useRef(true);
+    const incomingEdit = useRef<string | null | undefined>(undefined);
     const currentCollection = useRef(collection);
     currentCollection.current = collection;
     async function ensureSavedForWhatsApp() {
@@ -46,6 +47,28 @@ export default function Home() {
         }
     }
     const { stickers, packs } = collection, detail = stickers.find(s => s.id === detailId), currentPack = packs.find(p => p.id === packId);
+    useEffect(() => {
+        if(incomingEdit.current===undefined){
+            const address=new URL(window.location.href),fragment=new URLSearchParams(address.hash.slice(1));
+            const fragmentEdit=fragment.has('edit');
+            incomingEdit.current=fragment.get('edit')??address.searchParams.get('edit');
+            if(fragment.has('edit')||address.searchParams.has('edit')){
+                fragment.delete('edit');address.searchParams.delete('edit');
+                if(fragmentEdit)address.hash=fragment.toString();
+                window.history.replaceState(window.history.state,'',address.pathname+address.search+address.hash);
+            }
+        }
+        const token=incomingEdit.current;
+        if(!ready||!token)return;
+        const controller=new AbortController();setBusy(t('Ouverture du média…'));
+        import('@/lib/stickers/reverse-import').then(module=>module.importWhatsAppSticker(token,t('Mon sticker'),t('Son'),controller.signal)).then(sticker=>{
+            if(controller.signal.aborted)return;
+            incomingEdit.current=null;setCreationFolderId('');setDetailId(null);setPackId(null);
+            setDraft(sticker);setStudioResetKey(value=>value+1);setView('create');
+        }).catch(error=>{if(!controller.signal.aborted){incomingEdit.current=null;setToast(t(message(error)));}}).finally(()=>{if(!controller.signal.aborted)setBusy('');});
+        return()=>controller.abort();
+    },[ready,t]);
+
     useEffect(() => { alive.current = true; loadCollectionWithStarterMemes(t).then(c => { if (alive.current) {
         setCollection(c);
         const returningSticker=whatsAppTransferClient.consumeReturn();

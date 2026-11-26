@@ -48,11 +48,13 @@ async function multipart(bytes, contentType, validator) {
   return { id: parsed.id, locale: parsed.locale, visual: visualBytes, sound: soundBytes, media };
 }
 
-/** Private HTTP surface. No pairing, file download, recipient input or public QR route. */
+/** Private HTTP surface. No pairing, recipient input or public QR route.
+ * Reverse media reads require both the service Bearer and a short-lived token. */
 export function createBridgeServer({ store, serviceToken, enabled = false, soundEnabled = false, isReady = () => false, validateMedia = defaultValidator, onWork = () => {}, onCancel = () => {}, clock = Date.now, limits = {} }) {
   const config = { ...LIMITS, ...limits };
   const creationBudget = new Budget(10, 10, clock), statusBudget = new Budget(60, 120, clock);
-  let uploads = 0, closing = false;
+  let uploads = 0, reverseReads = 0, closing = false;
+  const reverseBudget = new Budget(4, 20, clock);
   const server = http.createServer({ maxHeaderSize: 8192, headersTimeout: 10_000, requestTimeout: config.uploadTimeoutMs }, async (request, response) => {
     const pathname = request.url || '', method = request.method || 'GET';
     if (pathname === '/health/live' && method === 'GET') { json(request, response, closing ? 503 : 200, { live: !closing }); return; }
@@ -62,6 +64,18 @@ export function createBridgeServer({ store, serviceToken, enabled = false, sound
       if (!statusBudget.take()) { json(request, response, 429, { error: 'busy' }); return; }
       try { json(request, response, 200, { enabled, ready: enabled && isReady() && store.capacity().available, soundEnabled: enabled && soundEnabled }); }
       catch { json(request, response, 503, { error: 'unavailable' }); }
+      return;
+    }
+    const reverse = /^\/internal\/v1\/reverse\/([A-Za-z0-9_-]{43})$/.exec(pathname);
+    if (reverse) {
+      if (method !== 'GET') { json(request, response, 405, {error: 'invalid'}); return; }
+      if (request.headers['transfer-encoding'] || Number(request.headers['content-length'] || 0) !== 0) { json(request, response, 400, {error: 'invalid'}); return; }
+      if (!enabled || reverseReads >= 2 || !reverseBudget.take()) { json(request, response, enabled ? 429 : 503, {error: enabled ? 'busy' : 'unavailable'}); return; }
+      reverseReads++;
+      let released = false; const release = () => { if (!released) { released = true; reverseReads--; } };
+      response.once('finish', release); response.once('close', release);
+      try { json(request, response, 200, store.getReverse(reverse[1])); }
+      catch (error) { json(request, response, error instanceof BridgeError ? error.statusCode : 503, {error: error instanceof BridgeError ? error.code : 'unavailable'}); }
       return;
     }
     const detail = /^\/internal\/v1\/transfers\/([A-Za-z0-9_-]{22})$/.exec(pathname);

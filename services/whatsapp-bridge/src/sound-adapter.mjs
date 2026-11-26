@@ -81,3 +81,31 @@ export async function withSoundSticker({ proto, message, audio }, work) {
     return await work();
   } finally { detach(); }
 }
+
+const DECODER = Symbol.for('zapstick.sticker-audio.decode.v1');
+const incomingAudio = new WeakMap();
+/** Capture only StickerMessage field 26. The normal schema stays untouched and
+ * neither ordinary messages nor later fromObject calls inherit an attachment. */
+export function installSoundStickerDecoder(proto) {
+  const schema = proto.Message.StickerMessage;
+  if (schema.decode[DECODER]) return;
+  const original = schema.decode;
+  function decode(reader, length) {
+    const start = reader?.buf ? reader.pos : 0, source = reader?.buf ?? reader;
+    const end = length === undefined ? source.length : start + length;
+    const result = original.call(this, reader, length);
+    if (end - start <= 128 * 1024 && source && start >= 0 && end <= source.length) {
+      try {
+        const bytes = bytesField(Buffer.from(source.buffer, source.byteOffset + start, end - start), 26);
+        if (bytes) {
+          if (bytes.length > 16 * 1024) throw new Error();
+          incomingAudio.set(result, proto.Message.AudioMessage.decode(bytes));
+        }
+      } catch { incomingAudio.set(result, {invalid: true}); }
+    }
+    return result;
+  }
+  Object.defineProperty(decode, DECODER, {value: true});
+  schema.decode = decode;
+}
+export function incomingStickerAudio(sticker) { return incomingAudio.get(sticker); }

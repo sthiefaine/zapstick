@@ -1,5 +1,6 @@
 const MAX_BODY = 4 * 1024 * 1024;
 const MAX_REPLY = 8192;
+const MAX_REVERSE_REPLY = 4 * 1024 * 1024;
 const ID = /^[A-Za-z0-9_-]{22}$/;
 const RECEIPT = /^Bearer ([A-Za-z0-9_-]{43})$/;
 const PREFIX = '/api/whatsapp/transfers';
@@ -27,6 +28,14 @@ function sameOrigin(request: Request, env: Environment) {
   const fetchSite = request.headers.get('sec-fetch-site');
   if (origin && origin !== site || fetchSite && !['same-origin', 'none'].includes(fetchSite)) return false;
   return request.method === 'GET' || origin === site;
+}
+function reverseMedia(value: unknown, mime: string, maximum: number) {
+  if (!value || typeof value !== 'object') throw new Error('Invalid sticker import.');
+  const file = value as {mime?: unknown; data?: unknown};
+  if (file.mime !== mime || typeof file.data !== 'string' || !file.data || file.data.length > 4 * Math.ceil(maximum / 3) || file.data.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(file.data)) throw new Error('Invalid sticker import.');
+  const bytes = Buffer.from(file.data, 'base64');
+  if (!bytes.length || bytes.length > maximum || bytes.toString('base64') !== file.data) throw new Error('Invalid sticker import.');
+  return {mime, data: file.data};
 }
 async function boundedBody(body: ReadableStream<Uint8Array> | null, maximum: number, signal: AbortSignal) {
   if (!body) return new Uint8Array();
@@ -57,10 +66,11 @@ export function createWhatsAppBridgeHandler({env = () => process.env, fetchImpl 
   return async function handle(request: Request) {
     const url = new URL(request.url), environment = env();
     const statusRoute = url.pathname === '/api/whatsapp/status';
+    const reverse = /^\/api\/whatsapp\/reverse\/([A-Za-z0-9_-]{43})$/.exec(url.pathname);
     const collection = url.pathname === PREFIX;
     const id = url.pathname.startsWith(PREFIX + '/') ? url.pathname.slice(PREFIX.length + 1) : undefined;
-    if (url.search || !(statusRoute || collection || id && ID.test(id))) return json({error: 'not_found'}, 404);
-    const allowed = statusRoute ? ['GET'] : collection ? ['POST'] : ['GET', 'DELETE'];
+    if (url.search || !(statusRoute || reverse || collection || id && ID.test(id))) return json({error: 'not_found'}, 404);
+    const allowed = statusRoute || reverse ? ['GET'] : collection ? ['POST'] : ['GET', 'DELETE'];
     if (!allowed.includes(request.method)) return new Response(null, {status: 405, headers: {...HEADERS, Allow: allowed.join(', ')}});
     try { if (!sameOrigin(request, environment)) return json({error: 'unavailable'}, 403); }
     catch { return json({error: 'unavailable'}, 503); }
@@ -69,7 +79,7 @@ export function createWhatsAppBridgeHandler({env = () => process.env, fetchImpl 
     if (!config) return json({error: 'unavailable'}, 503, true);
     const unavailableStatus = () => json({enabled: true, ready: false, soundEnabled: environment.WHATSAPP_SOUND_ENABLED === 'true'});
     const receipt = request.headers.get('authorization')?.match(RECEIPT)?.[1];
-    if (!statusRoute && !receipt) return json({error: 'not_found'}, 404);
+    if (!statusRoute && !reverse && !receipt) return json({error: 'not_found'}, 404);
     const uploading = request.method === 'POST';
     if (active >= 8 || uploading && uploads >= 2) return json({error: 'busy'}, 429, true);
     const length = request.headers.get('content-length');
@@ -88,12 +98,12 @@ export function createWhatsAppBridgeHandler({env = () => process.env, fetchImpl 
         catch { return json({error: 'invalid'}, 400); }
         if (form.has('sound')) return json({error: 'sound_unavailable'}, 422);
       }
-      const target = new URL(statusRoute ? '/internal/v1/status' : '/internal/v1/transfers' + (id ? '/' + id : ''), config.url);
+      const target = new URL(reverse ? '/internal/v1/reverse/' + reverse[1] : statusRoute ? '/internal/v1/status' : '/internal/v1/transfers' + (id ? '/' + id : ''), config.url);
       const headers: Record<string, string> = {Authorization: `Bearer ${config.token}`, Accept: 'application/json'};
       if (receipt) headers['X-Transfer-Receipt'] = receipt;
       if (uploading) headers['Content-Type'] = contentType;
       const upstream = await fetchImpl(target, {method: request.method, headers, body: body as BodyInit | undefined, signal, cache: 'no-store', redirect: 'error'});
-      const bytes = await boundedBody(upstream.body, MAX_REPLY, signal);
+      const bytes = await boundedBody(upstream.body, reverse ? MAX_REVERSE_REPLY : MAX_REPLY, signal);
       const value = JSON.parse(new TextDecoder().decode(bytes));
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid bridge reply.');
       if (statusRoute && upstream.ok) return json({enabled: true, ready: value.ready === true, soundEnabled: environment.WHATSAPP_SOUND_ENABLED === 'true' && value.soundEnabled === true});
@@ -102,6 +112,16 @@ export function createWhatsAppBridgeHandler({env = () => process.env, fetchImpl 
         const status = [400, 404, 409, 410, 413, 415, 422, 429, 503, 504].includes(upstream.status) ? upstream.status : 503;
         const fallback = status === 410 ? 'expired' : status === 409 ? 'conflict' : status === 413 ? 'too_large' : [400, 415, 422].includes(status) ? 'invalid' : 'unavailable';
         return json({error: ERRORS.has(value.error) ? value.error : fallback}, status, status === 429 || status === 503);
+      }
+      if (reverse) {
+        if (value.version !== 1 || !['animated', 'static'].includes(value.kind) || !Number.isFinite(value.expiresAt) || value.expiresAt <= Date.now() || value.expiresAt > Date.now() + 601_000) return json({error: 'not_found'}, 404);
+        const visual = reverseMedia(value.visual, 'image/webp', 500 * 1024);
+        let sound;
+        if (value.sound !== undefined) {
+          if (value.kind !== 'animated' || !Number.isFinite(value.sound?.duration) || value.sound.duration <= 0 || value.sound.duration > 6.1) throw new Error('Invalid imported sound.');
+          sound = {...reverseMedia(value.sound, 'audio/wav', Math.ceil(2.4 * 1024 * 1024)), duration: value.sound.duration};
+        }
+        return json({version: 1, kind: value.kind, expiresAt: value.expiresAt, visual, ...(sound ? {sound} : {})});
       }
       if (!ID.test(value.id) || id && value.id !== id || !STATES.has(value.state) || !Number.isFinite(value.expiresAt)) throw new Error('Invalid transfer reply.');
       const output: Record<string, unknown> = {id: value.id, state: value.state, expiresAt: value.expiresAt};

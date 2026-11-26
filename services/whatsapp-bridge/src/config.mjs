@@ -26,10 +26,15 @@ export function loadConfig(env = process.env) {
   const botNumber = env.WHATSAPP_BOT_NUMBER || '';
   if (serviceToken.length < 32 || !capability(transferKey, 32)) throw new BridgeError('invalid_service_configuration', 500);
   if (enabled && (!capability(authKey, 32) || !/^[1-9][0-9]{7,14}$/.test(botNumber))) throw new BridgeError('invalid_account_configuration', 500);
+  let siteUrl;
+  if (env.WHATSAPP_SITE_URL) {
+    try { const url = new URL(env.WHATSAPP_SITE_URL); if (url.protocol !== 'https:' || url.username || url.password || url.port || url.pathname !== '/' || url.search || url.hash) throw new Error(); siteUrl = url.origin; }
+    catch { throw new BridgeError('invalid_site_configuration', 500); }
+  }
   const port = Number(env.PORT || 3001);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new BridgeError('invalid_port', 500);
   return {
-    enabled, serviceToken, transferKey: Buffer.from(transferKey, 'base64url'), authKey,
+    enabled, siteUrl, serviceToken, transferKey: Buffer.from(transferKey, 'base64url'), authKey,
     soundEnabled: enabled && env.WHATSAPP_SOUND_ENABLED === 'true', botNumber,
     dataDir: path.resolve(env.WHATSAPP_DATA_DIR || '/data/transfers'), authDir: path.resolve(env.WHATSAPP_AUTH_DIR || '/data/auth'),
     host: env.HOSTNAME || '0.0.0.0', port,

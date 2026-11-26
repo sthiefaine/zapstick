@@ -89,7 +89,7 @@ function frameImage(buffer, start, end, width, height) {
   return !!alpha || image.alpha;
 }
 
-function webp(buffer) {
+function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes) {
   riff(buffer, 'WEBP', MEDIA_LIMITS.animatedBytes);
   let extension, image, alpha, anim = false, frames = 0, durationMs = 0;
   let hasAlpha = false, seenImage = false, trailingMetadata = false;
@@ -139,7 +139,7 @@ function webp(buffer) {
     // Zapstick's muxer conservatively advertises alpha even for opaque frames.
     if (hasAlpha && !(extension.flags & 0x10)) invalid();
   }
-  if (!anim && buffer.length > MEDIA_LIMITS.staticBytes) tooLarge();
+  if (!anim && buffer.length > staticBytes) tooLarge();
   return {kind: anim ? 'animated' : 'static', duration: durationMs / 1000};
 }
 
@@ -310,4 +310,15 @@ export async function encodeOpus({inputPath, outputPath, signal} = {}) {
       finally { encoding = false; }
     }
   }
+}
+
+/** Incoming native stickers may use the full 500 KiB visual budget. */
+export function validateIncomingSticker(visual, sound) {
+  const result = webp(visual, MEDIA_LIMITS.animatedBytes);
+  if (sound !== undefined) {
+    if (result.kind !== 'animated') invalid();
+    const audio = wav(sound);
+    if (Math.abs(audio.duration - result.duration) > 1 / audio.sampleRate + 1e-9) invalid();
+  }
+  return result;
 }

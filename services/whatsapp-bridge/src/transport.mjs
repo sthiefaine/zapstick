@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { openAuthStore } from './auth.mjs';
-import { withSoundSticker } from './sound-adapter.mjs';
+import { withSoundSticker, installSoundStickerDecoder, incomingStickerAudio } from './sound-adapter.mjs';
+import {downloadIncomingMedia} from './incoming-media.mjs';
 import { loadBaileysPrivately } from './private-console.mjs';
 
 const noop = () => {};
@@ -26,16 +27,32 @@ export function parseClaimMessage(message, connectedAt = 0) {
   return { providerMessageId: key.id, recipient: key.remoteJid, code: match[1] };
 }
 
+export function parseReverseMessage(message, connectedAt = 0) {
+  const key = message?.key, now = Date.now() / 1000, timestamp = Number(message?.messageTimestamp);
+  if (!key || key.fromMe || !privateJid(key.remoteJid) || key.remoteJid.length > 160 || key.participant
+    || typeof key.id !== 'string' || !key.id || key.id.length > 160 || !Number.isFinite(timestamp)
+    || timestamp < Math.max(connectedAt - 5, now - 120) || timestamp > now + 60) return undefined;
+  const senderAliases = [...new Set([key.remoteJid, key.remoteJidAlt].filter(jid => privateJid(jid) && jid.length <= 160).map(jid => jid.replace(/:\d+(?=@)/, '')))];
+  const base = {recipient: key.remoteJid, providerMessageId: key.id, senderAliases};
+  let content = message.message;
+  for (let depth = 0; depth < 3 && content?.ephemeralMessage?.message; depth++) content = content.ephemeralMessage.message;
+  const text = content?.conversation ?? content?.extendedTextMessage?.text;
+  if (typeof text === 'string' && /^(?:\/?aide|\/?help)$/i.test(text.trim())) return {...base, kind: 'help'};
+  const sticker = content?.stickerMessage;
+  if (!sticker) return undefined;
+  return {...base, kind: 'sticker', sticker, audio: incomingStickerAudio(sticker)};
+}
+
 /** No network access is made until connect() is explicitly called. A regular
  * service never displays a QR; only pair.mjs opts into an interactive callback. */
 export function createWhatsAppTransport({
-  authDir, authKey, expectedNumber, soundEnabled = false, onClaim = async () => {}, onReceipt = async () => {},
+  authDir, authKey, expectedNumber, soundEnabled = false, onClaim = async () => {}, onReceipt = async () => {}, onInbound = () => {},
   allowPairing = false, onQr, onState = noop,
   loadBaileys = loadBaileysPrivately, authStoreFactory = openAuthStore,
   reconnect = true
 }) {
   let state = 'idle', stopped = false, socket, store, baileys, connecting, reconnectTimer;
-  let attempt = 0, connectedAt = 0, inboundPending = 0, sendTail = Promise.resolve();
+  let attempt = 0, connectedAt = 0, inboundPending = 0, textPending = 0, sendTail = Promise.resolve();
   const sent = new Map();
   const setState = next => { state = next; try { onState(next); } catch {} };
   const handlers = new Map();
@@ -80,7 +97,7 @@ export function createWhatsAppTransport({
   async function start() {
     if (stopped) throw failure('unavailable', 'WhatsApp transport is closed.');
     if (socket && ['connecting', 'connected'].includes(state)) return;
-    if (!baileys) baileys = await loadBaileys();
+    if (!baileys) { baileys = await loadBaileys(); installSoundStickerDecoder(baileys.proto); }
     if (stopped) return;
     if (!store) store = authStoreFactory({ authDir, authKey, initAuthCreds: baileys.initAuthCreds, BufferJSON: baileys.BufferJSON, proto: baileys.proto });
     // QR-linked sessions persist `me`; Baileys' `registered` flag can remain
@@ -124,10 +141,10 @@ export function createWhatsAppTransport({
     listen(target, 'messages.upsert', event => {
       if (state !== 'connected' || event.type !== 'notify' || event.requestId) return;
       for (const message of (event.messages ?? []).slice(0, 100)) {
-        const claim = parseClaimMessage(message, connectedAt);
-        if (!claim || inboundPending >= 32) continue;
+        const claim = parseClaimMessage(message, connectedAt), incoming = claim ? undefined : parseReverseMessage(message, connectedAt);
+        if ((!claim && !incoming) || inboundPending >= 32) continue;
         inboundPending++;
-        Promise.resolve().then(() => onClaim(claim)).catch(noop).finally(() => inboundPending--);
+        Promise.resolve().then(() => claim ? onClaim(claim) : onInbound(incoming)).catch(noop).finally(() => inboundPending--);
       }
     });
     listen(target, 'messages.update', updates => {
@@ -206,6 +223,26 @@ export function createWhatsAppTransport({
       const operation = sendTail.then(() => performSend(options));
       sendTail = operation.catch(noop);
       return operation;
+    },
+    downloadIncoming({message, type, maximum, signal}) {
+      if (stopped || state !== 'connected' || !baileys) throw failure('unavailable', 'WhatsApp is not connected.');
+      return downloadIncomingMedia(baileys, message, type, maximum, signal);
+    },
+    sendText({recipient, text}) {
+      if (textPending >= 16) return Promise.reject(failure('unavailable', 'WhatsApp reply queue is full.'));
+      textPending++;
+      const operation = sendTail.then(async () => {
+        if (stopped || state !== 'connected' || !socket || !privateJid(recipient) || typeof text !== 'string' || text.length > 1024) throw failure('unavailable', 'WhatsApp is not connected.');
+        const currentSocket = socket, ownJid = recipient.endsWith('@lid') ? currentSocket.user?.lid ?? currentSocket.user?.id : currentSocket.user?.id;
+        const generated = baileys.generateWAMessageFromContent(recipient, baileys.proto.Message.fromObject({conversation: text}), {userJid: ownJid});
+        if (stopped || socket !== currentSocket || state !== 'connected') throw failure('unavailable', 'WhatsApp is not connected.');
+        let timer;
+        try { await Promise.race([
+          currentSocket.relayMessage(recipient, generated.message, {messageId: generated.key.id}),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(failure('delivery_unknown', 'Reply acknowledgement is unknown.')), 15_000); timer.unref(); }),
+        ]); } finally { clearTimeout(timer); }
+      }).finally(() => { textPending--; });
+      sendTail = operation.catch(noop); return operation;
     },
     async close() {
       if (stopped) return;
