@@ -111,7 +111,7 @@ export class BridgeStore {
     if (row.state === 'awaiting_message') {
       const claimCode = this.decrypt(row.id, 'claim', row.claim_cipher);
       result.claimCode = claimCode;
-      result.waUrl = `https://wa.me/${this.botNumber}?text=${encodeURIComponent(`ZAP ${claimCode}`)}`;
+      result.waUrl = `https://wa.me/${this.botNumber}?text=${encodeURIComponent(`Sticker ZAP ${claimCode}`)}`;
     }
     return result;
   }

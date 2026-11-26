@@ -115,10 +115,16 @@ function StickerWhatsAppTransfer({sticker, disabled = false, active = true, befo
     } finally { if (operation.current === controller) operation.current = null; }
   }
 
+  function openWhatsApp(url: string) {
+    client.rememberReturn(sticker.id);
+    for (const media of document.querySelectorAll<HTMLMediaElement>('audio, video')) media.pause();
+    window.location.assign(url);
+  }
   async function prepare() {
     if (disabled || operation.current) return;
     const controller = new AbortController(), version = revision.current;
     operation.current = controller;
+    let destination: string | undefined;
     // Snapshot references now: a later edit must never inherit this claim link.
     const snapshot = {...sticker, blob: visual, ...(sticker.sound ? {sound: {...sticker.sound, blob: sound!}} : {})};
     setView({visual, sound, transfer, phase: 'preparing', error: ''});
@@ -127,10 +133,14 @@ function StickerWhatsAppTransfer({sticker, disabled = false, active = true, befo
       if (!value.enabled || !value.ready) throw new WhatsAppTransferError('unavailable', 503);
       if (sound && !value.soundEnabled) throw new WhatsAppTransferError('sound_unavailable');
       const next = await client.prepare(snapshot, locale, {signal: controller.signal, beforePrepare, fresh: !!transfer && ['accepted', 'delivered', 'failed', 'cancelled', 'expired'].includes(transfer.state)});
-      if (!controller.signal.aborted && revision.current === version) setView({visual, sound, transfer: next, phase: 'idle', error: ''});
+      if (!controller.signal.aborted && revision.current === version) {
+        setView({visual, sound, transfer: next, phase: 'idle', error: ''});
+        if (next.state === 'awaiting_message') destination = next.waUrl;
+      }
     } catch (failure) {
       if (!controller.signal.aborted && revision.current === version) setView({visual, sound, transfer, phase: 'idle', error: errorSource(failure)});
     } finally { if (operation.current === controller) operation.current = null; }
+    if (destination) openWhatsApp(destination);
   }
   async function cancel() {
     if (phase === 'cancelling') return;
@@ -152,13 +162,13 @@ function StickerWhatsAppTransfer({sticker, disabled = false, active = true, befo
   const canPrepare = !transfer || ['accepted', 'delivered', 'failed', 'cancelled', 'expired'].includes(transfer.state);
   const cancellable = phase === 'preparing' || transfer && ['awaiting_message', 'queued', 'processing'].includes(transfer.state);
   const buttonText = phase === 'preparing' ? t('Préparation…') : phase === 'cancelling' ? t('Annulation…') : transfer && ['accepted', 'delivered'].includes(transfer.state) ? t('Recevoir à nouveau') : transfer && ['expired', 'cancelled', 'failed'].includes(transfer.state) ? t('Préparer à nouveau') : error ? t('Réessayer') : t('Recevoir sur WhatsApp');
-  const status = soundUnavailable ? t('Les stickers sonores ne sont pas encore disponibles ici.') : error ? t(error) : readyLink ? t('Dans WhatsApp, touche Envoyer.') : transfer ? t(stateSource(transfer)) : t('Transfert temporaire de ce sticker.');
+  const status = soundUnavailable ? t('Les stickers sonores ne sont pas encore disponibles ici.') : error ? t(error) : readyLink ? t('Dans WhatsApp, touche Envoyer.') : transfer ? t(stateSource(transfer)) : '';
   return <div className={styles.root} aria-busy={busy}>
-    {readyLink ? <a className={styles.action} href={readyLink} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" onClick={event => {
+    {readyLink ? <a className={styles.action} href={readyLink} rel="noreferrer" referrerPolicy="no-referrer" onClick={event => {
       if (disabled || Date.now() >= transfer!.expiresAt) { event.preventDefault(); return; }
-      client.rememberReturn(sticker.id);
-      for (const media of document.querySelectorAll<HTMLMediaElement>('audio, video')) media.pause();
-    }} aria-disabled={disabled || undefined}><MessageCircle size={20} aria-hidden="true"/>{t('Ouvrir WhatsApp')}</a> : canPrepare || busy ? <button type="button" className={styles.action} disabled={disabled || busy || soundUnavailable} onClick={prepare}>{busy ? <LoaderCircle className="spin" size={20} aria-hidden="true"/> : <MessageCircle size={20} aria-hidden="true"/>}{buttonText}</button> : <div className={styles.progress}>{transfer?.state === 'accepted' || transfer?.state === 'delivered' ? <Check size={18} aria-hidden="true"/> : !isWhatsAppTransferTerminal(transfer!.state) ? <LoaderCircle className="spin" size={18} aria-hidden="true"/> : null}</div>}
-    <div className={styles.feedback}><p role={error ? 'alert' : 'status'} aria-live={error ? 'assertive' : 'polite'}>{status}</p>{cancellable && phase !== 'cancelling' ? <button type="button" onClick={cancel} className={styles.cancel}>{t('Annuler')}</button> : null}{transfer && !busy && !canPrepare && (error || transfer.state === 'delivery_unknown') ? <button type="button" onClick={checkStatus} className={styles.cancel}>{t('Réessayer')}</button> : null}</div>
+      event.preventDefault();
+      openWhatsApp(readyLink);
+    }} aria-disabled={disabled || undefined}><MessageCircle size={20} aria-hidden="true"/>{t('Recevoir sur WhatsApp')}</a> : canPrepare || busy ? <button type="button" className={styles.action} disabled={disabled || busy || soundUnavailable} onClick={prepare}>{busy ? <LoaderCircle className="spin" size={20} aria-hidden="true"/> : <MessageCircle size={20} aria-hidden="true"/>}{buttonText}</button> : <div className={styles.progress}>{transfer?.state === 'accepted' || transfer?.state === 'delivered' ? <Check size={18} aria-hidden="true"/> : !isWhatsAppTransferTerminal(transfer!.state) ? <LoaderCircle className="spin" size={18} aria-hidden="true"/> : null}</div>}
+    {status || cancellable ? <div className={styles.feedback}><p role={error ? 'alert' : 'status'} aria-live={error ? 'assertive' : 'polite'}>{status}</p>{cancellable && phase !== 'cancelling' ? <button type="button" onClick={cancel} className={styles.cancel}>{t('Annuler')}</button> : null}{transfer && !busy && !canPrepare && (error || transfer.state === 'delivery_unknown') ? <button type="button" onClick={checkStatus} className={styles.cancel}>{t('Réessayer')}</button> : null}</div> : null}
   </div>;
 }

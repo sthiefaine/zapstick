@@ -39,8 +39,8 @@ export async function createSample({ args, env = process.env, stdin = process.st
   if (visual.length + (sound?.length || 0) + LIMITS.manifestBytes > LIMITS.bodyBytes) throw new Error('too_large');
   const response = await fetchImpl(`http://127.0.0.1:${port}/internal/v1/transfers`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'x-transfer-receipt': receipt }, body: form, signal: AbortSignal.timeout(25_000), redirect: 'error' });
   const body = await response.json();
-  if (!response.ok || body.id !== id || typeof body.claimCode !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(body.claimCode) || typeof body.waUrl !== 'string' || !/^https:\/\/wa\.me\/[1-9][0-9]{7,14}\?text=ZAP%20[A-Za-z0-9_-]{22}$/.test(body.waUrl)) throw new Error('sample_unavailable');
-  stdout.write(`Code temporaire (10 minutes maximum) : ZAP ${body.claimCode}\n${body.waUrl}\nEnvoie ce message depuis le compte Android récepteur. Aucun sticker n’est envoyé automatiquement.\n`);
+  if (!response.ok || body.id !== id || typeof body.claimCode !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(body.claimCode) || typeof body.waUrl !== 'string' || !/^https:\/\/wa\.me\/[1-9][0-9]{7,14}\?text=(?:Sticker%20)?ZAP%20[A-Za-z0-9_-]{22}$/.test(body.waUrl)) throw new Error('sample_unavailable');
+  stdout.write(`Code temporaire (10 minutes maximum) : Sticker ZAP ${body.claimCode}\n${body.waUrl}\nEnvoie ce message depuis le compte Android récepteur. Aucun sticker n’est envoyé automatiquement.\n`);
   return { id, expiresAt: body.expiresAt };
 }
 

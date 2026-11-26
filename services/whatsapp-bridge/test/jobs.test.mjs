@@ -35,7 +35,7 @@ test('configuration fails closed and separates sound flag', () => {
 test('idempotent upload and independent receipt survive a lost response and restart', t => {
   const s = setup(t), job = s.create();
   assert.equal(job.created, true); assert.equal(typeof job.transfer.expiresAt, 'number');
-  assert.equal(job.transfer.waUrl, `https://wa.me/33612345678?text=ZAP%20${job.transfer.claimCode}`);
+  assert.equal(job.transfer.waUrl, `https://wa.me/33612345678?text=Sticker%20ZAP%20${job.transfer.claimCode}`);
   assert.equal(s.store.create(job.input).created, false);
   assert.deepEqual(s.store.get(job.input.id, job.input.receipt), job.transfer);
   assert.throws(() => s.store.get(job.input.id, secret(32)), error('not_found'));

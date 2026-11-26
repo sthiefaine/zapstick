@@ -21,7 +21,7 @@ export function parseClaimMessage(message, connectedAt = 0) {
   if (!Number.isFinite(timestamp) || timestamp < connectedAt - 5 || timestamp > Date.now() / 1000 + 60) return undefined;
   const text = message.message?.conversation ?? message.message?.extendedTextMessage?.text;
   if (typeof text !== 'string') return undefined;
-  const match = /^ZAP ([A-Za-z0-9_-]{22})$/.exec(text);
+  const match = /^(?:Sticker )?ZAP ([A-Za-z0-9_-]{22})$/.exec(text);
   if (!match || Buffer.from(match[1], 'base64url').toString('base64url') !== match[1]) return undefined;
   return { providerMessageId: key.id, recipient: key.remoteJid, code: match[1] };
 }

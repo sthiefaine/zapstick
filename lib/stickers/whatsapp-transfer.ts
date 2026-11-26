@@ -32,7 +32,7 @@ function transferValue(value: unknown, id: string): WhatsAppTransfer {
   if (data.state === 'awaiting_message') {
     try {
       const url = new URL(data.waUrl || '');
-      if (!ID.test(data.claimCode || '') || url.protocol !== 'https:' || url.hostname !== 'wa.me' || url.username || url.password || url.port || url.hash || !/^\/[1-9]\d{6,14}$/.test(url.pathname) || url.searchParams.get('text') !== 'ZAP ' + data.claimCode || [...url.searchParams.keys()].some(key => key !== 'text')) throw new Error();
+      if (!ID.test(data.claimCode || '') || url.protocol !== 'https:' || url.hostname !== 'wa.me' || url.username || url.password || url.port || url.hash || !/^\/[1-9]\d{6,14}$/.test(url.pathname) || ![`ZAP ${data.claimCode}`, `Sticker ZAP ${data.claimCode}`].includes(url.searchParams.get('text') || '') || [...url.searchParams.keys()].some(key => key !== 'text')) throw new Error();
     } catch { throw new WhatsAppTransferError('unavailable'); }
   }
   return {id: data.id, state: data.state, expiresAt: data.expiresAt, ...(data.state === 'awaiting_message' ? {claimCode: data.claimCode, waUrl: data.waUrl} : {}), ...(typeof data.error === 'string' ? {error: data.error} : {})};

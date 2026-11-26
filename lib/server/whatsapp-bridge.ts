@@ -109,7 +109,7 @@ export function createWhatsAppBridgeHandler({env = () => process.env, fetchImpl 
       if (value.state === 'awaiting_message') {
         if (!ID.test(value.claimCode) || typeof value.waUrl !== 'string') throw new Error('Invalid claim reply.');
         const link = new URL(value.waUrl);
-        if (link.protocol !== 'https:' || link.hostname !== 'wa.me' || link.username || link.password || link.port || link.hash || !/^\/[1-9]\d{6,14}$/.test(link.pathname) || link.searchParams.get('text') !== 'ZAP ' + value.claimCode || [...link.searchParams.keys()].some(key => key !== 'text')) throw new Error('Invalid WhatsApp link.');
+        if (link.protocol !== 'https:' || link.hostname !== 'wa.me' || link.username || link.password || link.port || link.hash || !/^\/[1-9]\d{6,14}$/.test(link.pathname) || ![`ZAP ${value.claimCode}`, `Sticker ZAP ${value.claimCode}`].includes(link.searchParams.get('text') || '') || [...link.searchParams.keys()].some(key => key !== 'text')) throw new Error('Invalid WhatsApp link.');
         output.claimCode = value.claimCode; output.waUrl = link.href;
       }
       return json(output, upstream.status === 201 ? 201 : 200);
