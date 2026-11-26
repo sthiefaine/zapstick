@@ -74,7 +74,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     const outputDuration=!isStillSource?o.duration:soundLayers.length?Math.max(.1,...soundLayers.map(({track,recipe})=>{const window=planAudioWindow(track.buffer.length,track.buffer.sampleRate,recipe,6);return(window.targetStart+window.count)/track.buffer.sampleRate;})):o.duration;
     const isAnimated = o.animated, kind = isAnimated ? 'animated' : 'static';
     const soundTransport=useSoundTransport({layers:isAnimated?soundLayers:EMPTY_SOUND_LAYERS,length:outputDuration,start:previewStart,playing:playing&&!result,active,seek:seekRequest,onError:setError});
-    const previousSoundTracks=useRef(sound.tracks);
+    const previousSoundTracks=useRef(sound.tracks),classifiedStillDraft=useRef<string|null>(null);
     useEffect(()=>{
         const previous=previousSoundTracks.current;previousSoundTracks.current=sound.tracks;
         if(sound.tracks.some((track,index)=>track&&track!==previous[index])){setOptions(current=>({...current,animated:true,...(isStillSource?{start:0}:{})}));setPackId('');}
@@ -93,7 +93,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             preview = value;
             if (controller.signal.aborted) { value.dispose(); return; }
             setAnimationPreview(value); setDuration(value.duration);
-            if(value.frameCount===1){setOptions(current=>({...current,start:0,duration:draft.sound?.duration??defaults.duration,animated:!!draft.sound||!!draft.soundLayers?.length}));setPlaying(false);}
+            if(value.frameCount===1){const first=classifiedStillDraft.current!==draft.id;classifiedStillDraft.current=draft.id;setOptions(current=>({...current,start:0,...(first?{duration:draft.sound?.duration??defaults.duration,animated:!!draft.sound||!!draft.soundLayers?.length}:{})}));if(first)setPlaying(false);}
             else setOptions(current => current.animated ? ({ ...current, ...normalizeTrim(value.duration, current.start, current.duration) }) : ({...current,start:Math.min(Math.max(0,current.start),Math.max(0,value.duration-.001))}));
         }).catch(reason => { if (!controller.signal.aborted) setError(message(reason)); }).finally(() => { if (!controller.signal.aborted) setTimelineLoading(false); });
         return () => { controller.abort(); preview?.dispose(); };
