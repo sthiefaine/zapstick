@@ -25,7 +25,7 @@ export function AnimatedDownloads({blob,name,disabled=false,onBusyChange,onError
   finally{if(operation.current===controller){operation.current=null;setPercent(null);callbacks.current.onBusyChange(false);}}
  }
  return <div className="animated-downloads" aria-busy={percent!==null}>
-  <button type="button" className="button primary full-width" onClick={saveGif} disabled={disabled||percent!==null}>{percent!==null?<LoaderCircle className="spin" size={18} aria-hidden="true"/>:<Download size={18} aria-hidden="true"/>}{percent!==null?t('Préparation du GIF… {percent} %',{percent}):t('Télécharger le GIF animé')}</button>
-  {percent!==null?<><p className="sr-only" role="status">{t('Préparation du GIF… {percent} %',{percent})}</p><button type="button" className="quiet-button" onClick={()=>operation.current?.abort()}>{t('Annuler')}</button></>:<button type="button" className="quiet-button" disabled={disabled} onClick={()=>download(blob,`${safeName}.webp`)}>{t('Télécharger le WebP')}</button>}
+  <button type="button" className="button secondary full-width" onClick={saveGif} disabled={disabled||percent!==null}>{percent!==null?<LoaderCircle className="spin" size={18} aria-hidden="true"/>:<Download size={18} aria-hidden="true"/>}{percent!==null?`${t('Préparation…')} ${percent} %`:t('Enregistrer')}</button>
+  {percent!==null?<><p className="sr-only" role="status">{`${t('Préparation…')} ${percent} %`}</p><button type="button" className="quiet-button" onClick={()=>operation.current?.abort()}>{t('Annuler')}</button></>:null}
  </div>;
 }
