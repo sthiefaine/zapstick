@@ -5,6 +5,7 @@ import { inspectGifAnimation } from './gif-export-core';
 
 export type AnimationPreview = {
  frameCount?: number;
+ still?: boolean;
  duration: number;
  thumbnails: string[];
  loopCount?: number;
@@ -124,6 +125,10 @@ async function webpPreview(blob: Blob, signal: AbortSignal, withThumbnails = tru
  let bytes: Uint8Array | null = new Uint8Array(await withSignal(blob.arrayBuffer(), signal));
  if (signal.aborted) throw abortError();
  const animation = parseWebpAnimation(bytes), ends: number[] = [];
+ const first=animation.frames[0],sourceBytes=bytes;
+ const still=animation.frames.length===1||animation.frames.every(frame=>
+  !frame.blend&&frame.x===0&&frame.y===0&&frame.width===animation.width&&frame.height===animation.height&&
+  frame.end-frame.start===first.end-first.start&&sourceBytes.subarray(frame.start,frame.end).every((byte,index)=>byte===sourceBytes[first.start+index]));
  const stop = new AbortController(), operation = stop.signal;
  let elapsed = 0;
  for (const frame of animation.frames) ends.push((elapsed += frame.durationMs) / 1000);
@@ -165,7 +170,7 @@ async function webpPreview(blob: Blob, signal: AbortSignal, withThumbnails = tru
   }
   await reset(); thumb.width = thumb.height = 0;
   return {
-   duration, thumbnails, frameCount: animation.frames.length, loopCount: animation.loopCount, dispose,
+   duration, thumbnails, frameCount: animation.frames.length, still, loopCount: animation.loopCount, dispose,
    drawAt(canvas, time) {
     const current = ++request;
     queue = queue.catch(() => {}).then(async () => {

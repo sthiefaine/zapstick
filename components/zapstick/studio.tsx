@@ -65,7 +65,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     }>());
     const src = useMediaUrl(draft?.blob, draft?.src);
     const canAnimate = !!draft && (draft.mime === 'image/gif' || draft.mime.startsWith('video/') || draft.mime==='image/webp'&&draft.kind==='animated');
-    const isStillSource=!canAnimate||animationPreview?.frameCount===1;
+    const isStillSource=!canAnimate||animationPreview?.still===true||animationPreview?.frameCount===1;
     const soundStart=isStillSource?0:audioOrigin+o.start,previewStart=isStillSource?0:o.start;
     const soundWindow=isStillSource?6:o.duration;
     const sound=useSoundEditor(draft,active,()=>setPlaying(false),setError,soundStart,soundWindow);
@@ -93,7 +93,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             preview = value;
             if (controller.signal.aborted) { value.dispose(); return; }
             setAnimationPreview(value); setDuration(value.duration);
-            if(value.frameCount===1){const first=classifiedStillDraft.current!==draft.id;classifiedStillDraft.current=draft.id;setOptions(current=>({...current,start:0,...(first?{duration:draft.sound?.duration??defaults.duration,animated:!!draft.sound||!!draft.soundLayers?.length}:{})}));if(first)setPlaying(false);}
+            if(value.still||value.frameCount===1){const first=classifiedStillDraft.current!==draft.id;classifiedStillDraft.current=draft.id;setOptions(current=>({...current,start:0,...(first?{duration:draft.sound?.duration??defaults.duration,animated:!!draft.sound||!!draft.soundLayers?.length}:{})}));if(first)setPlaying(false);}
             else setOptions(current => current.animated ? ({ ...current, ...normalizeTrim(value.duration, current.start, current.duration) }) : ({...current,start:Math.min(Math.max(0,current.start),Math.max(0,value.duration-.001))}));
         }).catch(reason => { if (!controller.signal.aborted) setError(message(reason)); }).finally(() => { if (!controller.signal.aborted) setTimelineLoading(false); });
         return () => { controller.abort(); preview?.dispose(); };
