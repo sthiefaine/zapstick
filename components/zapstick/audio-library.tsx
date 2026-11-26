@@ -67,7 +67,8 @@ export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
     try {
       const track = await resolve(controller.signal);
       const saved = await saveAudioToLibrary(track, track.name, controller.signal);
-      if (!controller.signal.aborted && alive.current) { setEntries(await loadAudioLibrary()); setLinkOpen(false);setLink('');onChoose?.(saved); }
+      const entries=await loadAudioLibrary();
+      if (!controller.signal.aborted && alive.current) { setEntries(entries); setLinkOpen(false);setLink('');onChoose?.(saved); }
     } catch (reason) { if (!controller.signal.aborted && alive.current && !(reason instanceof DOMException && reason.name==='AbortError')) setError(message(reason)); }
     finally { if (operation.current === controller) { operation.current = null;mic.current=null;if (alive.current){setBusy(false);setMicrophone('idle');} } }
   }
@@ -99,13 +100,13 @@ export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
   }
   const seconds = (value: number) => new Intl.NumberFormat(locale, {maximumFractionDigits: 1}).format(value);
   return <div className="audio-library" aria-busy={busy}>
-    <div className="audio-library-heading"><span>{entries ? t('Sons enregistrés : {count}', {count: entries.length}) : t('Chargement du son…')}</span></div>
-    <div className="audio-library-sources" role="group" aria-label={t('Ajouter un son')}>
+    <div className="audio-library-heading"><span>{entries ? t('Sons enregistrés : {count}', {count: entries.length}) : t('Chargement du son…')}</span>{onChoose?<button type="button" data-action="save" disabled={locked} onClick={()=>file.current?.click()}><Upload size={17}/>{t('Importer')}</button>:null}</div>
+    {!onChoose?<div className="audio-library-sources" role="group" aria-label={t('Ajouter un son')}>
       <button type="button" data-action="save" disabled={locked} onClick={()=>file.current?.click()}><Upload size={18}/>{t('Fichier')}</button>
       <button type="button" data-action="edit" disabled={locked} aria-expanded={linkOpen} onClick={()=>setLinkOpen(value=>!value)}><LinkIcon size={18}/>{t('Lien')}</button>
       <button type="button" data-action="organize" disabled={locked} onClick={()=>void record()}><Mic size={18}/>{t('Micro')}</button>
-    </div>
-    {linkOpen?<form className="audio-library-link" onSubmit={event=>{event.preventDefault();if(link.trim())void importLink();}}><input type="url" aria-label={t('Lien audio')} placeholder={t('Lien audio ou MyInstants')} maxLength={2048} required autoComplete="off" value={link} disabled={locked} onChange={event=>setLink(event.target.value)}/><button type="submit" data-action="save" disabled={locked||!link.trim()}>{t('Importer')}</button></form>:null}
+    </div>:null}
+    {!onChoose&&linkOpen?<form className="audio-library-link" onSubmit={event=>{event.preventDefault();if(link.trim())void importLink();}}><input type="url" aria-label={t('Lien audio')} placeholder={t('Lien audio ou MyInstants')} maxLength={2048} required autoComplete="off" value={link} disabled={locked} onChange={event=>setLink(event.target.value)}/><button type="submit" data-action="save" disabled={locked||!link.trim()}>{t('Importer')}</button></form>:null}
     <input ref={file} hidden type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac,.webm" onChange={event => { const next = event.target.files?.[0]; event.target.value = ''; if (next) void importFile(next); }}/>
     <audio ref={audio} hidden preload="metadata" onEnded={stop}/>
     {error ? <p className="audio-library-error" role="alert">{t(error)}</p> : null}
