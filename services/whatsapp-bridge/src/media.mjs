@@ -92,7 +92,7 @@ function frameImage(buffer, start, end, width, height) {
 function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes, incoming = false) {
   riff(buffer, 'WEBP', incoming ? 1024 * 1024 : MEDIA_LIMITS.animatedBytes);
   let extension, image, alpha, anim = false, frames = 0, durationMs = 0;
-  let hasAlpha = false, seenImage = false, trailingMetadata = false;
+  let hasAlpha = false, seenImage = false, trailingMetadata = false, decodedPixels = 0;
   const metadata = new Set();
   for (const chunk of chunks(buffer)) {
     if (chunk.name === 'VP8X') {
@@ -100,7 +100,7 @@ function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes, incoming = false) 
       const flags = buffer[chunk.start];
       if ((flags & 0xc1) || buffer[chunk.start + 1] || buffer[chunk.start + 2] || buffer[chunk.start + 3]) invalid();
       extension = {flags, width: u24(buffer, chunk.start + 4) + 1, height: u24(buffer, chunk.start + 7) + 1};
-      if (extension.width !== 512 || extension.height !== 512) invalid('dimensions');
+      if (incoming ? extension.width > 2048 || extension.height > 2048 : extension.width !== 512 || extension.height !== 512) invalid('dimensions');
     } else if (chunk.name === 'ANIM') {
       if (!extension || !(extension.flags & 2) || anim || seenImage || trailingMetadata || chunk.size !== 6) invalid();
       anim = true;
@@ -109,7 +109,9 @@ function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes, incoming = false) 
       const at = chunk.start, x = u24(buffer, at) * 2, y = u24(buffer, at + 3) * 2;
       const width = u24(buffer, at + 6) + 1, height = u24(buffer, at + 9) + 1;
       const delay = u24(buffer, at + 12);
-      if (x + width > 512 || y + height > 512 || (buffer[at + 15] & 0xfc) || !incoming && delay < 8) invalid('frame');
+      if (x + width > extension.width || y + height > extension.height || (buffer[at + 15] & 0xfc) || !incoming && delay < 8) invalid('frame');
+      decodedPixels += width * height;
+      if (incoming && decodedPixels > 80_000_000) invalid('dimensions');
       durationMs += incoming ? delay || 100 : delay;
       if (++frames > MEDIA_LIMITS.frames || durationMs > MEDIA_LIMITS.seconds * 1000) invalid('duration');
       hasAlpha = frameImage(buffer, at + 16, chunk.end, width, height) || hasAlpha;
@@ -120,8 +122,9 @@ function webp(buffer, staticBytes = MEDIA_LIMITS.staticBytes, incoming = false) 
     } else if (chunk.name === 'VP8 ' || chunk.name === 'VP8L') {
       if (image || anim || extension?.flags & 2 || trailingMetadata || (alpha && chunk.name !== 'VP8 ')) invalid();
       image = imageHeader(buffer, chunk);
-      if (image.width !== 512 || image.height !== 512) invalid('dimensions');
-      if (alpha) alphaHeader(buffer, alpha, 512, 512);
+      if (incoming ? image.width > 2048 || image.height > 2048 : image.width !== 512 || image.height !== 512) invalid('dimensions');
+      if (extension && (image.width !== extension.width || image.height !== extension.height)) invalid('dimensions');
+      if (alpha) alphaHeader(buffer, alpha, image.width, image.height);
       hasAlpha = !!alpha || image.alpha;
       seenImage = true;
     } else if (['ICCP', 'EXIF', 'XMP '].includes(chunk.name)) {
@@ -343,10 +346,11 @@ export function extendIncomingVisual(visual, duration) {
     return Buffer.concat([header, data, ...(data.length & 1 ? [Buffer.alloc(1)] : [])]);
   };
   const source = [...chunks(visual)], image = source.filter(chunk => ['ALPH','VP8 ','VP8L'].includes(chunk.name));
+  const {width, height} = imageHeader(visual, image.find(chunk => chunk.name === 'VP8 ' || chunk.name === 'VP8L'));
   const profile = source.find(chunk => chunk.name === 'ICCP');
   const extension = Buffer.alloc(10); extension[0] = 0x12 | (profile ? 0x20 : 0);
-  extension.writeUIntLE(511, 4, 3); extension.writeUIntLE(511, 7, 3);
-  const frame = Buffer.alloc(16); frame.writeUIntLE(511, 6, 3); frame.writeUIntLE(511, 9, 3); frame.writeUIntLE(target, 12, 3); frame[15] = 2;
+  extension.writeUIntLE(width - 1, 4, 3); extension.writeUIntLE(height - 1, 7, 3);
+  const frame = Buffer.alloc(16); frame.writeUIntLE(width - 1, 6, 3); frame.writeUIntLE(height - 1, 9, 3); frame.writeUIntLE(target, 12, 3); frame[15] = 2;
   const payload = Buffer.concat([Buffer.from('WEBP'), makeChunk('VP8X', extension), ...(profile ? [makeChunk('ICCP', visual.subarray(profile.start, profile.end))] : []), makeChunk('ANIM', Buffer.alloc(6)), makeChunk('ANMF', Buffer.concat([frame, ...image.map(chunk => makeChunk(chunk.name, visual.subarray(chunk.start, chunk.end)))]))]);
   const header = Buffer.alloc(8); header.write('RIFF'); header.writeUInt32LE(payload.length, 4);
   const result = Buffer.concat([header, payload]); validateIncomingSticker(result); return result;
