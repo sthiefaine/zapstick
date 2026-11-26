@@ -26,7 +26,7 @@ import {SoundDownload} from './sound-download';
 import {WhatsAppTransfer} from './whatsapp-transfer';
 import {useSoundEditor} from './use-sound-editor';
 import {useSoundTransport} from './use-sound-transport';
-import {resolveAudioRecipes,type AudioLayer} from '@/lib/stickers/audio';
+import {resolveAudioRecipes,planAudioWindow,type AudioLayer} from '@/lib/stickers/audio';
 import type {EmojiOverlay,TextStyle,OverlaySelection} from '@/lib/stickers/overlays';
 import './studio-controls.css';
 import './studio-workspace.css';
@@ -65,11 +65,13 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     }>());
     const src = useMediaUrl(draft?.blob, draft?.src);
     const canAnimate = !!draft && (draft.mime === 'image/gif' || draft.mime.startsWith('video/') || draft.mime==='image/webp'&&draft.kind==='animated');
-    const isAnimated = canAnimate && o.animated, kind = isAnimated ? 'animated' : 'static';
-    const sound=useSoundEditor(draft,active,()=>setPlaying(false),setError,audioOrigin+o.start,o.duration);
-    const soundRecipes=useMemo(()=>resolveAudioRecipes(sound.tracks,sound.recipes,audioOrigin+o.start,o.duration),[sound.recipes,sound.tracks,audioOrigin,o.start,o.duration]);
+    const soundWindow=canAnimate?o.duration:6;
+    const sound=useSoundEditor(draft,active,()=>setPlaying(false),setError,audioOrigin+o.start,soundWindow);
+    const soundRecipes=useMemo(()=>resolveAudioRecipes(sound.tracks,sound.recipes,audioOrigin+o.start,soundWindow),[sound.recipes,sound.tracks,audioOrigin,o.start,soundWindow]);
     const soundLayers=useMemo<AudioLayer[]>(()=>sound.tracks.flatMap((track,index)=>track?[{track,recipe:soundRecipes[index]}]:[]),[sound.tracks,soundRecipes]);
-    const soundTransport=useSoundTransport({layers:isAnimated?soundLayers:EMPTY_SOUND_LAYERS,length:o.duration,start:o.start,playing:playing&&!result,active,seek:seekRequest,onError:setError});
+    const outputDuration=canAnimate?o.duration:soundLayers.length?Math.max(.1,...soundLayers.map(({track,recipe})=>{const window=planAudioWindow(track.buffer.length,track.buffer.sampleRate,recipe,6);return(window.targetStart+window.count)/track.buffer.sampleRate;})):6;
+    const isAnimated = canAnimate?o.animated:soundLayers.length>0, kind = isAnimated ? 'animated' : 'static';
+    const soundTransport=useSoundTransport({layers:isAnimated?soundLayers:EMPTY_SOUND_LAYERS,length:outputDuration,start:o.start,playing:playing&&!result,active,seek:seekRequest,onError:setError});
     const matchingPacks = packs.filter(p => p.kind === kind);
     useEffect(() => { if(!active)cancelClipboard(); }, [active]);
     useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++;clipboardAbort.current?.abort();clipboardAbort.current=null; }; }, []);
@@ -123,7 +125,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             setSeekRequest(current => ({ time, revision: current.revision + 1 })); setPlaying(false);
         } else {
             if(soundLayers.length&&!await soundTransport.unlock())return;
-            const time = playhead >= o.start && playhead < o.start + o.duration ? playhead : o.start;
+            const time = playhead >= o.start && playhead < o.start + outputDuration ? playhead : o.start;
             if (video.current) video.current.currentTime = time;
             setSeekRequest(current => ({ time, revision: current.revision + 1 })); setPlaying(true);
         }
@@ -247,7 +249,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
             if (packId && stickers.filter(s => s.packId === packId).length >= 30)
                 throw new Error(t("Ce pack est plein. Choisis un autre pack."));
             const { convert } = await import('@/lib/stickers/convert');
-            const converted = await convert(draft.blob, { ...o, animated: !!canAnimate && o.animated }, n => { if (alive.current)
+            const converted = await convert(draft.blob, { ...o, animated:isAnimated,holdStill:!canAnimate&&isAnimated,duration:outputDuration }, n => { if (alive.current)
                 setProgress(n); });
             if (!alive.current)
                 return;
@@ -292,7 +294,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     function removedBackground(blob:Blob){
         if(!draft?.blob)return;
         if(!backgroundOriginal)setBackgroundOriginal({blob:draft.blob,mime:draft.mime,kind:draft.kind,isSticker:draft.isSticker,start:o.start,duration:o.duration,animated:o.animated,audioOrigin});
-        onDraft({...draft,blob,mime:blob.type,kind:isAnimated?'animated':'static',isSticker:false});
+        onDraft({...draft,blob,mime:blob.type,kind:canAnimate&&isAnimated?'animated':'static',isSticker:false});
         if(canAnimate){setAudioOrigin(value=>value+o.start);setOptions(current=>({...current,start:0}));setPlayhead(0);setSeekRequest(current=>({time:0,revision:current.revision+1}));}
     }
     function restoreBackground(){
@@ -321,7 +323,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     </> : <><MediaImportCard onChoose={() => file.current?.click()} disabled={disabled} dragActive={dragging}/><HomeMemes disabled={disabled||!active}/></>}
     {(loading && !clipboardWaiting) || progress >= 0 ? <div className="stage-loading" role="status"><LoaderCircle className="spin" size={27}/><strong>{progress >= 0 ? t("Création du sticker…") : t(loading)}</strong>{progress >= 0 ? <><div className="progress-track"><span style={{ width: `${Math.max(4, progress)}%` }}/></div><small>{progress} %</small></> : null}</div> : null}
    </div>
-   {draft && !result ? <><span className="stage-format">{isAnimated ? <><Play size={9} fill="currentColor"/>{t("ANIMÉ")}</> : t("FIXE")}</span>{canAnimate && isAnimated ? <button className="stage-play" aria-label={playing ? t("Mettre en pause") : t("Lire l’animation")} onClick={togglePlayback}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button> : null}</> : null}
+   {draft && !result ? <><span className="stage-format">{isAnimated ? <><Play size={9} fill="currentColor"/>{t("ANIMÉ")}</> : t("FIXE")}</span>{isAnimated ? <button className="stage-play" aria-label={playing ? t("Mettre en pause") : t("Lire l’animation")} onClick={togglePlayback}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button> : null}</> : null}
    {draft&&!result?<button type="button" className="preview-resize" aria-label={previewExpanded?t('Réduire l’aperçu'):t('Agrandir l’aperçu')} aria-pressed={previewExpanded} onClick={()=>setPreviewExpanded(value=>!value)}>{previewExpanded?<Minimize2 size={18}/>:<Maximize2 size={18}/>}<span className="sr-only">{previewExpanded?t('Réduire'):t('Agrandir')}</span></button>:null}
   </div>
   {error ? <div className="inline-error" role="alert">{t(error)}<button aria-label={t("Fermer le message")} onClick={() => setError('')}><X size={16}/></button></div> : null}
@@ -333,15 +335,15 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
    <button className="quiet-button result-another" disabled={gifBusy||soundExportBusy} onClick={reset}><Plus size={18}/>{t('Un autre')}</button>
   </div> : draft ? <>
    <span id="sticker-keyboard-help" className="sr-only">{t("Utilise les flèches pour déplacer le sticker ; + et − pour zoomer.")}</span><p className="gesture-hint sr-only"><Move size={12}/>{t("Déplace au doigt · pince pour zoomer")}</p>{draft.kind === 'animated' && !canAnimate ? <p className="subtle-note">{t("Cette variante sera fixe. Utilise le GIF ou la vidéo d’origine pour garder l’animation.")}</p> : null}
-   <div className="toolbelt" role="group" aria-label={t("Personnaliser le sticker")}>{([{ id: 'crop', label: t("Cadrer"), icon: SlidersHorizontal }, { id: 'text', label: t("Texte"), icon: Type }, { id: 'emoji', label: t("Émojis"), icon: Smile }, { id: 'background', label: t("Fond"), icon: Palette }, ...(canAnimate ? [{ id: 'animation', label: t("Animation"), icon: Play }] : []), ...(isAnimated ? [{id:'sound',label:t('Son'),icon:AudioLines}] : [])] as const).map(item => <button key={item.id} data-tool={item.id} className={tool === item.id ? 'selected' : ''} aria-pressed={tool === item.id} aria-expanded={tool === item.id} aria-controls="studio-inline-settings" onClick={() => {setTool(item.id as Tool);setPreviewExpanded(item.id==='crop');inspector.current?.scrollTo({top:0});if(item.id==='text')setOverlaySelection('text');if(item.id==='emoji'&&overlaySelection==='text')setOverlaySelection(null);}} disabled={disabled}><span><item.icon size={20}/></span>{item.label}</button>)}</div>
+   <div className="toolbelt" role="group" aria-label={t("Personnaliser le sticker")}>{([{ id: 'crop', label: t("Cadrer"), icon: SlidersHorizontal }, { id: 'text', label: t("Texte"), icon: Type }, { id: 'emoji', label: t("Émojis"), icon: Smile }, { id: 'background', label: t("Fond"), icon: Palette }, ...(canAnimate ? [{ id: 'animation', label: t("Animation"), icon: Play }] : []), ...(isAnimated||!canAnimate ? [{id:'sound',label:t('Son'),icon:AudioLines}] : [])] as const).map(item => <button key={item.id} data-tool={item.id} className={tool === item.id ? 'selected' : ''} aria-pressed={tool === item.id} aria-expanded={tool === item.id} aria-controls="studio-inline-settings" onClick={() => {setTool(item.id as Tool);setPreviewExpanded(item.id==='crop');inspector.current?.scrollTo({top:0});if(item.id==='text')setOverlaySelection('text');if(item.id==='emoji'&&overlaySelection==='text')setOverlaySelection(null);}} disabled={disabled}><span><item.icon size={20}/></span>{item.label}</button>)}</div>
    <div className="studio-inspector" ref={inspector}>
    {tool ? <div className="studio-inline-settings" id="studio-inline-settings" role="group" aria-labelledby="studio-settings-label">
     <span className="sr-only" id="studio-settings-label">{{ crop: t("Cadrage"), text: t("Texte"), emoji:t("Émojis"), background: t("Fond"), animation: t("Animation"), sound:t("Son"), organize: t("Nom et pack") }[tool]}</span>
     {tool === 'crop' ? <><div className="range-row"><span>{t("Zoom")}</span><input aria-label={t("Zoom")} type="range" min=".35" max="3" step=".01" value={o.zoom} onChange={e => update('zoom', Number(e.target.value))}/><span>{Math.round(o.zoom * 100)} %</span></div><div className="position-controls">{[{key:'left',label:'Vers la gauche',icon:ArrowLeft,x:-10,y:0},{key:'up',label:'Vers le haut',icon:ArrowUp,x:0,y:-10},{key:'down',label:'Vers le bas',icon:ArrowDown,x:0,y:10},{key:'right',label:'Vers la droite',icon:ArrowRight,x:10,y:0}].map(direction=><button className="button light" key={direction.key} aria-label={t(direction.label)} onClick={()=>setOptions(p=>({...p,offsetX:Math.max(-400,Math.min(400,(p.offsetX??0)+direction.x)),offsetY:Math.max(-400,Math.min(400,(p.offsetY??0)+direction.y))}))}><direction.icon size={17}/></button>)}</div><div className="two-actions"><button className="button light" onClick={() => update('rotation', (o.rotation + 90) % 360)}><RotateCw size={16}/>{t("Tourner")}</button><button className="button light" onClick={() => setOptions(p => ({ ...p, zoom: 1, rotation: 0, offsetX: 0, offsetY: 0 }))}><RefreshCw size={16}/>{t("Recentrer")}</button></div></> : null}
     {tool==='text'||tool==='emoji'?<TextStyleControls {...overlayControls} mode={tool==='emoji'?'emoji':'text'} onChangeText={value=>update('text',value)}/>:null}
-    {tool === 'background' ? <>{draft.blob?<><BackgroundRemovalControl blob={draft.blob} animated={isAnimated} prepareSource={canAnimate?prepareBackgroundSource:undefined} disabled={progress>=0||timelineLoading} onResult={removedBackground} onBusyChange={backgroundWorking}/>{backgroundOriginal?<button className="button light background-restore" disabled={backgroundBusy} onClick={restoreBackground}>{t('Rétablir le fond')}</button>:null}</>:null}<div className="swatches">{['transparent', '#ffffff', '#bfe8b0', '#e7f0df', '#f6c1a3', '#25252b'].map(color => <button key={color} className={`${color === 'transparent' ? 'checker' : ''} ${o.background === color ? 'chosen' : ''}`} style={{ backgroundColor: color === 'transparent' ? undefined : color, color: color === '#25252b' ? '#fff' : '#222' }} aria-label={color === 'transparent' ? t("Fond transparent") : t('Fond {color}', { color })} aria-pressed={o.background === color} onClick={() => update('background', color)}>{o.background === color ? <Check size={18}/> : null}</button>)}</div><ColorWheel value={o.background} onChange={color=>update('background',color)} disabled={backgroundBusy||progress>=0}/></> : null}
+    {tool === 'background' ? <>{draft.blob?<><BackgroundRemovalControl blob={draft.blob} animated={canAnimate&&isAnimated} prepareSource={canAnimate?prepareBackgroundSource:undefined} disabled={progress>=0||timelineLoading} onResult={removedBackground} onBusyChange={backgroundWorking}/>{backgroundOriginal?<button className="button light background-restore" disabled={backgroundBusy} onClick={restoreBackground}>{t('Rétablir le fond')}</button>:null}</>:null}<div className="swatches">{['transparent', '#ffffff', '#bfe8b0', '#e7f0df', '#f6c1a3', '#25252b'].map(color => <button key={color} className={`${color === 'transparent' ? 'checker' : ''} ${o.background === color ? 'chosen' : ''}`} style={{ backgroundColor: color === 'transparent' ? undefined : color, color: color === '#25252b' ? '#fff' : '#222' }} aria-label={color === 'transparent' ? t("Fond transparent") : t('Fond {color}', { color })} aria-pressed={o.background === color} onClick={() => update('background', color)}>{o.background === color ? <Check size={18}/> : null}</button>)}</div><ColorWheel value={o.background} onChange={color=>update('background',color)} disabled={backgroundBusy||progress>=0}/></> : null}
     {tool === 'animation' ? <><div className="segmented"><button className={o.animated ? 'selected' : ''} aria-pressed={o.animated} onClick={() => { setOptions(current => ({ ...current, animated: true, ...(duration ? normalizeTrim(duration, current.start, current.duration) : {}) })); setPackId(''); }}>{t("Animé")}</button><button className={!o.animated ? 'selected' : ''} aria-pressed={!o.animated} onClick={() => { setOptions(current => ({ ...current, animated: false, start: playhead })); setPackId(''); seekPreview(playhead); }}>{t("Image fixe")}</button></div>{o.animated ? <AnimationTimeline compact duration={duration} selection={{ start: o.start, duration: o.duration }} thumbnails={animationPreview?.thumbnails ?? []} currentTime={playhead} playing={playing && isAnimated} disabled={progress >= 0} loading={timelineLoading} onChange={changeSelection} onSeek={seekPreview} onTogglePlay={togglePlayback}/> : null}</> : null}
-    {tool==='sound'?<SoundControls editor={sound} recipes={soundRecipes} length={o.duration} currentTime={playhead-o.start} playing={playing&&isAnimated} onTogglePlay={togglePlayback} onPause={()=>setPlaying(false)} onError={setError} disabled={progress>=0||backgroundBusy||gifBusy||soundExportBusy}/>:null}
+    {tool==='sound'?<SoundControls editor={sound} recipes={soundRecipes} length={outputDuration} maximumLength={canAnimate?undefined:6} currentTime={playhead-o.start} playing={playing&&isAnimated} onTogglePlay={togglePlayback} onPause={()=>setPlaying(false)} onError={setError} disabled={progress>=0||backgroundBusy||gifBusy||soundExportBusy}/>:null}
     {tool === 'organize' ? <><input className="field" aria-label={t("Nom du sticker")} maxLength={120} value={name} placeholder={t("Nom du sticker")} onChange={e => setName(e.target.value)}/><select className="field" aria-label={t("Pack du nouveau sticker")} value={packId} onChange={e => setPackId(e.target.value)}><option value="">{t("Sans pack")}</option>{matchingPacks.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><button className="quiet-button" disabled={disabled} onClick={() => { if (draft.blob) {
             onSave({ ...draft, id: crypto.randomUUID(), name: name.trim() || draft.name, packId: '', createdAt: Date.now() });
             onError(t("Original ajouté à la collection."));

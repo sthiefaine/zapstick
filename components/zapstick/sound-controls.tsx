@@ -9,7 +9,7 @@ import {AudioLibrary,SaveAudioButton} from './audio-library';
 import type {SoundSlot,useSoundEditor} from './use-sound-editor';
 import './sound-controls.css';
 
-type Props={editor:ReturnType<typeof useSoundEditor>;recipes:readonly AudioRecipe[];length:number;currentTime:number;playing:boolean;disabled:boolean;onTogglePlay:()=>void;onPause:()=>void;onError:(message:string)=>void};
+type Props={editor:ReturnType<typeof useSoundEditor>;recipes:readonly AudioRecipe[];length:number;maximumLength?:number;currentTime:number;playing:boolean;disabled:boolean;onTogglePlay:()=>void;onPause:()=>void;onError:(message:string)=>void};
 type ClipProps={track:AudioTrack;recipe:AudioRecipe;index:SoundSlot;length:number;currentTime:number;selected:boolean;disabled:boolean;snap:number;onSelect:()=>void;onMove:(value:number)=>void};
 function SoundClip({track,recipe,index,length,currentTime,selected,disabled,snap,onSelect,onMove}:ClipProps){
  const {t}=usePreferences(),lane=useRef<HTMLDivElement>(null),drag=useRef<{x:number;offset:number}|null>(null);
@@ -29,7 +29,7 @@ function SoundClip({track,recipe,index,length,currentTime,selected,disabled,snap
  </div>;
 }
 
-export function SoundControls({editor:e,recipes,length,currentTime,playing,disabled,onTogglePlay,onPause,onError}:Props){
+export function SoundControls({editor:e,recipes,length,maximumLength=length,currentTime,playing,disabled,onTogglePlay,onPause,onError}:Props){
  const {t,locale}=usePreferences(),file=useRef<HTMLInputElement>(null),fileTarget=useRef<SoundSlot>(0);
  const [librarySlot,setLibrarySlot]=useState<SoundSlot|null>(null);
  const [linkSlot,setLinkSlot]=useState<SoundSlot|null>(null),[links,setLinks]=useState<[string,string]>(['','']);
@@ -40,7 +40,7 @@ export function SoundControls({editor:e,recipes,length,currentTime,playing,disab
  const firstEnd=Math.max(0,first.offset+Math.min(first.duration??length,Math.max(0,(e.tracks[0]?.buffer.duration??0)-first.start)));
  const sequential=!!e.tracks[0]&&!!e.tracks[1]&&firstEnd>0&&Math.abs(second.offset-firstEnd)<.015;
  const sourceRemaining=track?Math.max(0,track.buffer.duration-Math.max(0,recipe.start)):0;
- const excerptLimit=Math.max(0,length-Math.max(0,recipe.offset)-(selected===0&&sequential ? .05 : 0));
+ const excerptLimit=Math.max(0,maximumLength-Math.max(0,recipe.offset)-(selected===0&&sequential ? .05 : 0));
  const maxDuration=Math.min(sourceRemaining,excerptLimit);
  const clipDuration=Math.min(maxDuration,Math.max(0,recipe.duration??maxDuration));
  const audition=useAudioAudition(track,recipe,length,playing,onPause,onError);
