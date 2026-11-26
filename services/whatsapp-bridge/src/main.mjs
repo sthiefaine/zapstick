@@ -3,7 +3,7 @@ import { BridgeStore } from './store.mjs';
 import { createBridgeServer } from './server.mjs';
 import { BridgeWorker } from './worker.mjs';
 import { encodeOpus } from './media.mjs';
-import {decodeIncomingOpus} from './incoming-media.mjs';
+import {decodeIncomingAudio} from './incoming-media.mjs';
 import {ReverseBridge} from './reverse.mjs';
 import { createWhatsAppTransport } from './transport.mjs';
 
@@ -19,7 +19,7 @@ const transport = config.enabled ? createWhatsAppTransport({ authDir: config.aut
   onInbound: event => reverse?.receive(event),
 }) : { isReady: () => false, close: async () => {}, getState: () => 'disabled' };
 worker = new BridgeWorker({ store, transport, encodeOpus: options => serializeCodec(() => encodeOpus(options)), enabled: config.enabled, soundEnabled: config.soundEnabled });
-reverse = new ReverseBridge({store, transport, siteUrl: config.siteUrl, decodeSound: options => serializeCodec(() => decodeIncomingOpus(options)),
+reverse = new ReverseBridge({store, transport, siteUrl: config.siteUrl, decodeSound: options => serializeCodec(() => decodeIncomingAudio(options)),
   onEvent: event => process.stdout.write(`reverse_import_${event}\n`),
 });
 const app = createBridgeServer({ store, serviceToken: config.serviceToken, enabled: config.enabled, soundEnabled: config.soundEnabled,
