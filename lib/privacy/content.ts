@@ -29,7 +29,7 @@ export const privacySections = [
   },
   {
     title: 'Quand tu importes un lien',
-    body: 'Pour un lien X, ton navigateur contacte FxTwitter pour trouver le média, puis son hébergeur pour le télécharger. Les aperçus de médias et les liens externes contactent aussi leurs sites respectifs. Ces services reçoivent notamment ton adresse IP et le lien demandé ; leurs règles de confidentialité et leurs éventuels transferts internationaux s’appliquent.',
+    body: 'Pour un lien X, ton navigateur contacte FxTwitter pour trouver le média, puis son hébergeur pour le télécharger. Les aperçus de médias et les liens externes contactent aussi leurs sites respectifs. Ces services reçoivent notamment ton adresse IP et le lien demandé ; leurs règles de confidentialité et leurs éventuels transferts internationaux s’appliquent. Pour une publication publique Instagram ou TikTok, le serveur Zapstick utilise son service Cobalt privé pour récupérer le média, puis le transmet à ton navigateur, sans enregistrement durable. La plateforme et son hébergeur reçoivent alors l’adresse IP du serveur et le lien demandé. Les tickets d’accès au média expirent après 90 secondes ; aucun compte ni cookie personnel n’est transmis.',
   },
   {
     title: 'Hébergement et journaux techniques',
