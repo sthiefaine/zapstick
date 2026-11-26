@@ -322,3 +322,32 @@ export function validateIncomingSticker(visual, sound) {
   }
   return result;
 }
+
+/** Native sound stickers can contain a still image or a single short frame.
+ * Hold the image/last pose through the audio, without decoding or re-encoding
+ * pixels. The bounded original and resulting containers are both validated. */
+export function extendIncomingVisual(visual, duration) {
+  const media = validateIncomingSticker(visual);
+  if (!Number.isFinite(duration) || duration <= 0 || duration > MEDIA_LIMITS.seconds) invalid();
+  const target = Math.max(8, Math.round(duration * 1000));
+  if (media.kind === 'animated') {
+    if (Math.round(media.duration * 1000) >= target) return visual;
+    const result = Buffer.from(visual);
+    const last = [...chunks(result)].filter(chunk => chunk.name === 'ANMF').at(-1);
+    const delay = u24(result, last.start + 12) || 100;
+    result.writeUIntLE(delay + target - Math.round(media.duration * 1000), last.start + 12, 3);
+    validateIncomingSticker(result); return result;
+  }
+  const makeChunk = (name, data) => {
+    const header = Buffer.alloc(8); header.write(name); header.writeUInt32LE(data.length, 4);
+    return Buffer.concat([header, data, ...(data.length & 1 ? [Buffer.alloc(1)] : [])]);
+  };
+  const source = [...chunks(visual)], image = source.filter(chunk => ['ALPH','VP8 ','VP8L'].includes(chunk.name));
+  const profile = source.find(chunk => chunk.name === 'ICCP');
+  const extension = Buffer.alloc(10); extension[0] = 0x12 | (profile ? 0x20 : 0);
+  extension.writeUIntLE(511, 4, 3); extension.writeUIntLE(511, 7, 3);
+  const frame = Buffer.alloc(16); frame.writeUIntLE(511, 6, 3); frame.writeUIntLE(511, 9, 3); frame.writeUIntLE(target, 12, 3); frame[15] = 2;
+  const payload = Buffer.concat([Buffer.from('WEBP'), makeChunk('VP8X', extension), ...(profile ? [makeChunk('ICCP', visual.subarray(profile.start, profile.end))] : []), makeChunk('ANIM', Buffer.alloc(6)), makeChunk('ANMF', Buffer.concat([frame, ...image.map(chunk => makeChunk(chunk.name, visual.subarray(chunk.start, chunk.end)))]))]);
+  const header = Buffer.alloc(8); header.write('RIFF'); header.writeUInt32LE(payload.length, 4);
+  const result = Buffer.concat([header, payload]); validateIncomingSticker(result); return result;
+}

@@ -91,6 +91,8 @@ function opusInfo(bytes) {
   return {channels, duration: Number(granule - BigInt(skip)) / 48000};
 }
 
+export function incomingOpusDuration(bytes) { return opusInfo(bytes).duration; }
+
 export async function decodeIncomingOpus({bytes, duration, signal}) {
   const {channels} = opusInfo(bytes);
   if (!Number.isFinite(duration) || duration <= 0 || duration > 6 || signal?.aborted) throw invalid();

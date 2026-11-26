@@ -1,5 +1,5 @@
-import {validateIncomingSticker} from './media.mjs';
-import {decodeIncomingOpus} from './incoming-media.mjs';
+import {validateIncomingSticker,extendIncomingVisual} from './media.mjs';
+import {decodeIncomingOpus,incomingOpusDuration} from './incoming-media.mjs';
 
 const HELP = 'Envoie-moi un sticker pour le modifier : 3 liens actifs maximum, valables 10 min. Pour recevoir un sticker du site, envoie le message « Sticker ZAP … » prérempli.';
 /** Reserve synchronously, then process a bounded queue one sticker at a time.
@@ -36,15 +36,16 @@ export class ReverseBridge {
       const timeout = setTimeout(() => controller.abort(), Math.max(1, Math.min(45_000, job.expiresAt - this.clock()))); timeout.unref();
       try {
         if (job.expiresAt <= this.clock()) throw new Error();
-        const visual = await this.transport.downloadIncoming({message: event.sticker, type: 'sticker', maximum: 500 * 1024, signal: controller.signal});
+        let visual = await this.transport.downloadIncoming({message: event.sticker, type: 'sticker', maximum: 500 * 1024, signal: controller.signal});
         stage = 'validate_visual';
-        const media = validateIncomingSticker(visual);
+        let media = validateIncomingSticker(visual);
         let sound;
         if (event.audio) {
-          if (media.kind !== 'animated') throw new Error();
           stage = 'download_audio';
           const encoded = await this.transport.downloadIncoming({message: event.audio, type: 'audio', maximum: 512 * 1024, signal: controller.signal});
           stage = 'decode_audio';
+          visual = extendIncomingVisual(visual, Math.min(6, Math.max(media.duration, incomingOpusDuration(encoded))));
+          media = validateIncomingSticker(visual);
           sound = await this.decodeSound({bytes: encoded, duration: media.duration, signal: controller.signal});
           validateIncomingSticker(visual, sound);
         }
