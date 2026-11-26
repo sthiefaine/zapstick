@@ -110,6 +110,7 @@ export function useSoundEditor(draft:Sticker|null,active:boolean,onPause:()=>voi
   track:tracks[selected],recipe:recipes[selected],hasOriginal:originalAvailable[selected],
   chooseOriginal:()=>{const index=selected,blob=original.current[index];if(blob)void load(blob,draft?.name??'Original','original',index);},
   chooseFile:(file:File,index:SoundSlot=selected)=>load(file,file.name.replace(/\.[^.]+$/,'')||'Audio','file',index),
+  chooseSaved:(blob:Blob,name:string,index:SoundSlot=selected)=>load(blob,name,'library',index),
   chooseUrl:(url:string,index:SoundSlot=selected)=>beginLoad(async signal=>{const{blob,name}=await importAudioUrl(url,signal);return decodeAudio(blob,{name,source:'url',signal});},index),
   remove:(index:SoundSlot=selected)=>{if(operation.current?.index===index)cancel();setTracks(values=>replaceSlot(values,index,null));setRecipes(values=>replaceSlot(values,index,{...defaultAudioRecipe}));},
  };

@@ -1,4 +1,4 @@
-export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone' | 'url'; compositionBound?: boolean };
+export type AudioTrack = { blob: Blob; buffer: AudioBuffer; name: string; source: 'original' | 'file' | 'microphone' | 'url' | 'library'; compositionBound?: boolean };
 export type AudioRecipe = { start: number; offset: number; volume: number; duration?: number; sourcePinned?: boolean; afterPrevious?: boolean };
 export type AudioLayer = { track: AudioTrack; recipe: AudioRecipe };
 export const defaultAudioRecipe: AudioRecipe = { start: 0, offset: 0, volume: 1 };

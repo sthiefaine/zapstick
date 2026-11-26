@@ -10,7 +10,7 @@ export function StickerPreview({sticker, active = true, className = ''}: {sticke
   const {t} = usePreferences(), audio = useRef<HTMLAudioElement>(null);
   const soundUrl = useMediaUrl(sticker.sound?.blob);
   const [playing, setPlaying] = useState(false), [revision, setRevision] = useState(0);
-  useEffect(() => { audio.current?.pause(); setPlaying(false); }, [soundUrl, active]);
+  useEffect(() => { const player = audio.current; player?.pause(); setPlaying(false); return () => { player?.pause(); }; }, [soundUrl, active]);
   async function toggle() {
     const player = audio.current;
     if (!player || !active) return;

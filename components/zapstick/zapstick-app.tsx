@@ -4,7 +4,7 @@ import {moveToFolder} from '@/lib/stickers/folders';
 import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Download, FolderPlus, Heart, HelpCircle, ImagePlus, Layers, LayoutGrid, Link2, LoaderCircle, MoreHorizontal, Pencil, Plus, Search, Settings2, ShieldCheck, Trash2, Undo2, Upload, X, Play, HardDrive, ExternalLink, CheckSquare, Sticker as StickerIcon, Volume2 } from 'lucide-react';
 import { type Sticker, type Pack, type Collection, initialCollection, colors } from '@/lib/stickers/types';
-import { loadCollectionWithStarterMemes, saveCollection, download, backup, restore } from '@/lib/stickers/store';
+import { loadCollectionWithStarterMemes, saveCollection, download, backup, restore, readAudioLibraryRecords, updateAudioLibraryRecords, type RestoredBackup } from '@/lib/stickers/store';
 import type {DownloadFormat} from '@/lib/stickers/download-format';
 import { usePreferences } from '@/components/preferences-provider';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -31,7 +31,7 @@ export default function Home() {
     const [editingPack, setEditingPack] = useState<Pack | null | false>(false), [busy, setBusy] = useState(''), [toast, setToast] = useState(''), [undo, setUndo] = useState<{
         text: string;
         revert: () => void;
-    } | null>(null), [pendingRestore, setPendingRestore] = useState<Collection | null>(null), [packTarget, setPackTarget] = useState<string | null>(null), [studioBusy, setStudioBusy] = useState(false);
+    } | null>(null), [pendingRestore, setPendingRestore] = useState<RestoredBackup | null>(null), [packTarget, setPackTarget] = useState<string | null>(null), [studioBusy, setStudioBusy] = useState(false);
     const exportAbort=useRef<AbortController|null>(null);
     const saveQueue = useRef(Promise.resolve()), restoreInput = useRef<HTMLInputElement>(null), alive = useRef(true);
     const currentCollection = useRef(collection);
@@ -181,7 +181,23 @@ export default function Home() {
     }
     finally {
         setBusy('');
-    } }}/>{pendingRestore ? <div className="restore-confirm"><strong>{t('{count} éléments à restaurer', { count: pendingRestore.stickers.length })}</strong><p>{t("Cette sauvegarde remplacera la collection actuelle.")}</p><div className="two-actions"><button className="button secondary" onClick={() => setPendingRestore(null)}>{t("Annuler")}</button><button className="button primary" onClick={() => { const previous = collection; setCollection(pendingRestore); setPendingRestore(null); setUndo({ text: t("Sauvegarde restaurée"), revert: () => setCollection(previous) }); }}>{t("Restaurer")}</button></div></div> : null}</div><div className="settings-group"><button className="settings-row" onClick={() => navigate('help')}><HelpCircle size={19}/><span>{t("Utiliser avec WhatsApp")}</span><ArrowRight size={16}/></button></div><PrivacySettings privacyHref={`/${locale}/privacy`} legalHref={`/${locale}/legal`} onClearData={async () => { if(busy||studioBusy)throw new Error(t('En attente de la fin de l’opération en cours.'));await saveQueue.current; await clearLocalData(); setStudioResetKey(value=>value+1);setCollection({...initialCollection(),starterMemesVersion:1}); setDraft(null); setDetailId(null); setPackId(null); setUndo(null); setPendingRestore(null); setSelection([]); setSelectMode(false); setAssigning(false); setQuery(''); resetPreferences(); setToast(t('Les données locales ont été effacées.')); }}/></section> : null}
+    } }}/>{pendingRestore ? <div className="restore-confirm"><strong>{t('{count} éléments à restaurer', { count: pendingRestore.stickers.length })}</strong><p>{t("Cette sauvegarde remplacera la collection actuelle.")}</p><div className="two-actions"><button className="button secondary" onClick={() => setPendingRestore(null)}>{t("Annuler")}</button><button className="button primary" onClick={async () => {
+        const snapshot=pendingRestore;if(!snapshot)return;
+        const previous=collection;setBusy(t('Lecture de la sauvegarde…'));
+        try {
+            await saveQueue.current;
+            const previousSounds=snapshot.audioLibrary===undefined?undefined:await readAudioLibraryRecords();
+            if(snapshot.audioLibrary!==undefined)await updateAudioLibraryRecords(()=>snapshot.audioLibrary);
+            const {audioLibrary,...restored}=snapshot;
+            setCollection(restored);setPendingRestore(null);
+            const notify=()=>window.dispatchEvent(new Event('zapstick-audio-library-changed'));
+            if(audioLibrary!==undefined)notify();
+            setUndo({text:t('Sauvegarde restaurée'),revert:()=>{
+                setCollection(previous);
+                if(previousSounds!==undefined)void updateAudioLibraryRecords(()=>previousSounds).then(notify).catch(error=>setToast(message(error)));
+            }});
+        }catch(error){setToast(message(error));}finally{setBusy('');}
+    }}>{t("Restaurer")}</button></div></div> : null}</div><div className="settings-group"><button className="settings-row" onClick={() => navigate('help')}><HelpCircle size={19}/><span>{t("Utiliser avec WhatsApp")}</span><ArrowRight size={16}/></button></div><PrivacySettings privacyHref={`/${locale}/privacy`} legalHref={`/${locale}/legal`} onClearData={async () => { if(busy||studioBusy)throw new Error(t('En attente de la fin de l’opération en cours.'));await saveQueue.current; await clearLocalData(); setStudioResetKey(value=>value+1);setCollection({...initialCollection(),starterMemesVersion:1}); setDraft(null); setDetailId(null); setPackId(null); setUndo(null); setPendingRestore(null); setSelection([]); setSelectMode(false); setAssigning(false); setQuery(''); resetPreferences(); setToast(t('Les données locales ont été effacées.')); }}/></section> : null}
    {view === 'help' ? <section className="screen help-screen"><div className="screen-title"><div><h1>WhatsApp</h1></div></div><div className="help-steps">{[{ title: t("Crée tes stickers"), text: t("Importe une image, un GIF ou une vidéo dans l’atelier.") }, { title: t("Enregistre dans ta galerie"), text: t("Télécharge ton sticker puis enregistre-le dans la galerie de ton téléphone.") }, { title: t("Ajoute-les à WhatsApp"), text: t("Dans une discussion WhatsApp, ouvre Stickers → Créer, puis choisis ton média dans la galerie. Tu peux créer et envoyer ton sticker directement, sans autre application.") }].map((step, i) => <div key={step.title}><span>{i + 1}</span><div><h2>{step.title}</h2><p>{step.text}</p></div></div>)}</div><div className="help-note"><Layers size={19}/><p>{t("Les animations sont téléchargées en GIF pour la galerie. WhatsApp peut les envoyer comme GIF ; leur conversion en sticker animé dépend de sa version.")}</p></div><a className="help-link" href="https://faq.whatsapp.com/1056840314992666" target="_blank" rel="noreferrer">{t("Guide officiel WhatsApp")}<ExternalLink size={14}/></a><button className="button primary full-width" onClick={() => navigate('create')}>{t("Créer un sticker")}<ArrowRight size={18}/></button></section> : null}
   </main>
   <nav className="bottom-nav" aria-label={t("Navigation principale")}><button className={view === 'collection' ? 'active' : ''} aria-current={view === 'collection' ? 'page' : undefined} onClick={() => navigate('collection')} disabled={!!busy || studioBusy}><LayoutGrid size={21}/><span>{t("Collection")}</span>{stickers.length ? <small>{stickers.length}</small> : null}</button><button className={`create-nav ${view === 'create' ? 'active' : ''}`} aria-current={view === 'create' ? 'page' : undefined} onClick={() => navigate('create')} disabled={!!busy || studioBusy}><span className="create-nav-icon"><Plus size={26}/></span><span>{t("Créer")}</span></button><button className={view === 'packs' ? 'active' : ''} aria-current={view === 'packs' ? 'page' : undefined} onClick={() => navigate('packs')} disabled={!!busy || studioBusy}><Layers size={22}/><span>{t("Packs")}</span>{packs.length ? <small>{packs.length}</small> : null}</button></nav>

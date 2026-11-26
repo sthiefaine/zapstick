@@ -1,5 +1,7 @@
 import { Collection, initialCollection, removeExamples, type Sticker, type StickerSound } from './types';
 import { normalizeFolders } from './folders';
+import type {SavedAudio, SavedAudioBackup} from './audio-library';
+export type RestoredBackup = Collection & {audioLibrary?: SavedAudio[]};
 const KEY = 'collection';
 let connection: Promise<IDBDatabase> | undefined;
 let operations: Promise<void> = Promise.resolve();
@@ -96,6 +98,40 @@ export function loadCollection(): Promise<Collection> {
     });
   });
 }
+export function readAudioLibraryRecords(): Promise<unknown> {
+  return ordered(async () => {
+    const db = await database();
+    return new Promise<unknown>((resolve, reject) => {
+      const request = db.transaction('workspace').objectStore('workspace').get('audio-library');
+      request.onsuccess = () => resolve(request.result ?? []);
+      request.onerror = () => reject(new Error('Impossible de lire les sons enregistrés.'));
+    });
+  });
+}
+export function updateAudioLibraryRecords(update: (current: unknown) => unknown): Promise<unknown> {
+  const generation = writeGeneration;
+  return ordered(async () => {
+    const cancelled = () => new Error('Les données locales ont été effacées.');
+    if (generation !== writeGeneration) throw cancelled();
+    const db = await database();
+    if (generation !== writeGeneration) throw cancelled();
+    return new Promise<unknown>((resolve, reject) => {
+      const tx = db.transaction('workspace', 'readwrite'), records = tx.objectStore('workspace');
+      let next: unknown;
+      const request = records.get('audio-library');
+      request.onsuccess = () => {
+        try {
+          if (generation !== writeGeneration) throw cancelled();
+          next = update(request.result ?? []);
+          records.put(next, 'audio-library');
+        } catch (error) { tx.abort(); reject(error); }
+      };
+      tx.oncomplete = () => resolve(next);
+      tx.onerror = () => reject(new Error('Impossible d’enregistrer ce son sur cet appareil.'));
+      tx.onabort = () => reject(new Error('Enregistrement du son interrompu.'));
+    });
+  });
+}
 /** The public library receives these six local media once, including upgrades.
  * A marker travels with backups; clearing local data suppresses onboarding. */
 export async function loadCollectionWithStarterMemes(localize?:(source:string)=>string):Promise<Collection>{
@@ -162,7 +198,7 @@ export function clearLocalData(): Promise<void> {
   });
 }
 export function download(blob:Blob,name:string){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
-export async function createBackup(collection:Collection):Promise<Blob> {
+export async function createBackup(collection:Collection, audioLibrary?: readonly SavedAudio[]):Promise<Blob> {
   const value=normalizeFolders(collection);
   type BackupSound={name:string;duration:number;mime:'audio/wav';data:string;volume?:number;offset?:number};
   type BackupSticker=Omit<Sticker,'blob'|'sound'|'soundLayers'> & {blob?:undefined;data?:string;sound?:BackupSound;soundLayers?:BackupSound[]};
@@ -174,7 +210,8 @@ export async function createBackup(collection:Collection):Promise<Blob> {
     const serialized:BackupSticker={...s,blob:undefined,sound:sourceSound===undefined?undefined:emptySound(sourceSound),soundLayers:sourceLayers?.map(emptySound),...(s.blob||localGif?{src:undefined,data:''}:{})};
     return {serialized,sourceSound,sourceLayers,blob:s.blob,localGif};
   });
-  const output={...value,stickers:prepared.map(item=>item.serialized)};
+  const savedAudio = audioLibrary === undefined ? undefined : (await import('./audio-library')).normalizeAudioLibrary(audioLibrary);
+  const output={...value,stickers:prepared.map(item=>item.serialized),...(savedAudio ? {audioLibrary:savedAudio.map(({blob,...entry})=>({...entry,mime:blob.type,data:''})) as SavedAudioBackup[]} : {})};
   const tooLarge=()=>new Error('La sauvegarde dépasse 100 Mo.');
   // Empty data strings retain all JSON punctuation, escaped names and UTF-8 metadata.
   // Base64 expands deterministically, so reject oversized collections before any reader allocates it.
@@ -186,6 +223,7 @@ export async function createBackup(collection:Collection):Promise<Blob> {
     checkBudget();
   };
   checkBudget();
+  for(const entry of savedAudio ?? [])reserve(entry.blob);
   for(const item of prepared){if(item.blob)reserve(item.blob);if(item.sourceSound)reserve(item.sourceSound.blob);for(const layer of item.sourceLayers??[])reserve(layer.blob);}
   // Resolve bundled GIFs one at a time and charge each serialized occurrence to the same budget.
   const localGifs=new Map<string,Blob>();
@@ -209,14 +247,16 @@ export async function createBackup(collection:Collection):Promise<Blob> {
     for(const [index,layer] of (item.sourceLayers??[]).entries()){await validateStickerSound(layer);item.serialized.soundLayers![index].data=await dataUrl(layer.blob);}
     if(item.blob)item.serialized.data=await dataUrl(item.blob);
   }
+  if(savedAudio)output.audioLibrary=await(await import('./audio-library')).serializeAudioLibrary(savedAudio);
   const result=new Blob([JSON.stringify(output)],{type:'application/json'});
   if(result.size>MAX_BACKUP_BYTES)throw tooLarge();
   return result;
 }
 export async function backup(collection:Collection) {
-  download(await createBackup(collection),`zapstick-sauvegarde-${new Date().toISOString().slice(0,10)}.json`);
+  const sounds=await(await import('./audio-library')).loadAudioLibrary();
+  download(await createBackup(collection,sounds),`zapstick-sauvegarde-${new Date().toISOString().slice(0,10)}.json`);
 }
-export async function restore(file:File):Promise<Collection>{
+export async function restore(file:File):Promise<RestoredBackup>{
   if(file.size>MAX_BACKUP_BYTES)throw new Error('La sauvegarde dépasse 100 Mo.');
   const data=JSON.parse(await file.text());
   if(!data||data.version!==1||!Array.isArray(data.stickers)||!Array.isArray(data.packs)||data.stickers.length>2000||data.packs.length>200||(data.folders!==undefined&&(!Array.isArray(data.folders)||data.folders.length>200)))throw new Error('Ce fichier n’est pas une sauvegarde Zapstick valide.');
@@ -238,5 +278,7 @@ export async function restore(file:File):Promise<Collection>{
       soundLayers({sound,soundLayers:restoredLayers});
     }
     stickers.push({id:s.id,name:s.name,packId:s.packId,...(s.folderId!==undefined?{folderId:folderIds.has(s.folderId)?s.folderId:''}:{}),kind:s.kind,mime:s.mime,favorite:s.favorite,createdAt:s.createdAt,isSticker:s.isSticker,sourceUrl:typeof s.sourceUrl==='string'&&s.sourceUrl.startsWith('https://')?s.sourceUrl:undefined,blob,src,...(sound?{sound}:{}),...(restoredLayers?{soundLayers:restoredLayers}:{})});
-  }return normalizeFolders(removeExamples({version:1,starterMemesVersion:1,packs:data.packs,...(data.folders!==undefined?{folders:data.folders}:{}),stickers}));
+  }
+  const collection=normalizeFolders(removeExamples({version:1,starterMemesVersion:1,packs:data.packs,...(data.folders!==undefined?{folders:data.folders}:{}),stickers}));
+  return data.audioLibrary===undefined ? collection : {...collection,audioLibrary:await(await import('./audio-library')).restoreAudioLibrary(data.audioLibrary)};
 }
