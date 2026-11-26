@@ -2,8 +2,9 @@ import {muxWebp} from './webp-mux';
 import {inferMediaKind} from './media-kind';
 import type {AnimationPreview} from './animation-preview';
 import {paintOverlays,type OverlayOptions} from './overlays';
+import {MAX_ANIMATION_SECONDS} from './timeline';
 export type EditOptions=OverlayOptions & {zoom:number;rotation:number;text:string;background:string;animated:boolean;duration:number;start:number;offsetX?:number;offsetY?:number;holdStill?:boolean};
-export const defaults:EditOptions={zoom:1,rotation:0,text:'',background:'transparent',animated:true,duration:3,start:0,offsetX:0,offsetY:0};
+export const defaults:EditOptions={zoom:1,rotation:0,text:'',background:'transparent',animated:true,duration:MAX_ANIMATION_SECONDS,start:0,offsetX:0,offsetY:0};
 function canvas(){const c=document.createElement('canvas');c.width=c.height=512;return c;}
 export function paint(c:HTMLCanvasElement,source:CanvasImageSource,w:number,h:number,o:EditOptions){const ctx=c.getContext('2d')!;ctx.clearRect(0,0,512,512);if(o.background!=='transparent'){ctx.fillStyle=o.background;ctx.fillRect(0,0,512,512);}const ratio=Math.min(512/w,512/h)*o.zoom;ctx.save();ctx.translate(256+(o.offsetX??0),256+(o.offsetY??0));ctx.rotate(o.rotation*Math.PI/180);ctx.drawImage(source,-w*ratio/2,-h*ratio/2,w*ratio,h*ratio);ctx.restore();paintOverlays(ctx,o);}
 function checkSignal(signal?:AbortSignal):void{if(signal?.aborted)throw signal.reason instanceof Error?signal.reason:new DOMException('Aborted','AbortError');}
