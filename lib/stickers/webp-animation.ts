@@ -63,7 +63,9 @@ export function parseWebpAnimation(bytes: Uint8Array): WebpAnimation {
       if (frames.length > GIF_EXPORT_LIMITS.frames || width * height * frames.length > GIF_EXPORT_LIMITS.totalPixels) throw new GifExportError('too-large');
     }
   }
-  if (!animated || !hasAnimationHeader || frames.length < 2) throw new GifExportError('not-animated');
+  // Native WhatsApp sound stickers can hold one image in an ANMF frame.
+  // The frame still has a duration and must be editable, including as a still.
+  if (!animated || !hasAnimationHeader || !frames.length) throw new GifExportError('not-animated');
   if (frames.reduce((sum, frame) => sum + frame.durationMs, 0) > GIF_EXPORT_LIMITS.durationMs) throw new GifExportError('too-large');
   return {width, height, loopCount, background, frames, colorProfile};
 }
