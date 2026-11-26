@@ -28,6 +28,7 @@ import {useSoundEditor} from './use-sound-editor';
 import {useSoundTransport} from './use-sound-transport';
 import {resolveAudioRecipes,planAudioWindow,type AudioLayer} from '@/lib/stickers/audio';
 import type {EmojiOverlay,TextStyle,OverlaySelection} from '@/lib/stickers/overlays';
+import {useConfirmAction} from './confirm-action';
 import './studio-controls.css';
 import './studio-workspace.css';
 const EMPTY_SOUND_LAYERS:readonly AudioLayer[]=[];
@@ -49,7 +50,7 @@ type Props = {
 type BackgroundOriginal={blob:Blob;mime:string;kind:Sticker['kind'];isSticker:boolean;start:number;duration:number;animated:boolean;audioOrigin:number};
 type Tool = 'crop' | 'text' | 'emoji' | 'background' | 'animation' | 'sound' | 'organize' | null;
 export function Studio({ draft, active, packs, stickers, onDraft, onSave, onError, onCollection, onHelp, onWorking, onEnsureSaved }: Props) {
-    const { t,reduceMotion } = usePreferences();
+    const { t,reduceMotion } = usePreferences(),confirm=useConfirmAction();
     const [link, setLink] = useState(''), [remote, setRemote] = useState<RemoteMedia[]>([]), [remoteSource, setRemoteSource] = useState('');
     const [o, setOptions] = useState<EditOptions>({ ...defaults }), [tool, setTool] = useState<Tool>(null), [name, setName] = useState(''), [packId, setPackId] = useState('');
     const [loading, setLoading] = useState(''), [error, setError] = useState(''), [progress, setProgress] = useState(-1), [duration, setDuration] = useState(0), [playing, setPlaying] = useState(!reduceMotion), [result, setResult] = useState<Sticker | null>(null), [dragging, setDragging] = useState(false), [staticFrame, setStaticFrame] = useState('');
@@ -289,7 +290,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
     }
     function reset() { cancelClipboard();sound.cancel();soundTransport.stop();generation.current++; onDraft(null); setResult(null); setLoading(''); setRemote([]); setLink(''); setError('');setDragging(false);window.scrollTo({top:0,behavior:'instant'});requestAnimationFrame(()=>{if(alive.current)document.getElementById('studio-import-media')?.focus({preventScroll:true});}); }
     const disabled = !!loading || timelineLoading || progress >= 0 || backgroundBusy || gifBusy || soundExportBusy || sound.pending || sound.microphone!=='idle';
-    const overlayControls={text:o.text,textStyle:o.textStyle,emojis:o.emojis,selectedId:overlaySelection,onSelect:setOverlaySelection,onChangeTextStyle:(value:TextStyle)=>update('textStyle',value),onChangeEmojis:(value:EmojiOverlay[])=>update('emojis',value),disabled};
+    const overlayControls={text:o.text,textStyle:o.textStyle,emojis:o.emojis,selectedId:overlaySelection,onSelect:setOverlaySelection,onChangeTextStyle:(value:TextStyle)=>update('textStyle',value),onChangeEmojis:async(value:EmojiOverlay[])=>{if(value.length<(o.emojis?.length??0)&&!await confirm({title:t('Supprimer l’émoji'),description:t('Supprimer « {name} » ?',{name:o.emojis?.find(item=>!value.some(next=>next.id===item.id))?.emoji??'😊'})}))return;update('emojis',value);},disabled};
     function backgroundWorking(value:boolean){setBackgroundBusy(value);onWorking(value);}
     function gifWorking(value:boolean){setGifBusy(value);onWorking(value||soundExportBusy);}
     function soundWorking(value:boolean){setSoundExportBusy(value);onWorking(value||gifBusy);}

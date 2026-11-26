@@ -17,9 +17,10 @@ import {colorAudioTranslations} from './color-audio-url-translations';
 import {whatsappTranslations} from './whatsapp-translations';
 import {audioLibraryTranslations} from './audio-library-translations';
 import {socialImportTranslations} from './social-import-translations';
+import {actionTranslations} from './action-translations';
 export type TranslationParams = Record<string,string|number>;
 export const UI_TRANSLATIONS:Record<Locale,Record<string,string>> = {...translations};
-for(const locale of SUPPORTED_LOCALES)UI_TRANSLATIONS[locale]={...translations[locale],...overlayTranslations[locale],...backgroundTranslations[locale],...collectionsTranslations[locale],...shareTranslations[locale],...clipboardUxTranslations[locale],...gifTranslations[locale],...animatedBackgroundTranslations[locale],...homeMemesTranslations[locale],...audioTranslations[locale],...homeSoundTranslations[locale],...studioTranslations[locale],...introTranslations[locale],...colorAudioTranslations[locale],...whatsappTranslations[locale],...audioLibraryTranslations[locale],...socialImportTranslations[locale]};
+for(const locale of SUPPORTED_LOCALES)UI_TRANSLATIONS[locale]={...translations[locale],...overlayTranslations[locale],...backgroundTranslations[locale],...collectionsTranslations[locale],...shareTranslations[locale],...clipboardUxTranslations[locale],...gifTranslations[locale],...animatedBackgroundTranslations[locale],...homeMemesTranslations[locale],...audioTranslations[locale],...homeSoundTranslations[locale],...studioTranslations[locale],...introTranslations[locale],...colorAudioTranslations[locale],...whatsappTranslations[locale],...audioLibraryTranslations[locale],...socialImportTranslations[locale],...actionTranslations[locale]};
 export function translate(locale:Locale, source:string, params?:TranslationParams):string {
  const template=UI_TRANSLATIONS[locale]?.[source]??privacyTranslations[locale]?.[source]??source;
  return template.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g,(match,key)=>params&&Object.prototype.hasOwnProperty.call(params,key)?String(params[key]):match);

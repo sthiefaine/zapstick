@@ -60,7 +60,7 @@ export function SoundDownload({sticker, onBusy, disabled = false}: Props) {
 
   if (!visual || !sound) return null;
   return <div className="sound-download" aria-busy={percent !== null}>
-    <button type="button" className="button secondary full-width" onClick={save} disabled={disabled || percent !== null}>
+    <button type="button" className="button secondary full-width" data-action="save" onClick={save} disabled={disabled || percent !== null}>
       {percent !== null ? <LoaderCircle className="spin" size={18} aria-hidden="true"/> : <Download size={18} aria-hidden="true"/>}
       {percent !== null ? `${t('Préparation…')} ${percent} %` : t('Enregistrer')}
     </button>

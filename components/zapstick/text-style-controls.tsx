@@ -106,7 +106,7 @@ export function TextStyleControls({text, textStyle, emojis = [], selectedId, onS
       </div>
       <div className={styles.actions}>
         <button type="button" className={styles.textSelection} onClick={() => selected ? updateEmoji({x: 256, y: 256}) : update({x: 256, y: 440})}>{t('Recentrer')}</button>
-        {selected ? <button type="button" className={styles.remove} onClick={() => { onChangeEmojis(items.filter(item => item.id !== selected.id)); onSelect(null); }}><Trash2 size={17} aria-hidden="true"/>{t('Supprimer l’émoji')}</button> : null}
+        {selected ? <button type="button" className={styles.remove} data-action="delete" onClick={() => { onChangeEmojis(items.filter(item => item.id !== selected.id)); onSelect(null); }}><Trash2 size={17} aria-hidden="true"/>{t('Supprimer l’émoji')}</button> : null}
       </div>
     </fieldset> : null}
   </div>;

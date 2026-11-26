@@ -25,7 +25,7 @@ export function AnimatedDownloads({blob,name,disabled=false,onBusyChange,onError
   finally{if(operation.current===controller){operation.current=null;setPercent(null);callbacks.current.onBusyChange(false);}}
  }
  return <div className="animated-downloads" aria-busy={percent!==null}>
-  <button type="button" className="button secondary full-width" onClick={saveGif} disabled={disabled||percent!==null}>{percent!==null?<LoaderCircle className="spin" size={18} aria-hidden="true"/>:<Download size={18} aria-hidden="true"/>}{percent!==null?`${t('Préparation…')} ${percent} %`:t('Enregistrer')}</button>
+  <button type="button" className="button secondary full-width" data-action="save" onClick={saveGif} disabled={disabled||percent!==null}>{percent!==null?<LoaderCircle className="spin" size={18} aria-hidden="true"/>:<Download size={18} aria-hidden="true"/>}{percent!==null?`${t('Préparation…')} ${percent} %`:t('Enregistrer')}</button>
   {percent!==null?<><p className="sr-only" role="status">{`${t('Préparation…')} ${percent} %`}</p><button type="button" className="quiet-button" onClick={()=>operation.current?.abort()}>{t('Annuler')}</button></>:null}
  </div>;
 }

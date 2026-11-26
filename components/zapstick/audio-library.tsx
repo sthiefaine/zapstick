@@ -5,6 +5,7 @@ import {BookmarkPlus, Check, LoaderCircle, Music2, Pencil, Play, Plus, Square, T
 import {usePreferences} from '@/components/preferences-provider';
 import {decodeAudio, registerAudioWork, type AudioTrack} from '@/lib/stickers/audio';
 import {AUDIO_LIBRARY_CHANGED, loadAudioLibrary, removeSavedAudio, renameSavedAudio, saveAudioToLibrary, type SavedAudio} from '@/lib/stickers/audio-library';
+import {useConfirmAction} from './confirm-action';
 import './audio-library.css';
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Impossible d’enregistrer ce son sur cet appareil.';
@@ -20,12 +21,12 @@ export function SaveAudioButton({track, disabled = false, onError}: {track: Audi
     catch (error) { if (!controller.signal.aborted) onError(message(error)); }
     finally { if (operation.current === controller) { operation.current = null; setSaving(false); } }
   }
-  return <button type="button" className="audio-library-save" disabled={disabled || saving || saved === track.blob} onClick={() => void save()}>{saving ? <LoaderCircle size={17} className="spin"/> : saved === track.blob ? <Check size={17}/> : <BookmarkPlus size={17}/>}<span>{t(saved === track.blob ? 'Son enregistré' : 'Garder dans Mes sons')}</span></button>;
+  return <button type="button" className="audio-library-save" data-action="save" disabled={disabled || saving || saved === track.blob} onClick={() => void save()}>{saving ? <LoaderCircle size={17} className="spin"/> : saved === track.blob ? <Check size={17}/> : <BookmarkPlus size={17}/>}<span>{t(saved === track.blob ? 'Son enregistré' : 'Garder dans Mes sons')}</span></button>;
 }
 
 type Props = {onChoose?: (audio: SavedAudio) => void; onListen?: () => void; disabled?: boolean};
 export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
-  const {t, locale} = usePreferences();
+  const {t, locale} = usePreferences(),confirm=useConfirmAction();
   const [entries, setEntries] = useState<SavedAudio[] | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<string | null>(null), [name, setName] = useState(''), [playing, setPlaying] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null), audio = useRef<HTMLAudioElement>(null), audioUrl = useRef(''), playingId = useRef<string | null>(null), alive = useRef(true), operation = useRef<AbortController | null>(null);
@@ -70,7 +71,7 @@ export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
     finally { if (alive.current) setBusy(false); }
   }
   async function remove(entry: SavedAudio) {
-    if (locked) return;
+    if (locked || !await confirm({description:t('Supprimer « {name} » ?',{name:entry.name})})) return;
     setBusy(true); setError(''); if (playingId.current === entry.id) stop();
     try { await removeSavedAudio(entry.id); if (alive.current) { setEntries(await loadAudioLibrary()); if (editing === entry.id) setEditing(null); } }
     catch (reason) { if (alive.current) setError(message(reason)); }
@@ -86,10 +87,10 @@ export function AudioLibrary({onChoose, onListen, disabled = false}: Props) {
     {entries?.length === 0 ? <div className="audio-library-empty"><Music2 size={27}/><p>{t('Aucun son enregistré')}</p></div> : null}
     <div className="audio-library-list">{entries?.map(entry => <div className="audio-library-row" key={entry.id}>
       <button type="button" className="audio-library-preview" disabled={locked} aria-label={t(playing === entry.id ? 'Arrêter {name}' : 'Écouter {name}', {name: entry.name})} aria-pressed={playing === entry.id} onClick={() => void preview(entry)}>{playing === entry.id ? <Square size={17}/> : <Play size={18}/>}</button>
-      {editing === entry.id ? <form className="audio-library-rename" onSubmit={event => { event.preventDefault(); void rename(entry); }}><input aria-label={t('Nom du son')} autoFocus maxLength={120} value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') setEditing(null); }} disabled={locked}/><button type="submit" aria-label={t('Enregistrer')} disabled={locked || !name.trim()}><Check size={18}/></button><button type="button" aria-label={t('Annuler')} onClick={() => setEditing(null)} disabled={locked}><X size={18}/></button></form> : <>
+      {editing === entry.id ? <form className="audio-library-rename" onSubmit={event => { event.preventDefault(); void rename(entry); }}><input aria-label={t('Nom du son')} autoFocus maxLength={120} value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') setEditing(null); }} disabled={locked}/><button type="submit" data-action="save" aria-label={t('Enregistrer')} disabled={locked || !name.trim()}><Check size={18}/></button><button type="button" aria-label={t('Annuler')} onClick={() => setEditing(null)} disabled={locked}><X size={18}/></button></form> : <>
         {onChoose ? <button type="button" className="audio-library-use" disabled={locked} aria-label={t('Utiliser {name}', {name: entry.name})} onClick={() => { stop(); onChoose(entry); }}><span><strong>{entry.name}</strong><small>{seconds(entry.duration)} s</small></span><Plus size={18}/></button> : <div className="audio-library-name"><strong>{entry.name}</strong><small>{seconds(entry.duration)} s</small></div>}
-        <button type="button" className="audio-library-edit" disabled={locked} aria-label={t('Renommer {name}', {name: entry.name})} onClick={() => { setName(entry.name); setEditing(entry.id); }}><Pencil size={17}/></button>
-        <button type="button" className="audio-library-remove" disabled={locked} aria-label={t('Supprimer {name}', {name: entry.name})} onClick={() => void remove(entry)}><Trash2 size={17}/></button>
+        <button type="button" className="audio-library-edit action-icon" data-action="edit" disabled={locked} aria-label={t('Renommer {name}', {name: entry.name})} onClick={() => { setName(entry.name); setEditing(entry.id); }}><Pencil size={17}/></button>
+        <button type="button" className="audio-library-remove action-icon" data-action="delete" disabled={locked} aria-label={t('Supprimer {name}', {name: entry.name})} onClick={() => void remove(entry)}><Trash2 size={17}/></button>
       </>}
     </div>)}</div>
   </div>;
