@@ -21,7 +21,7 @@ async function fixture(t, options = {}) {
   await writeFile(oggPath, Buffer.from('OggSfixture-opus'));
   const sockets = [], prepared = [], relayed = [], order = [], claims = [], receipts = [];
   let closed = 0, config;
-  const authStore = { state: { creds: { registered: options.registered ?? true }, keys: {} }, async saveCreds(update) { Object.assign(this.state.creds, update); }, close() { closed++; } };
+  const authStore = { state: { creds: options.creds ?? { registered: false, me: { id: '33000000000@s.whatsapp.net' } }, keys: {} }, async saveCreds(update) { Object.assign(this.state.creds, update); }, close() { closed++; } };
   const fake = {
     ...sdk,
     default(value) {
@@ -58,11 +58,21 @@ test('claim parser accepts canonical codes from individual PN/LID chats only', (
 });
 
 test('a new regular session requires private pairing without creating a network socket', async t => {
-  const f = await fixture(t, { registered: false });
+  const f = await fixture(t, { creds: sdk.initAuthCreds() });
   await f.transport.connect();
   assert.equal(f.transport.getState(), 'needs_pairing');
   assert.equal(f.transport.isReady(), false);
   assert.equal(f.sockets.length, 0);
+});
+
+test('a persisted QR-linked identity reconnects even while registered is false', async t => {
+  const creds = { ...sdk.initAuthCreds(), me: { id: '33000000000@s.whatsapp.net' } };
+  assert.equal(creds.registered, false);
+  const f = await fixture(t, { creds });
+  await f.open();
+  assert.equal(f.sockets.length, 1);
+  assert.equal(f.transport.isReady(), true);
+  assert.equal(f.config.auth.creds, creds);
 });
 
 test('readiness requires the configured dedicated account rather than an accidentally scanned personal account', async t => {

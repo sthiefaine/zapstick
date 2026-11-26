@@ -83,7 +83,9 @@ export function createWhatsAppTransport({
     if (!baileys) baileys = await loadBaileys();
     if (stopped) return;
     if (!store) store = authStoreFactory({ authDir, authKey, initAuthCreds: baileys.initAuthCreds, BufferJSON: baileys.BufferJSON, proto: baileys.proto });
-    if (!store.state.creds.registered && !allowPairing) { setState('needs_pairing'); return; }
+    // QR-linked sessions persist `me`; Baileys' `registered` flag can remain
+    // false. Use the same identity that its login handshake consumes.
+    if (!privateJid(store.state.creds.me?.id) && !allowPairing) { setState('needs_pairing'); return; }
     setState('connecting');
     const target = baileys.default({
       auth: store.state, logger: silentLogger, printQRInTerminal: false,

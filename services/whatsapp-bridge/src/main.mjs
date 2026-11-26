@@ -9,6 +9,7 @@ const config = loadConfig();
 const store = new BridgeStore({ dir: config.dataDir, key: config.transferKey, botNumber: config.botNumber });
 let worker;
 const transport = config.enabled ? createWhatsAppTransport({ authDir: config.authDir, authKey: config.authKey, expectedNumber: config.botNumber, soundEnabled: config.soundEnabled,
+  onState: state => process.stdout.write(`whatsapp_state_${state}\n`),
   onClaim: event => { const claimed = store.claim(event); if (claimed) worker?.kick(); return claimed; },
   onReceipt: event => store.confirmReceipt(event),
 }) : { isReady: () => false, close: async () => {}, getState: () => 'disabled' };
