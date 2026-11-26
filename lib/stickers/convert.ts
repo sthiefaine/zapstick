@@ -75,17 +75,17 @@ export async function convert(blob:Blob,o:EditOptions,onProgress:(n:number)=>voi
    frameAt=async(time)=>{await preview!.drawAt!(frame!,Math.min(Math.max(0,time),Math.max(0,duration-.001)));return{source:frame!,w:frame!.width,h:frame!.height};};
   }else{
    const image=await loadImage(url,operation);frameAt=async()=>({source:image,w:image.naturalWidth,h:image.naturalHeight});
-   if(o.holdStill)duration=Math.min(6,o.duration);
   }
+  if(o.holdStill){const held=await frameAt(Number.isFinite(o.start)?o.start:0);frameAt=async()=>held;duration=Math.min(6,o.duration);}
   if(!o.animated||(!isVideo&&!animatedImage&&!o.holdStill)){
    const source=await frameAt(Number.isFinite(o.start)?o.start:0);paint(c,source.source,source.w,source.h,o);
    for(const quality of [.9,.75,.55,.35,.18]){const result=await webp(c,quality,operation);if(result.size<=100*1024)return{blob:result,animated:false};}
    throw new Error('L’image dépasse 100 Ko. Réduis le zoom ou simplifie le fond.');
   }
-  const start=Math.min(Math.max(0,Number.isFinite(o.start)?o.start:0),Math.max(0,duration-.001)),length=Math.min(o.duration,6,duration-start);
+  const start=Math.min(Math.max(0,o.holdStill?0:Number.isFinite(o.start)?o.start:0),Math.max(0,duration-.001)),length=Math.min(o.duration,6,duration-start);
   if(!Number.isFinite(length)||length<=0)throw new Error('Choisis une durée d’animation valide.');
   for(let pass=0;pass<3;pass++){
-   const fps=[12,8,5][pass],quality=[.68,.42,.22][pass],count=!isVideo&&!animatedImage?2:Math.max(2,Math.ceil(length*fps)),frames:{bytes:Uint8Array;duration:number}[]=[];
+   const fps=[12,8,5][pass],quality=[.68,.42,.22][pass],count=o.holdStill||!isVideo&&!animatedImage?2:Math.max(2,Math.ceil(length*fps)),frames:{bytes:Uint8Array;duration:number}[]=[];
    for(let index=0;index<count;index++){
     checkSignal(operation);const source=await frameAt(start+(index/count)*length);paint(c,source.source,source.w,source.h,o);
     frames.push({bytes:new Uint8Array(await withSignal((await webp(c,quality,operation)).arrayBuffer(),operation)),duration:Math.round((index+1)*length*1000/count)-Math.round(index*length*1000/count)});

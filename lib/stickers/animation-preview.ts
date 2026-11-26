@@ -4,6 +4,7 @@ import { decodeWebpFrames, parseWebpAnimation, type DecodedWebpFrame } from './w
 import { inspectGifAnimation } from './gif-export-core';
 
 export type AnimationPreview = {
+ frameCount?: number;
  duration: number;
  thumbnails: string[];
  loopCount?: number;
@@ -104,7 +105,7 @@ async function gifPreview(blob: Blob, signal: AbortSignal, withThumbnails = true
   }
   reset(); thumb.width = thumb.height = 0;
   return {
-   duration, thumbnails, dispose,
+   duration, thumbnails, frameCount: frames.length, dispose,
    drawAt(canvas, time) {
     const current = ++request;
     queue = queue.catch(() => {}).then(async () => {
@@ -164,7 +165,7 @@ async function webpPreview(blob: Blob, signal: AbortSignal, withThumbnails = tru
   }
   await reset(); thumb.width = thumb.height = 0;
   return {
-   duration, thumbnails, loopCount: animation.loopCount, dispose,
+   duration, thumbnails, frameCount: animation.frames.length, loopCount: animation.loopCount, dispose,
    drawAt(canvas, time) {
     const current = ++request;
     queue = queue.catch(() => {}).then(async () => {
