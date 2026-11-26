@@ -11,6 +11,7 @@ export const whatsappSources = [
   'Trop de demandes. Réessaie dans un instant.', 'Impossible d’enregistrer le transfert sur cet appareil.',
   'Recevoir à nouveau', 'Impossible de vérifier l’envoi. Réessaie.',
   'Annulation impossible : l’envoi a déjà commencé.', 'Envoi impossible. Réessaie.',
+  'Ouvrir le bot WhatsApp',
 ] as const;
 const messages: Record<Locale, readonly string[]> = {
   fr: whatsappSources,
@@ -25,6 +26,7 @@ const messages: Record<Locale, readonly string[]> = {
     'Too many requests. Try again shortly.', 'Unable to save the transfer on this device.',
     'Receive again', 'Unable to check the send. Try again.',
     'Unable to cancel: sending has already started.', 'Unable to send. Try again.',
+    'Open the WhatsApp bot',
   ],
   'pt-BR': [
     'Receber no WhatsApp', 'Preparando…', 'Abrir WhatsApp', 'No WhatsApp, toque em Enviar.',
@@ -37,6 +39,7 @@ const messages: Record<Locale, readonly string[]> = {
     'Muitas solicitações. Tente novamente em instantes.', 'Não foi possível salvar a transferência neste aparelho.',
     'Receber novamente', 'Não foi possível verificar o envio. Tente novamente.',
     'Não é possível cancelar: o envio já começou.', 'Não foi possível enviar. Tente novamente.',
+    'Abrir o bot do WhatsApp',
   ],
   es: [
     'Recibir en WhatsApp', 'Preparando…', 'Abrir WhatsApp', 'En WhatsApp, toca Enviar.',
@@ -49,6 +52,7 @@ const messages: Record<Locale, readonly string[]> = {
     'Demasiadas solicitudes. Inténtalo en un momento.', 'No se pudo guardar la transferencia en este dispositivo.',
     'Recibir de nuevo', 'No se pudo comprobar el envío. Reinténtalo.',
     'No se puede cancelar: el envío ya comenzó.', 'No se pudo enviar. Reinténtalo.',
+    'Abrir el bot de WhatsApp',
   ],
   de: [
     'Auf WhatsApp empfangen', 'Wird vorbereitet…', 'WhatsApp öffnen', 'Tippe in WhatsApp auf Senden.',
@@ -61,6 +65,7 @@ const messages: Record<Locale, readonly string[]> = {
     'Zu viele Anfragen. Versuche es gleich noch einmal.', 'Die Übertragung konnte auf diesem Gerät nicht gespeichert werden.',
     'Erneut empfangen', 'Der Versand konnte nicht geprüft werden. Versuche es erneut.',
     'Abbrechen nicht möglich: Der Versand hat bereits begonnen.', 'Senden fehlgeschlagen. Versuche es erneut.',
+    'WhatsApp-Bot öffnen',
   ],
   'zh-CN': [
     '在 WhatsApp 接收', '正在准备…', '打开 WhatsApp', '在 WhatsApp 中点击发送。',
@@ -73,6 +78,7 @@ const messages: Record<Locale, readonly string[]> = {
     '请求过多，请稍后重试。', '无法在此设备上保存传输记录。',
     '再次接收', '无法确认发送结果，请重试。',
     '发送已开始，无法取消。', '无法发送，请重试。',
+    '打开 WhatsApp 机器人',
   ],
   ja: [
     'WhatsAppで受け取る', '準備中…', 'WhatsAppを開く', 'WhatsAppで送信をタップしてください。',
@@ -85,6 +91,7 @@ const messages: Record<Locale, readonly string[]> = {
     'リクエストが多すぎます。少し待ってから再試行してください。', 'この端末に転送情報を保存できません。',
     'もう一度受け取る', '送信を確認できません。再試行してください。',
     '送信が始まったためキャンセルできません。', '送信できません。再試行してください。',
+    'WhatsAppボットを開く',
   ],
   ru: [
     'Получить в WhatsApp', 'Подготовка…', 'Открыть WhatsApp', 'Нажми «Отправить» в WhatsApp.',
@@ -97,6 +104,7 @@ const messages: Record<Locale, readonly string[]> = {
     'Слишком много запросов. Повтори чуть позже.', 'Не удалось сохранить передачу на этом устройстве.',
     'Получить снова', 'Не удалось проверить отправку. Повтори попытку.',
     'Отмена невозможна: отправка уже началась.', 'Не удалось отправить. Повтори попытку.',
+    'Открыть бота WhatsApp',
   ],
 };
 export const whatsappTranslations: Record<Locale, Record<string, string>> = Object.fromEntries(Object.entries(messages).map(([locale, values]) => {

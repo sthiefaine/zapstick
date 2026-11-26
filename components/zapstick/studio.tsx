@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useMemo, type PointerEvent as ReactPointerEvent } from 'react';
-import { ClipboardPaste, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Check, Download, LoaderCircle, Plus, Type, Palette, SlidersHorizontal, RotateCw, RotateCcw, Play, Pause, Move, RefreshCw, X, FolderPlus, Smile, AudioLines, Maximize2, Minimize2 } from 'lucide-react';
+import { ClipboardPaste, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Check, Download, LoaderCircle, Plus, Type, Palette, SlidersHorizontal, RotateCw, RotateCcw, Play, Pause, Move, RefreshCw, X, FolderPlus, Smile, AudioLines, Maximize2, Minimize2, MessageCircle } from 'lucide-react';
 import { defaults, loadImage, type EditOptions } from '@/lib/stickers/convert';
 import type { Sticker, Pack } from '@/lib/stickers/types';
 import { resolveImport, downloadRemote, type RemoteMedia } from '@/lib/stickers/import';
@@ -338,7 +338,7 @@ export function Studio({ draft, active, packs, stickers, onDraft, onSave, onErro
   </div>
   {error ? <div className="inline-error" role="alert">{t(error)}<button aria-label={t("Fermer le message")} onClick={() => setError('')}><X size={16}/></button></div> : null}
   </div>
-  {!draft&&!result?<IntroVideo active={active&&!disabled}/>:null}
+  {!draft&&!result?<><a className="home-bot-link" href="https://wa.me/33743587600?text=Aide" target="_blank" rel="noopener noreferrer"><MessageCircle size={18} aria-hidden="true"/>{t('Ouvrir le bot WhatsApp')}</a><IntroVideo active={active&&!disabled}/></>:null}
   {result ? <div className="completed-actions">
    <WhatsAppTransfer sticker={result} active={active} disabled={gifBusy||soundExportBusy} beforePrepare={onEnsureSaved}/>
    {result.sound ? <SoundDownload sticker={result} disabled={gifBusy||soundExportBusy} onBusy={soundWorking}/> : result.kind==='animated' ? <AnimatedDownloads disabled={soundExportBusy} blob={result.blob!} name={result.name} onBusyChange={gifWorking} onError={setError}/> : <button className="button secondary" onClick={() => download(result.blob!, `${result.name.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 70) || 'sticker'}.webp`)}><Download size={18}/>{t('Enregistrer')}</button>}
