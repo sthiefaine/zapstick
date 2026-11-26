@@ -1,10 +1,12 @@
 import {randomBytes} from 'node:crypto';
+import {InstagramImportError,instagramMediaUrl,resolveInstagramVideo} from './instagram-import';
 
 /** Only public Instagram/TikTok posts are resolved by the private Cobalt service. */
 export const SOCIAL_IMPORT_LIMITS=Object.freeze({requestBytes:2048,jsonBytes:64*1024,mediaBytes:20*1024*1024,timeoutMs:25_000,ticketMs:90_000,concurrent:2,tickets:128,items:20});
 type Code='invalid_url'|'unavailable'|'too_large'|'timeout'|'busy'|'not_media'|'expired';
 class ImportError extends Error { constructor(readonly code:Code){super(code);} }
-type Ticket={url:string;name:string;kind:'image'|'video';expiresAt:number};
+type Ticket={url:string;name:string;kind:'image'|'video';expiresAt:number;provider?:'instagram'};
+type ResolvedMedia={url:string;name:string;mime:string;thumbnail?:string;provider?:'instagram'};
 type State={tickets:Map<string,Ticket>;active:number;tokens:number;updated:number};
 type Environment=Record<string,string|undefined>;
 type Options={fetcher?:typeof fetch;env?:()=>Environment;state?:State;clock?:()=>number};
@@ -73,6 +75,22 @@ function mediaMime(bytes:Uint8Array):string|null{
   if(bytes[0]===0x1a&&bytes[1]===0x45&&bytes[2]===0xdf&&bytes[3]===0xa3)return'video/webm';
   return null;
 }
+async function resolveCobalt(source:{url:URL;service:'instagram'|'tiktok'},config:ReturnType<typeof cobaltConfig>,fetcher:typeof fetch,signal:AbortSignal):Promise<ResolvedMedia[]>{
+  const response=await fetcher(config.origin.href,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json',...(config.key?{Authorization:`Api-Key ${config.key}`}:{})},body:JSON.stringify({url:source.url.href,alwaysProxy:true,videoQuality:'480',downloadMode:'auto',localProcessing:'disabled',disableMetadata:true}),redirect:'error',cache:'no-store',signal});
+  if(!response.ok){void response.body?.cancel().catch(()=>{});return fail(response.status===429?'busy':'unavailable');}
+  const data=JSON.parse(new TextDecoder().decode(await limited(response.body,SOCIAL_IMPORT_LIMITS.jsonBytes,signal)));
+  if(!data||typeof data!=='object'||data.status==='error')return fail('unavailable');
+  const items=data.status==='picker'&&Array.isArray(data.picker)?data.picker:data.status==='tunnel'?[data]:[];
+  if(!items.length||items.length>SOCIAL_IMPORT_LIMITS.items)return fail('not_media');
+  const resolved:ResolvedMedia[]=items.map((item:{url?:unknown;filename?:unknown;type?:unknown;thumb?:unknown},index:number)=>{
+    const url=proxyTarget(item.url,config.origin),name=typeof item.filename==='string'?item.filename.replace(/[\x00-\x1f\x7f]/g,' ').slice(0,120):`${source.service} ${index+1}`;
+    return{url,name,mime:mimeFor(name,item.type),...(item.thumb?{thumbnail:proxyTarget(item.thumb,config.origin)}:{})};
+  });
+  // A Reel's cover is not a successful video import. Mixed carousels remain
+  // selectable as long as the service actually recovered their video items.
+  if(source.service==='instagram'&&/^\/(?:reels?|tv)\//.test(source.url.pathname)&&!resolved.some(item=>item.mime.startsWith('video/')))return fail('not_media');
+  return resolved;
+}
 export function createSocialImportHandler({fetcher=fetch,env=()=>process.env,state=sharedState,clock=Date.now}:Options={}){
   return async function handle(request:Request):Promise<Response>{
     let admitted=false;
@@ -93,36 +111,35 @@ export function createSocialImportHandler({fetcher=fetch,env=()=>process.env,sta
         const bytes=await limited(request.body,SOCIAL_IMPORT_LIMITS.requestBytes,signal);
         let input:unknown;try{input=JSON.parse(new TextDecoder().decode(bytes));}catch{return fail('invalid_url');}
         if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==1||!('url'in input)||typeof input.url!=='string')return fail('invalid_url');
-        const source=validateSocialPost(input.url),reel=source.service==='instagram'&&/^\/(?:reels?|tv)\//.test(source.url.pathname);
-        const response=await fetcher(config.origin.href,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json',...(config.key?{Authorization:`Api-Key ${config.key}`}:{})},body:JSON.stringify({url:source.url.href,alwaysProxy:true,videoQuality:'480',downloadMode:'auto',localProcessing:'disabled',disableMetadata:true}),redirect:'error',cache:'no-store',signal});
-        if(!response.ok){void response.body?.cancel().catch(()=>{});return fail(response.status===429?'busy':'unavailable');}
-        const data=JSON.parse(new TextDecoder().decode(await limited(response.body,SOCIAL_IMPORT_LIMITS.jsonBytes,signal)));
-        if(!data||typeof data!=='object'||data.status==='error')return fail('unavailable');
-        const items=data.status==='picker'&&Array.isArray(data.picker)?data.picker:data.status==='tunnel'?[data]:[];
-        if(!items.length||items.length>SOCIAL_IMPORT_LIMITS.items)return fail('not_media');
+        const source=validateSocialPost(input.url);
+        let resolved:ResolvedMedia[];
+        try{resolved=await resolveCobalt(source,config,fetcher,signal);}
+        catch(error){
+          if(source.service!=='instagram'||signal.aborted||error instanceof ImportError&&['busy','too_large','timeout'].includes(error.code))throw error;
+          resolved=await resolveInstagramVideo(source.url,signal,environment.INSTAGRAM_DOWNLOADER);
+        }
         const pending:{id:string;record:Ticket;mime:string;thumbnail?:string}[]=[];
-        const media=items.map((item:{url?:unknown;filename?:unknown;type?:unknown;thumb?:unknown},index:number)=>{
-          const target=proxyTarget(item.url,config.origin),name=typeof item.filename==='string'?item.filename.replace(/[\x00-\x1f\x7f]/g,' ').slice(0,120):`${source.service} ${index+1}`;
-          const mime=mimeFor(name,item.type),id=randomBytes(24).toString('base64url');
-          if(reel&&!mime.startsWith('video/'))return fail('not_media');
-          const record:Ticket={url:target,name,kind:mime.startsWith('video/')?'video':'image',expiresAt:clock()+SOCIAL_IMPORT_LIMITS.ticketMs};
-          const entry={id,record,mime} as typeof pending[number];pending.push(entry);
-          if(item.thumb){const thumbId=randomBytes(24).toString('base64url');pending.push({id:thumbId,record:{...record,kind:'image',url:proxyTarget(item.thumb,config.origin)},mime:'image/jpeg'});entry.thumbnail=`/api/import/media/${thumbId}`;}
-          return{url:`/api/import/media/${id}`,name,mime,...(entry.thumbnail?{thumbnail:entry.thumbnail}:{})};
+        const media=resolved.map((item)=>{
+          const id=randomBytes(24).toString('base64url');
+          const record:Ticket={url:item.url,name:item.name,kind:item.mime.startsWith('video/')?'video':'image',expiresAt:clock()+SOCIAL_IMPORT_LIMITS.ticketMs,...(item.provider?{provider:item.provider}:{})};
+          const entry={id,record,mime:item.mime} as typeof pending[number];pending.push(entry);
+          if(item.thumbnail){const thumbId=randomBytes(24).toString('base64url');pending.push({id:thumbId,record:{...record,kind:'image',url:item.thumbnail},mime:'image/jpeg'});entry.thumbnail=`/api/import/media/${thumbId}`;}
+          return{url:`/api/import/media/${id}`,name:item.name,mime:item.mime,...(entry.thumbnail?{thumbnail:entry.thumbnail}:{})};
         });
         if(state.tickets.size+pending.length>SOCIAL_IMPORT_LIMITS.tickets)return fail('busy');
         for(const item of pending)state.tickets.set(item.id,item.record);
         return Response.json({media,source:source.url.href},{headers});
       }
       const item=state.tickets.get(ticket!);if(!item||item.expiresAt<=clock())return fail('expired');
-      const response=await fetcher(proxyTarget(item.url,config.origin),{method:'GET',headers:{Accept:'image/*, video/*, application/octet-stream;q=0.5',...(config.key?{Authorization:`Api-Key ${config.key}`}:{})},redirect:'error',cache:'no-store',signal});
+      const target=item.provider==='instagram'?instagramMediaUrl(item.url):proxyTarget(item.url,config.origin);
+      const response=await fetcher(target,{method:'GET',headers:{Accept:'image/*, video/*, application/octet-stream;q=0.5',...(item.provider==='instagram'?{Referer:'https://www.instagram.com/'}:config.key?{Authorization:`Api-Key ${config.key}`}:{})},redirect:'error',cache:'no-store',signal});
       if(!response.ok){void response.body?.cancel().catch(()=>{});return fail(response.status===429?'busy':'unavailable');}
       const length=response.headers.get('content-length');if(length&&Number(length)>SOCIAL_IMPORT_LIMITS.mediaBytes){void response.body?.cancel().catch(()=>{});return fail('too_large');}
       const type=(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
       if(!type.startsWith('image/')&&!type.startsWith('video/')&&!['application/octet-stream','binary/octet-stream'].includes(type)){void response.body?.cancel().catch(()=>{});return fail('not_media');}
       const bytes=await limited(response.body,SOCIAL_IMPORT_LIMITS.mediaBytes,signal),mime=mediaMime(bytes);if(!mime||!mime.startsWith(item.kind+'/'))return fail('not_media');
       return new Response(bytes,{headers:{...headers,'Content-Type':mime,'Content-Length':String(bytes.byteLength),'Content-Disposition':'inline'}});
-    }catch(error){const code:Code=error instanceof ImportError?error.code:request.signal.aborted||error instanceof DOMException&&['TimeoutError','AbortError'].includes(error.name)?'timeout':'unavailable';return Response.json({error:code},{status:statuses[code],headers:{...headers,...(code==='busy'?{'Retry-After':'5'}:{})}});}
+    }catch(error){const code:Code=error instanceof ImportError||error instanceof InstagramImportError?error.code:request.signal.aborted||error instanceof DOMException&&['TimeoutError','AbortError'].includes(error.name)?'timeout':'unavailable';return Response.json({error:code},{status:statuses[code],headers:{...headers,...(code==='busy'?{'Retry-After':'5'}:{})}});}
     finally{if(admitted)state.active--;}
   };
 }

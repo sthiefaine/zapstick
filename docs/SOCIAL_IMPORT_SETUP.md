@@ -2,7 +2,9 @@
 
 Le champ de lien utilise FxTwitter dans le navigateur pour X. Les publications
 Instagram et TikTok passent par le serveur web Zapstick puis une instance Cobalt
-privée. Aucun compte ni cookie personnel n'est utilisé. Les publications privées,
+privée. Si Cobalt échoue sur Instagram ou ne renvoie que la couverture d'un Reel,
+Zapstick utilise yt-dlp avec curl-cffi pour récupérer la vidéo publique.
+Aucun compte ni cookie personnel n'est utilisé. Les publications privées,
 les restrictions géographiques et certains blocages anti-bot restent indisponibles ;
 l'interface propose alors l'import du fichier depuis l'appareil.
 
@@ -44,13 +46,20 @@ Zapstick, uniquement à l'exécution. Sans clé, l'isolement réseau reste oblig
 - Le serveur demande à Cobalt `alwaysProxy:true`, `videoQuality:"480"`,
   `downloadMode:"auto"`, `localProcessing:"disabled"` et `disableMetadata:true`.
 - Les tunnels et vignettes doivent appartenir à l'origine Cobalt configurée et au
-  chemin exact `/tunnel`. Aucune redirection externe n'est suivie par Zapstick.
+  chemin exact `/tunnel`. Le secours Instagram autorise uniquement les MP4 HTTPS
+  de `cdninstagram.com` et `fbcdn.net`, sans redirection. La clé privée Cobalt
+  n'est jamais transmise à ces hébergeurs.
 - Le navigateur reçoit uniquement des chemins locaux temporaires
   `/api/import/media/<ticket>`, jamais l'adresse ou une clé du service privé.
 - Tickets de 90 secondes, 20 médias maximum par publication, 128 tickets en mémoire,
   deux opérations simultanées maximum, quotas globaux et au niveau du garde HTTP.
 - Téléchargement plafonné à 20 Mio, types et signatures contrôlés, délai absolu de
   25 secondes. Les octets sont relayés en mémoire sans stockage durable.
+- L'image Docker installe yt-dlp 2026.11.23 et curl-cffi 0.17.0 dans un environnement
+  Python isolé. Le sous-processus récupère seulement les métadonnées, ignore toute
+  configuration personnelle, ne reçoit aucun secret et s'arrête au bout de vingt
+  secondes. Il reste soumis aux quotas ci-dessus. En développement local uniquement,
+  `INSTAGRAM_DOWNLOADER` peut désigner le chemin absolu d'un exécutable yt-dlp installé.
 
 Les journaux ne contiennent ni URL source, ni ticket, ni média. Redémarrer le site
 invalide les tickets en mémoire ; recoller le lien suffit pour préparer un nouvel
@@ -66,9 +75,9 @@ cookies avec yt-dlp 2026.10.26 depuis le poste de développement :
 
 Sur le serveur Hetzner, Cobalt 11 a réellement téléchargé le TikTok de six
 secondes en MP4 (658 136 octets). Sur le Reel Instagram ci-dessus, Cobalt a
-renvoyé une image JPEG de couverture plutôt que la vidéo : cet import est refusé
-explicitement. Un lien Reel/TV ne peut pas réussir comme image, même si le
-service amont le propose.
+renvoyé une image JPEG de couverture plutôt que la vidéo : ce résultat déclenche
+maintenant le secours Instagram. Un lien Reel/TV ne peut pas réussir avec sa seule
+couverture, même si le service amont la présente comme un résultat complet.
 
 Un autre ancien exemple TikTok a répondu que l'IP n'était pas autorisée. Ces
 résultats prouvent une extraction publique possible, pas une disponibilité garantie

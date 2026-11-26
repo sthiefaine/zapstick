@@ -39,6 +39,11 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
     PORT=3000
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends python3-venv ca-certificates \
+    && python3 -m venv /opt/zapstick-instagram \
+    && /opt/zapstick-instagram/bin/pip install --no-cache-dir --only-binary=:all: 'yt-dlp[default,curl-cffi]==2026.11.23' 'curl-cffi==0.17.0' \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system --gid 1001 zapstick && useradd --system --uid 1001 --gid zapstick --home-dir /app zapstick
 COPY --from=builder --chown=zapstick:zapstick /app/.next-coolify/standalone ./
 USER zapstick
