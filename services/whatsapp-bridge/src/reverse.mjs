@@ -5,8 +5,8 @@ const HELP = 'Envoie-moi un sticker pour le modifier : 5 liens actifs maximum, v
 /** Reserve synchronously, then process a bounded queue one sticker at a time.
  * Neither sender JIDs nor message contents are written to logs or raw metadata. */
 export class ReverseBridge {
-  constructor({store, transport, siteUrl, decodeSound = decodeIncomingAudio, clock = Date.now, onEvent = () => {}}) {
-    Object.assign(this, {store, transport, siteUrl, decodeSound, clock, onEvent});
+  constructor({store, transport, siteUrl, decodeSound = decodeIncomingAudio, clock = Date.now, onEvent = () => {}, sendReply}) {
+    Object.assign(this, {store, transport, siteUrl, decodeSound, clock, onEvent, sendReply});
     this.queue = []; this.running = null; this.current = null; this.stopping = false;
   }
   receive(event) {
@@ -22,6 +22,7 @@ export class ReverseBridge {
   }
   report(event) { try { this.onEvent(event); } catch {} }
   reply(event, text, kind) {
+    if (this.sendReply) { void this.sendReply(event, text, kind).catch(() => {}); return; }
     try { if (this.store.allowBotReply(event, kind)) void this.transport.sendText({recipient: event.recipient, text}).catch(() => {}); } catch {}
   }
   kick() {
@@ -56,7 +57,9 @@ export class ReverseBridge {
         this.store.completeReverse(job.id, {visual, sound, media}); ready = true;
         const link = `${this.siteUrl}/fr#edit=${job.token}`;
         stage = 'reply';
-        await this.transport.sendText({recipient: event.recipient, text: `Modifie ton sticker :\n${link}\nLien temporaire (10 min max).`});
+        const text = `Modifie ton sticker :\n${link}\nLien temporaire (10 min max).`;
+        if (this.sendReply) await this.sendReply(event, text, 'ready');
+        else await this.transport.sendText({recipient: event.recipient, text});
         this.report('ready');
       } catch (error) {
         const reason = ['structure','dimensions','frame','duration','metadata','chunk','frames','metadata_flags','alpha_flag','metadata_key','metadata_size','metadata_path','http_403','http_404','http_410','http_429','http','timeout','response_size','integrity','transport','audio_size','audio_duration','audio_decode'].includes(error?.reason) ? '_' + error.reason : '';

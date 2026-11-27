@@ -85,10 +85,11 @@ export async function downloadIncomingMedia(sdk, message, type, maximum, signal,
 /** Native sound attachments do not all use the same container or duration.
  * Decode their first six seconds before aligning the visual and PCM together.
  * A private, seekable input also supports M4A with metadata after its audio. */
-export async function decodeIncomingAudio({bytes, duration, signal}) {
-  if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 512 * 1024) throw invalid('audio_size');
+export async function decodeIncomingAudio({bytes, duration, signal, maximum = 512 * 1024}) {
+  if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 8 * 1024 * 1024
+    || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > maximum) throw invalid('audio_size');
   if (!Number.isFinite(duration) || duration < 0 || duration > 6 || signal?.aborted) throw invalid('audio_duration');
-  const channels = 2, maximum = 6 * 48000 * channels * 2;
+  const channels = 2, pcmMaximum = 6 * 48000 * channels * 2;
   const directory = await mkdtemp(path.join(tmpdir(), 'zapstick-incoming-audio-'));
   try {
   const input = path.join(directory, 'source');
@@ -102,7 +103,7 @@ export async function decodeIncomingAudio({bytes, duration, signal}) {
     const timer = setTimeout(stop, 15_000); timer.unref();
     signal?.addEventListener('abort', stop, {once: true});
     child.on('error', () => { failure ??= invalid('audio_decode'); }); child.stdin.on('error', () => {});
-    child.stdout.on('data', chunk => { size += chunk.length; if (size > maximum) stop(); else parts.push(chunk); });
+    child.stdout.on('data', chunk => { size += chunk.length; if (size > pcmMaximum) stop(); else parts.push(chunk); });
     child.stderr.on('data', chunk => { diagnostics += chunk.length; if (diagnostics > 8192) stop(); });
     child.once('close', code => { clearTimeout(timer); signal?.removeEventListener('abort', stop); if (failure || code !== 0 || !size || size % (channels * 2)) reject(failure ?? invalid('audio_decode')); else resolve(Buffer.concat(parts, size)); });
     child.stdin.end(); if (signal?.aborted) stop();

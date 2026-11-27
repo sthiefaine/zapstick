@@ -7,15 +7,21 @@ import { loadBaileysPrivately } from './private-console.mjs';
 const noop = () => {};
 const silentLogger = { level: 'silent', trace: noop, debug: noop, info: noop, warn: noop, error: noop, fatal: noop, child() { return this; } };
 const privateJid = value => typeof value === 'string' && /^\d+(?::\d+)?@(?:s\.whatsapp\.net|lid)$/.test(value);
-const MESSAGE_ENVELOPES = ['ephemeralMessage', 'associatedChildMessage', 'lottieStickerMessage', 'audioStickerMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage'];
+const MESSAGE_ENVELOPES = ['ephemeralMessage', 'associatedChildMessage', 'lottieStickerMessage', 'audioStickerMessage', 'documentWithCaptionMessage'];
+const VIEW_ONCE_ENVELOPES = ['viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension'];
+const USER_MEDIA = ['stickerMessage', 'audioMessage', 'documentMessage', 'imageMessage', 'videoMessage', 'contactMessage', 'contactsArrayMessage', 'locationMessage', 'liveLocationMessage'];
+const audioDocument = message => typeof message?.mimetype === 'string' && /^(?:audio\/|application\/ogg(?:;|$))/i.test(message.mimetype)
+  || typeof message?.fileName === 'string' && message.fileName.length <= 256 && /\.(?:mp3|m4a|aac|ogg|opus|wav|weba|webm)$/i.test(message.fileName.trim());
 function incomingContent(content) {
   for (let depth = 0; depth < 5 && content; depth++) {
-    if (content.stickerMessage || content.conversation || content.extendedTextMessage) return content;
+    // These media were shared for a single viewing, not for reuse in a sticker.
+    if (VIEW_ONCE_ENVELOPES.some(name => content[name]) || USER_MEDIA.some(name => content[name]?.viewOnce)) return undefined;
+    if (USER_MEDIA.some(name => content[name]) || typeof content.conversation === 'string' || content.extendedTextMessage) return content;
     const wrappers = MESSAGE_ENVELOPES.filter(name => content[name]?.message);
     if (wrappers.length !== 1) return undefined;
     content = content[wrappers[0]].message;
   }
-  return content?.stickerMessage || content?.conversation || content?.extendedTextMessage ? content : undefined;
+  return undefined;
 }
 
 function failure(code, message, messageId) {
@@ -46,10 +52,19 @@ export function parseReverseMessage(message, connectedAt = 0) {
   const base = {recipient: key.remoteJid, providerMessageId: key.id, senderAliases};
   const content = incomingContent(message.message);
   const text = content?.conversation ?? content?.extendedTextMessage?.text;
-  if (typeof text === 'string' && /^(?:\/?aide|\/?help)$/i.test(text.trim())) return {...base, kind: 'help'};
+  if (typeof text === 'string') {
+    const normalized = text.trim();
+    if (/^(?:\/?aide|\/?help)$/i.test(normalized)) return {...base, kind: 'help'};
+    const command = /^\/(create|end|cancel)$/i.exec(normalized)?.[1].toLowerCase();
+    if (command) return {...base, kind: 'command', command};
+    return {...base, kind: 'text', text: normalized.slice(0, 1024)};
+  }
   const sticker = content?.stickerMessage;
-  if (!sticker) return undefined;
-  return {...base, kind: 'sticker', sticker, audio: incomingStickerAudio(sticker), messageKey: {...key}};
+  if (sticker) return {...base, kind: 'sticker', sticker, audio: incomingStickerAudio(sticker), messageKey: {...key}};
+  if (content?.audioMessage) return {...base, kind: 'audio', audio: content.audioMessage, mediaType: 'audio', messageKey: {...key}};
+  if (content?.documentMessage && audioDocument(content.documentMessage)) return {...base, kind: 'audio', audio: content.documentMessage, mediaType: 'document', messageKey: {...key}};
+  if (content && USER_MEDIA.some(name => content[name])) return {...base, kind: 'unsupported'};
+  return undefined;
 }
 
 /** No network access is made until connect() is explicitly called. A regular
@@ -237,15 +252,16 @@ export function createWhatsAppTransport({
       if (stopped || state !== 'connected' || !baileys) throw failure('unavailable', 'WhatsApp is not connected.');
       try { return await downloadIncomingMedia(baileys, message, type, maximum, signal); }
       catch (error) {
-        if (type !== 'sticker' || !messageKey || !['http_404','http_410'].includes(error?.reason) || stopped || state !== 'connected' || signal?.aborted) throw error;
-        // A forwarded sticker can reference an expired encrypted CDN object.
+        const field = {sticker: 'stickerMessage', audio: 'audioMessage', document: 'documentMessage'}[type];
+        if (!field || !messageKey || !['http_404','http_410'].includes(error?.reason) || stopped || state !== 'connected' || signal?.aborted) throw error;
+        // A forwarded attachment can reference an expired encrypted CDN object.
         // Ask the sender's device to restore that same media, once, using the
         // existing authenticated socket. No URL or chat history is retained.
         const target = socket;
         let timer, abort;
         try {
           await Promise.race([
-            target.updateMediaMessage({key: messageKey, message: {stickerMessage: message}}),
+            target.updateMediaMessage({key: messageKey, message: {[field]: message}}),
             new Promise((_, reject) => {
               abort = () => reject(error);
               timer = setTimeout(abort, 10_000); timer.unref();
