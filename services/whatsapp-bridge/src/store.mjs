@@ -49,6 +49,7 @@ export class BridgeStore {
       );
       CREATE INDEX IF NOT EXISTS reverse_sender_active ON reverse_transfers(sender_hash,state,expires_at);
       CREATE TABLE IF NOT EXISTS reverse_sender_aliases(alias_hash TEXT PRIMARY KEY,sender_hash TEXT NOT NULL,last_seen INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS bot_preferences(sender_hash TEXT PRIMARY KEY,locale TEXT NOT NULL,updated_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS bot_events(event_hash TEXT PRIMARY KEY,sender_hash TEXT NOT NULL,kind TEXT NOT NULL,created_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS bot_sender_created ON bot_events(sender_hash,created_at);
       CREATE TABLE IF NOT EXISTS store_config (name TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -244,6 +245,11 @@ export class BridgeStore {
     const identity = identities[0] ?? hashes[0];
     if (!identity || this.db.prepare('SELECT COUNT(*) AS n FROM reverse_sender_aliases').get().n + hashes.length > 40_000) throw new BridgeError('busy', 429);
     for (const previous of identities.slice(1)) {
+      const preference = this.db.prepare('SELECT locale,updated_at FROM bot_preferences WHERE sender_hash=?').get(previous);
+      if (preference) {
+        this.db.prepare('INSERT INTO bot_preferences VALUES(?,?,?) ON CONFLICT(sender_hash) DO UPDATE SET locale=excluded.locale,updated_at=excluded.updated_at WHERE excluded.updated_at>bot_preferences.updated_at').run(identity, preference.locale, preference.updated_at);
+        this.db.prepare('DELETE FROM bot_preferences WHERE sender_hash=?').run(previous);
+      }
       this.db.prepare('UPDATE reverse_transfers SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
       this.db.prepare('UPDATE bot_events SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
       this.db.prepare('UPDATE reverse_sender_aliases SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
@@ -321,6 +327,17 @@ export class BridgeStore {
       this.db.prepare('INSERT INTO bot_events VALUES(?,?,?,?)').run(event, sender, kind, now); return true;
     });
   }
+  getBotLocale({recipient, senderAliases}) {
+    const sender = this.transaction(() => this.reverseSender(recipient, senderAliases));
+    return this.db.prepare('SELECT locale FROM bot_preferences WHERE sender_hash=?').get(sender)?.locale ?? 'en';
+  }
+  rememberBotLocale({recipient, senderAliases}, locale) {
+    if (!LOCALES.has(locale)) return;
+    this.transaction(() => {
+      const sender = this.reverseSender(recipient, senderAliases);
+      this.db.prepare('INSERT INTO bot_preferences VALUES(?,?,?) ON CONFLICT(sender_hash) DO UPDATE SET locale=excluded.locale,updated_at=excluded.updated_at').run(sender, locale, this.clock());
+    });
+  }
   sweep() {
     const now = this.clock();
     this.db.prepare("UPDATE reverse_transfers SET state='expired' WHERE expires_at<=? AND state IN ('receiving','ready')").run(now);
@@ -331,7 +348,8 @@ export class BridgeStore {
     }
     this.db.prepare("DELETE FROM reverse_transfers WHERE state NOT IN ('receiving','ready') AND created_at<=? AND reserved_bytes=0").run(now - this.limits.retentionMs);
     this.db.prepare('DELETE FROM bot_events WHERE created_at<=?').run(now - this.limits.retentionMs);
-    this.db.prepare('DELETE FROM reverse_sender_aliases WHERE last_seen<=?').run(now - this.limits.retentionMs);
+    this.db.prepare('DELETE FROM bot_preferences WHERE updated_at<=?').run(now - 30 * 24 * 60 * 60_000);
+    this.db.prepare('DELETE FROM reverse_sender_aliases WHERE last_seen<=? AND NOT EXISTS (SELECT 1 FROM bot_preferences WHERE bot_preferences.sender_hash=reverse_sender_aliases.sender_hash)').run(now - this.limits.retentionMs);
     for (const row of this.db.prepare(`SELECT id,state FROM transfers WHERE expires_at<=? AND state IN (${ACTIVE.map(() => '?').join(',')})`).all(now, ...ACTIVE)) this.finish(row.id, row.state === 'sending' ? 'delivery_unknown' : 'expired', { error: row.state === 'sending' ? 'delivery_unknown' : null });
     for (const row of this.db.prepare('SELECT id FROM transfers WHERE finished_at IS NOT NULL AND reserved_bytes>0').all()) this.purgeFiles(row.id);
     const liveIds = new Set(this.db.prepare(`SELECT id FROM transfers WHERE state IN (${ACTIVE.map(() => '?').join(',')})`).all(...ACTIVE).map(row => row.id));

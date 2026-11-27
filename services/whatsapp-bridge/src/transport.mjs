@@ -3,6 +3,7 @@ import { openAuthStore } from './auth.mjs';
 import { withSoundSticker, installSoundStickerDecoder, incomingStickerAudio } from './sound-adapter.mjs';
 import {downloadIncomingMedia} from './incoming-media.mjs';
 import { loadBaileysPrivately } from './private-console.mjs';
+import {botLocale} from './bot-copy.mjs';
 
 const noop = () => {};
 const silentLogger = { level: 'silent', trace: noop, debug: noop, info: noop, warn: noop, error: noop, fatal: noop, child() { return this; } };
@@ -55,6 +56,8 @@ export function parseReverseMessage(message, connectedAt = 0) {
   if (typeof text === 'string') {
     const normalized = text.trim();
     if (/^(?:\/?aide|\/?help)$/i.test(normalized)) return {...base, kind: 'help'};
+    const language = /^\/(?:lang|language)(?:\s+(\S{1,24}))?$/i.exec(normalized);
+    if (language) return {...base, kind: 'command', command: 'lang', locale: botLocale(language[1])};
     const command = /^\/(create|end|cancel)$/i.exec(normalized)?.[1].toLowerCase();
     if (command) return {...base, kind: 'command', command};
     return {...base, kind: 'text', text: normalized.slice(0, 1024)};

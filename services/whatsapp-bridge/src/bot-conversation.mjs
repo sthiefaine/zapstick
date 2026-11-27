@@ -5,23 +5,9 @@ import {BotLimits} from './bot-limits.mjs';
 import {validateIncomingSticker} from './media.mjs';
 import {decodeIncomingAudio} from './incoming-media.mjs';
 import {prepareCreatedSticker} from './create-media.mjs';
+import {botText, botWelcome, botLanguageMenu, botLocale} from './bot-copy.mjs';
 
-export const BOT_HELP = `👋 Crée ou modifie tes stickers avec Zapstick.
-
-🔗 Modifier sur le site
-Envoie un sticker : je te donne son lien d’édition (5 liens actifs, valables 10 min).
-
-✨ Créer ici
-/create — démarre une création
-1. Envoie ton sticker fixe ou animé : je garde son visuel, sans son.
-2. Facultatif : envoie un vocal, un fichier audio ou un sticker sonore. Seul son audio sera utilisé.
-3. /end — reçois ton sticker, avec le son ajouté ou sans son.
-
-Tu peux remplacer le son en en envoyant un autre. Les 6 premières secondes sont utilisées.
-/cancel — annule la création
-/help — affiche cette aide
-
-Pour recevoir un sticker créé sur le site, envoie le message « Sticker ZAP … » prérempli.`;
+export const BOT_HELP = botWelcome();
 
 const TTL = 10 * 60_000;
 const MAX_SESSIONS = 20;
@@ -66,49 +52,57 @@ export class BotConversation {
   }
   async handle(event) {
     this.sweep();
+    const requestedLocale = event.locale;
+    const locale = botLocale(this.store.getBotLocale(event)) ?? 'en';
+    event = {...event, locale};
+    const t = (key, values) => botText(locale, key, values);
     const id = this.store.reverseSender(event.recipient, event.senderAliases);
     const draft = this.sessions.get(id);
     if (event.kind === 'command') {
+      if (event.command === 'lang') {
+        if (!requestedLocale) { await this.reply(event, botLanguageMenu(locale)); return; }
+        this.store.rememberBotLocale(event, requestedLocale);
+        await this.reply(event, botText(requestedLocale, 'languageChosen'));
+        return;
+      }
       if (event.command === 'create') {
         if (!draft && this.sessions.size >= MAX_SESSIONS) {
-          await this.reply(event, 'Le bot est occupé. Réessaie dans un instant.'); return;
+          await this.reply(event, t('busy')); return;
         }
         this.sessions.set(id, {expiresAt: this.clock() + TTL});
-        await this.reply(event, '✨ Nouvelle création\nEnvoie ton sticker fixe, animé ou sonore. Je garde uniquement son visuel.\n\n/cancel pour annuler · création valable 10 min.');
+        await this.reply(event, t('newCreation'));
         return;
       }
       if (event.command === 'cancel') {
         this.sessions.delete(id);
-        await this.reply(event, draft ? 'Création annulée.\n/create pour recommencer, ou envoie un sticker pour obtenir son lien d’édition.' : 'Aucune création en cours.\n/create pour commencer.');
+        await this.reply(event, t(draft ? 'cancelled' : 'noCreation'));
         return;
       }
       if (event.command === 'end') {
         if (!draft?.visual) {
-          await this.reply(event, draft ? 'Il manque le visuel : envoie d’abord un sticker fixe ou animé, puis /end.' : 'Aucune création en cours.\nTape /create, puis envoie ton sticker.'); return;
+          await this.reply(event, t(draft ? 'missingVisual' : 'noDraftEnd')); return;
         }
         await this.finish(event, id, draft); return;
       }
     }
-    if (event.kind === 'help') { await this.reply(event, BOT_HELP, 'help'); return; }
+    if (event.kind === 'help') { await this.reply(event, botWelcome(locale, this.reverse.siteUrl), 'help'); return; }
     if (!draft) {
       if (event.kind === 'sticker') this.reverse.receive(event);
-      else await this.reply(event, BOT_HELP, 'help');
+      else await this.reply(event, botWelcome(locale, this.reverse.siteUrl), 'help');
       return;
     }
     if (event.kind === 'text' || event.kind === 'unsupported') {
-      await this.reply(event, draft.visual
-        ? `Visuel prêt${draft.sound ? ' avec ton son' : ', sans son'}.\nEnvoie un vocal, un fichier audio ou un sticker sonore pour ${draft.sound ? 'remplacer' : 'ajouter'} le son.\n/end pour recevoir le sticker · /cancel pour annuler.`
-        : 'Envoie un sticker fixe, animé ou sonore pour choisir le visuel.\n/cancel pour annuler.', 'help');
+      await this.reply(event, t(draft.visual ? draft.sound ? 'promptSound' : 'promptSilent' : 'visualPrompt'), 'help');
       return;
     }
     if (!draft.visual && event.kind !== 'sticker') {
-      await this.reply(event, 'D’abord le visuel 🙂 Envoie un sticker fixe ou animé. Tu pourras ajouter le son juste après.'); return;
+      await this.reply(event, t('visualFirst')); return;
     }
     if (draft.visual && !this.soundEnabled) {
-      await this.reply(event, 'L’ajout de son est momentanément indisponible.\n/end pour recevoir ton sticker sans son.'); return;
+      await this.reply(event, t('soundUnavailable')); return;
     }
     if (draft.visual && event.kind === 'sticker' && !event.audio) {
-      await this.reply(event, 'Ce sticker n’a pas de son. Ton visuel est conservé.\nEnvoie un vocal, un fichier audio ou un sticker sonore ; /end pour terminer.'); return;
+      await this.reply(event, t('stickerWithoutSound')); return;
     }
     const controller = new AbortController();
     this.current = {controller, draft};
@@ -119,19 +113,18 @@ export class BotConversation {
         validateIncomingSticker(visual);
         if (controller.signal.aborted || this.stopping) return;
         draft.visual = visual;
-        await this.reply(event, '✅ Visuel prêt, son d’origine retiré.\n\nEnvoie un vocal, un fichier audio ou un sticker sonore pour ajouter son audio.\nOu /end pour recevoir ce visuel sans son.');
+        await this.reply(event, t('visualReady'));
       } else {
         const encoded = await this.transport.downloadIncoming({message: event.audio, type: event.kind === 'audio' ? event.mediaType : 'audio', maximum: event.kind === 'sticker' ? 512 * 1024 : AUDIO_BYTES, signal: controller.signal, messageKey: event.kind === 'audio' ? event.messageKey : undefined});
         const decoded = await this.decodeSound({bytes: encoded, duration: 0, maximum: AUDIO_BYTES, signal: controller.signal});
         if (controller.signal.aborted || this.stopping) return;
         draft.sound = decoded.sound;
-        await this.reply(event, `✅ Son prêt (${decoded.duration.toFixed(1).replace('.', ',')} s, 6 s maximum).\n/end pour recevoir ton sticker.\nEnvoie un autre son pour le remplacer, ou /cancel pour annuler.`);
+        const duration = new Intl.NumberFormat(locale, {minimumFractionDigits: 1, maximumFractionDigits: 1}).format(decoded.duration);
+        await this.reply(event, t('soundReady', {duration}));
       }
     } catch {
       this.report('media_failed');
-      await this.reply(event, draft.visual
-        ? `Je n’ai pas pu lire ce son. Essaie un vocal ou un fichier MP3, M4A, OGG ou WAV de 8 Mo maximum.\nTon visuel${draft.sound ? ' et le dernier son valide sont conservés' : ' est conservé, sans son'}. /end pour terminer.`
-        : 'Je n’ai pas pu lire ce sticker. Envoie un sticker fixe ou animé de 6 secondes maximum.\n/cancel pour annuler.');
+      await this.reply(event, t(draft.visual ? draft.sound ? 'invalidSoundSaved' : 'invalidSoundSilent' : 'invalidVisual'));
     } finally { clearTimeout(timer); this.current = null; }
   }
   async finish(event, id, draft) {
@@ -152,9 +145,9 @@ export class BotConversation {
     } catch (error) {
       if (handedOff || error?.code === 'delivery_unknown') {
         this.sessions.delete(id);
-        if (!this.stopping) await this.transport.sendText({recipient: event.recipient, text: 'L’envoi a commencé, mais sa confirmation tarde. Vérifie la conversation avant de recommencer avec /create.'}).catch(() => {});
+        if (!this.stopping) await this.transport.sendText({recipient: event.recipient, text: botText(event.locale, 'deliveryUnknown')}).catch(() => {});
       } else if (!this.stopping) {
-        await this.transport.sendText({recipient: event.recipient, text: 'Je n’ai pas pu terminer le sticker. Ta création est conservée pendant 10 min au total : réessaie /end, ou /cancel pour annuler.'}).catch(() => {});
+        await this.transport.sendText({recipient: event.recipient, text: botText(event.locale, 'sendFailed')}).catch(() => {});
       }
       this.report('send_failed');
     } finally { clearTimeout(timer); this.current = null; if (directory) await rm(directory, {recursive: true, force: true}); }

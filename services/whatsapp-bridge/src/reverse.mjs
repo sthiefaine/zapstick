@@ -1,7 +1,7 @@
 import {validateIncomingSticker,extendIncomingVisual} from './media.mjs';
 import {decodeIncomingAudio} from './incoming-media.mjs';
+import {botLocale, botText, botWelcome} from './bot-copy.mjs';
 
-const HELP = 'Envoie-moi un sticker pour le modifier : 5 liens actifs maximum, valables 10 min. Pour recevoir un sticker du site, envoie le message « Sticker ZAP … » prérempli.';
 /** Reserve synchronously, then process a bounded queue one sticker at a time.
  * Neither sender JIDs nor message contents are written to logs or raw metadata. */
 export class ReverseBridge {
@@ -11,11 +11,12 @@ export class ReverseBridge {
   }
   receive(event) {
     if (this.stopping) return;
-    if (event.kind === 'help') { this.reply(event, HELP, 'help'); return; }
-    if (!this.siteUrl) { this.reply(event, 'La modification de stickers est momentanément indisponible.', 'unavailable'); return; }
+    event = {...event, locale: botLocale(event.locale ?? this.store.getBotLocale(event)) ?? 'en'};
+    if (event.kind === 'help') { this.reply(event, botWelcome(event.locale, this.siteUrl), 'help'); return; }
+    if (!this.siteUrl) { this.reply(event, botText(event.locale, 'reverseUnavailable'), 'unavailable'); return; }
     let job;
     try { job = this.store.reserveReverse(event); }
-    catch (error) { this.reply(event, error.code === 'user_limit' ? 'Tu as déjà 5 liens actifs. Réessaie après leur expiration (10 min).' : 'Trop de demandes. Réessaie dans un instant.', 'quota'); return; }
+    catch (error) { this.reply(event, botText(event.locale, error.code === 'user_limit' ? 'reverseLimit' : 'reverseBusy'), 'quota'); return; }
     if (!job) return;
     this.report('received');
     this.queue.push({event, job}); this.kick();
@@ -55,9 +56,9 @@ export class ReverseBridge {
         if (controller.signal.aborted || this.stopping || job.expiresAt <= this.clock()) throw new Error();
         stage = 'save';
         this.store.completeReverse(job.id, {visual, sound, media}); ready = true;
-        const link = `${this.siteUrl}/fr#edit=${job.token}`;
+        const link = `${this.siteUrl}/${event.locale}#edit=${job.token}`;
         stage = 'reply';
-        const text = `Modifie ton sticker :\n${link}\nLien temporaire (10 min max).`;
+        const text = botText(event.locale, 'reverseReady', {link});
         if (this.sendReply) await this.sendReply(event, text, 'ready');
         else await this.transport.sendText({recipient: event.recipient, text});
         this.report('ready');
@@ -67,7 +68,7 @@ export class ReverseBridge {
         // A link may already have been handed to WhatsApp. Keep a ready job
         // readable until expiry; failed downloads release their reservation.
         this.store.failReverse(job.id);
-        if (!ready && !this.stopping) this.reply(event, 'Impossible de préparer ce sticker. Envoie un sticker de 6 secondes maximum, avec ou sans son.', 'invalid');
+        if (!ready && !this.stopping) this.reply(event, botText(event.locale, 'reverseInvalid'), 'invalid');
       } finally { clearTimeout(timeout); this.current = null; }
     }
   }
