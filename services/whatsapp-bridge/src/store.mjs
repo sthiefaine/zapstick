@@ -4,6 +4,7 @@ import { mkdirSync, chmodSync, writeFileSync, renameSync, rmSync, readdirSync, s
 import path from 'node:path';
 import { BridgeError, LIMITS, LOCALES, capability, equalSecret } from './config.mjs';
 import {phoneLocale} from './bot-language.mjs';
+import {validPollChoices, pollJid} from './bot-polls.mjs';
 
 const ACTIVE = ['receiving', 'awaiting_message', 'queued', 'processing', 'sending'];
 const TERMINAL = ['accepted', 'delivered', 'delivery_unknown', 'failed', 'cancelled', 'expired'];
@@ -51,6 +52,8 @@ export class BridgeStore {
       CREATE INDEX IF NOT EXISTS reverse_sender_active ON reverse_transfers(sender_hash,state,expires_at);
       CREATE TABLE IF NOT EXISTS reverse_sender_aliases(alias_hash TEXT PRIMARY KEY,sender_hash TEXT NOT NULL,last_seen INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS bot_preferences(sender_hash TEXT PRIMARY KEY,locale TEXT NOT NULL,updated_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS bot_polls(poll_hash TEXT PRIMARY KEY,sender_hash TEXT NOT NULL,context_cipher TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS bot_polls_sender ON bot_polls(sender_hash,created_at);
       CREATE TABLE IF NOT EXISTS bot_events(event_hash TEXT PRIMARY KEY,sender_hash TEXT NOT NULL,kind TEXT NOT NULL,created_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS bot_sender_created ON bot_events(sender_hash,created_at);
       CREATE TABLE IF NOT EXISTS store_config (name TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -260,6 +263,8 @@ export class BridgeStore {
       }
       this.db.prepare('UPDATE reverse_transfers SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
       this.db.prepare('UPDATE bot_events SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
+      this.db.prepare('UPDATE bot_polls SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
+      this.db.prepare('DELETE FROM bot_polls WHERE sender_hash=? AND poll_hash<>(SELECT poll_hash FROM bot_polls WHERE sender_hash=? ORDER BY created_at DESC,poll_hash LIMIT 1)').run(identity, identity);
       this.db.prepare('UPDATE reverse_sender_aliases SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
     }
     for (const hash of hashes) this.db.prepare('INSERT INTO reverse_sender_aliases VALUES(?,?,?) ON CONFLICT(alias_hash) DO UPDATE SET sender_hash=excluded.sender_hash,last_seen=excluded.last_seen').run(hash, identity, this.clock());
@@ -341,6 +346,33 @@ export class BridgeStore {
     if (saved?.source === 'manual') return saved.locale;
     return phoneLocale({recipient, senderAliases}) ?? saved?.locale ?? 'en';
   }
+  saveBotPoll(event, {messageId, secret, creators, choices}) {
+    if (typeof messageId !== 'string' || !messageId || messageId.length > 160 || !Buffer.isBuffer(secret) || secret.length !== 32
+      || !Array.isArray(creators) || !creators.length || creators.length > 2 || !creators.every(pollJid) || !validPollChoices(choices)) throw new BridgeError('invalid_poll', 400);
+    const now = this.clock(), hash = this.digest('bot-poll', messageId);
+    const context = JSON.stringify({secret:secret.toString('base64url'), creators, choices});
+    if (Buffer.byteLength(context) > 4096) throw new BridgeError('invalid_poll', 400);
+    this.transaction(() => {
+      this.db.prepare('DELETE FROM bot_polls WHERE expires_at<=?').run(now);
+      const sender = this.reverseSender(event.recipient, event.senderAliases);
+      this.db.prepare('DELETE FROM bot_polls WHERE sender_hash=?').run(sender);
+      if (this.db.prepare('SELECT COUNT(*) AS n FROM bot_polls').get().n >= 128) throw new BridgeError('busy', 429);
+      this.db.prepare('INSERT INTO bot_polls VALUES(?,?,?,?,?)').run(hash, sender, this.encrypt(hash, 'poll', context), now, now + 10 * 60_000);
+    });
+  }
+  getBotPoll(event) {
+    if (typeof event.pollMessageId !== 'string' || event.pollMessageId.length > 160) return;
+    const sender = this.transaction(() => this.reverseSender(event.recipient, event.senderAliases));
+    const hash = this.digest('bot-poll', event.pollMessageId);
+    const row = this.db.prepare('SELECT context_cipher FROM bot_polls WHERE poll_hash=? AND sender_hash=? AND expires_at>?').get(hash, sender, this.clock());
+    if (!row) return;
+    try { return JSON.parse(this.decrypt(hash, 'poll', row.context_cipher)); } catch { return; }
+  }
+  clearBotPoll(event, messageId) {
+    const sender = this.transaction(() => this.reverseSender(event.recipient, event.senderAliases));
+    if (messageId !== undefined) return !!this.db.prepare('DELETE FROM bot_polls WHERE sender_hash=? AND poll_hash=? AND expires_at>?').run(sender, this.digest('bot-poll', messageId), this.clock()).changes;
+    this.db.prepare('DELETE FROM bot_polls WHERE sender_hash=?').run(sender);
+  }
   rememberBotLocale({recipient, senderAliases}, locale, {source = 'manual'} = {}) {
     if (!LOCALES.has(locale) || !['manual', 'website'].includes(source)) return;
     this.transaction(() => {
@@ -352,6 +384,7 @@ export class BridgeStore {
   }
   sweep() {
     const now = this.clock();
+    this.db.prepare('DELETE FROM bot_polls WHERE expires_at<=?').run(now);
     this.db.prepare("UPDATE reverse_transfers SET state='expired' WHERE expires_at<=? AND state IN ('receiving','ready')").run(now);
     for (const row of this.db.prepare("SELECT id FROM reverse_transfers WHERE state NOT IN ('receiving','ready') AND reserved_bytes>0").all()) this.purgeReverseFiles(row.id);
     const reverseLive = new Set(this.db.prepare("SELECT id FROM reverse_transfers WHERE state IN ('receiving','ready')").all().map(row => row.id));

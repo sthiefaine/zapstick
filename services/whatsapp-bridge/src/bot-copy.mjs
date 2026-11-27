@@ -1,5 +1,6 @@
 import {latinCopy} from './bot-copy-latin.mjs';
 import {asianCopy} from './bot-copy-asian.mjs';
+import {pollText} from './bot-poll-copy.mjs';
 
 const en = {
   help: `👋 *Welcome to Zapstick!*
@@ -108,4 +109,4 @@ const LANGUAGE_MENU = [
   '🇯🇵 日本語 — */lang ja*', '🇷🇺 Русский — */lang ru*',
 ].join('\n');
 export const botLanguageMenu = locale => `${botText(locale, 'languagePrompt')}\n\n${LANGUAGE_MENU}`;
-export const botWelcome = (locale = 'en', siteUrl) => `${botText(locale, 'help')}${siteUrl ? `\n\n🌐 ${siteUrl}` : ''}`;
+export const botWelcome = (locale = 'en', siteUrl) => `${botText(locale, 'help')}\n${pollText(locale, 'menuHint')}${siteUrl ? `\n\n🌐 ${siteUrl}` : ''}`;

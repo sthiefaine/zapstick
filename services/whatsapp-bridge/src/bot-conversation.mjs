@@ -6,6 +6,8 @@ import {validateIncomingSticker} from './media.mjs';
 import {decodeIncomingAudio} from './incoming-media.mjs';
 import {prepareCreatedSticker} from './create-media.mjs';
 import {botText, botWelcome, botLanguageMenu, botLocale} from './bot-copy.mjs';
+import {LANGUAGE_CHOICES} from './bot-polls.mjs';
+import {pollText, menuChoices} from './bot-poll-copy.mjs';
 
 export const BOT_HELP = botWelcome();
 
@@ -43,6 +45,25 @@ export class BotConversation {
     if (this.stopping || !this.limits.allowReply(event, {help: kind === 'help'})) return;
     try { await this.transport.sendText({recipient: event.recipient, text}); } catch {}
   }
+  async showPoll(event, {title, choices, fallback, help = false}) {
+    if (this.stopping || !this.limits.allowReply(event, {help})) return;
+    let preparedId;
+    try {
+      await this.transport.sendPoll({recipient:event.recipient, title, choices,
+        onPrepared: data => { this.store.saveBotPoll(event, {...data, choices}); preparedId = data.messageId; },
+      });
+    } catch (error) {
+      this.report('poll_failed');
+      // An uncertain send may still arrive; its encrypted context stays usable.
+      if (error?.code === 'delivery_unknown') return;
+      if (preparedId) this.store.clearBotPoll(event, preparedId);
+      if (!this.stopping) await this.transport.sendText({recipient:event.recipient, text:fallback}).catch(() => {});
+    }
+  }
+  async showMenu(event, help = false) {
+    const title = `👋 Zapstick\n\n${pollText(event.locale, 'menuTitle')}${this.reverse.siteUrl ? `\n\n🌐 ${this.reverse.siteUrl}` : ''}`;
+    await this.showPoll(event, {title, choices:menuChoices(event.locale), fallback:botWelcome(event.locale, this.reverse.siteUrl), help});
+  }
   async drain() {
     while (!this.stopping && this.queue.length) {
       const {event, receivedAt} = this.queue.shift();
@@ -52,6 +73,14 @@ export class BotConversation {
   }
   async handle(event) {
     this.sweep();
+    if (event.kind === 'poll_vote') {
+      const poll = this.store.getBotPoll(event);
+      const action = poll && this.transport.readPollVote(event, poll);
+      if (!action || !this.store.clearBotPoll(event, event.pollMessageId)) return;
+      if (action.startsWith('lang:')) event = {...event, kind:'command', command:'lang', locale:botLocale(action.slice(5))};
+      else if (action === 'help') event = {...event, kind:'help'};
+      else event = {...event, kind:'command', command:action};
+    }
     const requestedLocale = event.locale;
     const locale = botLocale(this.store.getBotLocale(event)) ?? 'en';
     event = {...event, locale};
@@ -60,10 +89,19 @@ export class BotConversation {
     const draft = this.sessions.get(id);
     if (event.kind === 'command') {
       if (event.command === 'lang') {
-        if (!requestedLocale) { await this.reply(event, botLanguageMenu(locale)); return; }
+        if (!requestedLocale) {
+          await this.showPoll(event, {title:pollText(locale, 'languageTitle'), choices:LANGUAGE_CHOICES, fallback:botLanguageMenu(locale)}); return;
+        }
+        this.store.clearBotPoll(event);
         this.store.rememberBotLocale(event, requestedLocale);
-        await this.reply(event, botText(requestedLocale, 'languageChosen'));
+        await this.reply(event, `${botText(requestedLocale, 'languageChosen')}\n${pollText(requestedLocale, 'changeLanguage')}`);
         return;
+      }
+      if (event.command === 'menu') { await this.showMenu(event); return; }
+      this.store.clearBotPoll(event);
+      if (event.command === 'edit') {
+        this.sessions.delete(id);
+        await this.reply(event, pollText(locale, 'editPrompt')); return;
       }
       if (event.command === 'create') {
         if (!draft && this.sessions.size >= MAX_SESSIONS) {
@@ -85,16 +123,20 @@ export class BotConversation {
         await this.finish(event, id, draft); return;
       }
     }
-    if (event.kind === 'help') { await this.reply(event, botWelcome(locale, this.reverse.siteUrl), 'help'); return; }
+    if (event.kind === 'help') {
+      this.store.clearBotPoll(event);
+      await this.reply(event, botWelcome(locale, this.reverse.siteUrl), event.pollMessageId ? 'workflow' : 'help'); return;
+    }
     if (!draft) {
-      if (event.kind === 'sticker') this.reverse.receive(event);
-      else await this.reply(event, botWelcome(locale, this.reverse.siteUrl), 'help');
+      if (event.kind === 'sticker') { this.store.clearBotPoll(event); this.reverse.receive(event); }
+      else await this.showMenu(event, true);
       return;
     }
     if (event.kind === 'text' || event.kind === 'unsupported') {
       await this.reply(event, t(draft.visual ? draft.sound ? 'promptSound' : 'promptSilent' : 'visualPrompt'), 'help');
       return;
     }
+    this.store.clearBotPoll(event);
     if (!draft.visual && event.kind !== 'sticker') {
       await this.reply(event, t('visualFirst')); return;
     }

@@ -25,7 +25,7 @@ export const privacySections = [
   },
   {
     title: 'Préférences et traceurs',
-    body: 'Zapstick mémorise la langue et le thème pour respecter tes choix. Le bot WhatsApp conserve ton choix de langue pendant trente jours après sa définition, avec une empreinte de ton identifiant WhatsApp ; aucun numéro n’est enregistré en clair dans cette préférence. Tu peux la modifier avec /lang. L’app n’intègre ni publicité ni mesure d’audience. Elle n’utilise pas de traceurs publicitaires.',
+    body: 'Zapstick mémorise la langue et le thème pour respecter tes choix. Le bot WhatsApp conserve ton choix de langue pendant trente jours après sa définition, avec une empreinte de ton identifiant WhatsApp ; aucun numéro n’est enregistré en clair dans cette préférence. Tu peux la modifier avec /lang. Les menus par sondage restent actifs dix minutes ; leur contexte chiffré est supprimé après le choix ou l’expiration. L’app n’intègre ni publicité ni mesure d’audience. Elle n’utilise pas de traceurs publicitaires.',
   },
   {
     title: 'Quand tu importes un lien',

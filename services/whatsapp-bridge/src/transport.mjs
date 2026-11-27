@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises';
+import {randomBytes} from 'node:crypto';
 import { openAuthStore } from './auth.mjs';
 import { withSoundSticker, installSoundStickerDecoder, incomingStickerAudio } from './sound-adapter.mjs';
 import {downloadIncomingMedia} from './incoming-media.mjs';
 import { loadBaileysPrivately } from './private-console.mjs';
 import {botLocale} from './bot-copy.mjs';
+import {decodePollChoice, validPollChoices, pollJid} from './bot-polls.mjs';
 
 const noop = () => {};
 const silentLogger = { level: 'silent', trace: noop, debug: noop, info: noop, warn: noop, error: noop, fatal: noop, child() { return this; } };
@@ -18,7 +20,7 @@ function incomingContent(content) {
   for (let depth = 0; depth < 5 && content; depth++) {
     // These media were shared for a single viewing, not for reuse in a sticker.
     if (VIEW_ONCE_ENVELOPES.some(name => content[name]) || USER_MEDIA.some(name => content[name]?.viewOnce)) return undefined;
-    if (USER_MEDIA.some(name => content[name]) || typeof content.conversation === 'string' || content.extendedTextMessage) return content;
+    if (content.pollUpdateMessage || USER_MEDIA.some(name => content[name]) || typeof content.conversation === 'string' || content.extendedTextMessage) return content;
     const wrappers = MESSAGE_ENVELOPES.filter(name => content[name]?.message);
     if (wrappers.length !== 1) return undefined;
     content = content[wrappers[0]].message;
@@ -58,9 +60,17 @@ export function parseReverseMessage(message, connectedAt = 0) {
     if (/^(?:\/?aide|\/?help)$/i.test(normalized)) return {...base, kind: 'help'};
     const language = /^\/(?:lang|language)(?:\s+(\S{1,24}))?$/i.exec(normalized);
     if (language) return {...base, kind: 'command', command: 'lang', locale: botLocale(language[1])};
-    const command = /^\/(create|end|cancel)$/i.exec(normalized)?.[1].toLowerCase();
+    const command = /^\/(create|end|cancel|menu|edit)$/i.exec(normalized)?.[1].toLowerCase();
     if (command) return {...base, kind: 'command', command};
     return {...base, kind: 'text', text: normalized.slice(0, 1024)};
+  }
+  const update = content?.pollUpdateMessage;
+  if (update) {
+    const pollMessageId = update.pollCreationMessageKey?.id, vote = update.vote;
+    if (typeof pollMessageId !== 'string' || !pollMessageId || pollMessageId.length > 160
+      || !(vote?.encIv instanceof Uint8Array) || vote.encIv.length !== 12
+      || !(vote.encPayload instanceof Uint8Array) || vote.encPayload.length < 16 || vote.encPayload.length > 1024) return;
+    return {...base, kind:'poll_vote', pollMessageId, vote:{encIv:Buffer.from(vote.encIv), encPayload:Buffer.from(vote.encPayload)}};
   }
   const sticker = content?.stickerMessage;
   if (sticker) return {...base, kind: 'sticker', sticker, audio: incomingStickerAudio(sticker), messageKey: {...key}};
@@ -265,6 +275,38 @@ export function createWhatsAppTransport({
       const operation = sendTail.then(() => performSend(options));
       sendTail = operation.catch(noop);
       return operation;
+    },
+    readPollVote(event, poll) { return decodePollChoice(baileys, event, poll); },
+    sendPoll({recipient, title, choices, onPrepared}) {
+      if (textPending >= 16) return Promise.reject(failure('unavailable', 'WhatsApp reply queue is full.'));
+      textPending++;
+      const operation = sendTail.then(async () => {
+        if (stopped || state !== 'connected' || !socket || !privateJid(recipient) || typeof title !== 'string'
+          || !title || title.length > 256 || !validPollChoices(choices) || typeof onPrepared !== 'function') throw failure('unavailable', 'Poll unavailable.');
+        const target = socket;
+        const ownJid = recipient.endsWith('@lid') ? target.user?.lid ?? target.user?.id : target.user?.id;
+        const creators = [...new Set([ownJid, target.user?.id, target.user?.lid].map(pollJid).filter(Boolean))].slice(0, 2);
+        const secret = randomBytes(32);
+        const content = baileys.proto.Message.fromObject({
+          messageContextInfo:{messageSecret:secret},
+          pollCreationMessageV3:{name:title, selectableOptionsCount:1, options:choices.map(choice => ({optionName:choice.label}))},
+        });
+        const generated = baileys.generateWAMessageFromContent(recipient, content, {userJid:ownJid});
+        const messageId = generated.key?.id;
+        if (!messageId || !creators.length) throw failure('unavailable', 'Poll unavailable.');
+        await onPrepared({messageId, secret, creators});
+        if (stopped || socket !== target || state !== 'connected') throw failure('unavailable', 'Poll unavailable.');
+        let timer;
+        try {
+          await Promise.race([
+            target.relayMessage(recipient, generated.message, {messageId, additionalNodes:[{tag:'meta', attrs:{polltype:'creation'}}]}),
+            new Promise((_, reject) => { timer = setTimeout(() => reject(failure('delivery_unknown', 'Poll acknowledgement is unknown.')), 15_000); timer.unref(); }),
+          ]);
+        } catch { throw failure('delivery_unknown', 'Poll acknowledgement is unknown.'); }
+        finally { clearTimeout(timer); }
+        return {messageId};
+      }).finally(() => { textPending--; });
+      sendTail = operation.catch(noop); return operation;
     },
     async downloadIncoming({message, type, maximum, signal, messageKey}) {
       if (stopped || state !== 'connected' || !baileys) throw failure('unavailable', 'WhatsApp is not connected.');
