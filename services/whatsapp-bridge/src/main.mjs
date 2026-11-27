@@ -15,7 +15,7 @@ let codecTail = Promise.resolve();
 const serializeCodec = work => { const next = codecTail.then(work); codecTail = next.catch(() => {}); return next; };
 const transport = config.enabled ? createWhatsAppTransport({ authDir: config.authDir, authKey: config.authKey, expectedNumber: config.botNumber, soundEnabled: config.soundEnabled,
   onState: state => process.stdout.write(`whatsapp_state_${state}\n`),
-  onClaim: event => { const claimed = store.claim(event); if (claimed) { store.rememberBotLocale(event, claimed.locale); worker?.kick(); } return claimed; },
+  onClaim: event => { const claimed = store.claim(event); if (claimed) { store.rememberBotLocale(event, claimed.locale, {source: 'website'}); worker?.kick(); } return claimed; },
   onReceipt: event => store.confirmReceipt(event),
   onInbound: event => bot?.receive(event),
 }) : { isReady: () => false, close: async () => {}, getState: () => 'disabled' };

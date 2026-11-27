@@ -8,6 +8,7 @@ import {botLocale} from './bot-copy.mjs';
 const noop = () => {};
 const silentLogger = { level: 'silent', trace: noop, debug: noop, info: noop, warn: noop, error: noop, fatal: noop, child() { return this; } };
 const privateJid = value => typeof value === 'string' && /^\d+(?::\d+)?@(?:s\.whatsapp\.net|lid)$/.test(value);
+const senderAliases = key => [...new Set([key.remoteJid, key.remoteJidAlt].filter(jid => privateJid(jid) && jid.length <= 160).map(jid => jid.replace(/:\d+(?=@)/, '')))];
 const MESSAGE_ENVELOPES = ['ephemeralMessage', 'associatedChildMessage', 'lottieStickerMessage', 'audioStickerMessage', 'documentWithCaptionMessage'];
 const VIEW_ONCE_ENVELOPES = ['viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension'];
 const USER_MEDIA = ['stickerMessage', 'audioMessage', 'documentMessage', 'imageMessage', 'videoMessage', 'contactMessage', 'contactsArrayMessage', 'locationMessage', 'liveLocationMessage'];
@@ -41,7 +42,7 @@ export function parseClaimMessage(message, connectedAt = 0) {
   if (typeof text !== 'string') return undefined;
   const match = /^(?:Sticker )?ZAP ([A-Za-z0-9_-]{22})$/.exec(text);
   if (!match || Buffer.from(match[1], 'base64url').toString('base64url') !== match[1]) return undefined;
-  return { providerMessageId: key.id, recipient: key.remoteJid, code: match[1] };
+  return { providerMessageId: key.id, recipient: key.remoteJid, code: match[1], senderAliases: senderAliases(key) };
 }
 
 export function parseReverseMessage(message, connectedAt = 0) {
@@ -49,8 +50,7 @@ export function parseReverseMessage(message, connectedAt = 0) {
   if (!key || key.fromMe || !privateJid(key.remoteJid) || key.remoteJid.length > 160 || key.participant
     || typeof key.id !== 'string' || !key.id || key.id.length > 160 || !Number.isFinite(timestamp)
     || timestamp < Math.max(connectedAt - 5, now - 120) || timestamp > now + 60) return undefined;
-  const senderAliases = [...new Set([key.remoteJid, key.remoteJidAlt].filter(jid => privateJid(jid) && jid.length <= 160).map(jid => jid.replace(/:\d+(?=@)/, '')))];
-  const base = {recipient: key.remoteJid, providerMessageId: key.id, senderAliases};
+  const base = {recipient: key.remoteJid, providerMessageId: key.id, senderAliases: senderAliases(key)};
   const content = incomingContent(message.message);
   const text = content?.conversation ?? content?.extendedTextMessage?.text;
   if (typeof text === 'string') {
@@ -80,6 +80,7 @@ export function createWhatsAppTransport({
 }) {
   let state = 'idle', stopped = false, socket, store, baileys, connecting, reconnectTimer;
   let attempt = 0, connectedAt = 0, inboundPending = 0, textPending = 0, sendTail = Promise.resolve();
+  let inboundTail = Promise.resolve();
   const sent = new Map();
   const setState = next => { state = next; try { onState(next); } catch {} };
   const handlers = new Map();
@@ -171,7 +172,21 @@ export function createWhatsAppTransport({
         const claim = parseClaimMessage(message, connectedAt), incoming = claim ? undefined : parseReverseMessage(message, connectedAt);
         if ((!claim && !incoming) || inboundPending >= 32) continue;
         inboundPending++;
-        Promise.resolve().then(() => claim ? onClaim(claim) : onInbound(incoming)).catch(noop).finally(() => inboundPending--);
+        // Keep arrival order while consulting the session's existing local
+        // LID/phone mapping. This lookup makes no contact or directory query.
+        const operation = inboundTail.then(async () => {
+          if (stopped || socket !== target || state !== 'connected') return;
+          const parsed = claim ?? incoming;
+          if (parsed.recipient.endsWith('@lid') && !parsed.senderAliases.some(jid => jid.endsWith('@s.whatsapp.net'))) {
+            try {
+              const phone = await target.signalRepository?.lidMapping?.getPNForLID?.(parsed.recipient);
+              if (privateJid(phone) && phone.endsWith('@s.whatsapp.net') && phone.length <= 160) parsed.senderAliases.push(phone.replace(/:\d+(?=@)/, ''));
+            } catch { /* A hidden number simply keeps the language fallback. */ }
+          }
+          if (stopped || socket !== target || state !== 'connected') return;
+          return claim ? onClaim(parsed) : onInbound(parsed);
+        }).catch(noop).finally(() => inboundPending--);
+        inboundTail = operation;
       }
     });
     listen(target, 'messages.update', updates => {

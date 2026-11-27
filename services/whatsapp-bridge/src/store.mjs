@@ -3,6 +3,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:
 import { mkdirSync, chmodSync, writeFileSync, renameSync, rmSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { BridgeError, LIMITS, LOCALES, capability, equalSecret } from './config.mjs';
+import {phoneLocale} from './bot-language.mjs';
 
 const ACTIVE = ['receiving', 'awaiting_message', 'queued', 'processing', 'sending'];
 const TERMINAL = ['accepted', 'delivered', 'delivery_unknown', 'failed', 'cancelled', 'expired'];
@@ -57,6 +58,9 @@ export class BridgeStore {
       CREATE INDEX IF NOT EXISTS inbound_sender_created ON inbound_events(sender_hash,created_at);
       CREATE INDEX IF NOT EXISTS transfers_state_created ON transfers(state,created_at);
       CREATE INDEX IF NOT EXISTS transfers_expiry ON transfers(expires_at);`);
+    if (!this.db.prepare('PRAGMA table_info(bot_preferences)').all().some(column => column.name === 'source')) {
+      this.db.exec("ALTER TABLE bot_preferences ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'");
+    }
     const verifier = this.digest('key-check', 'zapstick-transfers-v1');
     const previousKey = this.db.prepare("SELECT value FROM store_config WHERE name='key_check'").get();
     if (previousKey && !equalSecret(previousKey.value, verifier)) { this.db.close(); throw new BridgeError('invalid_transfer_key', 500); }
@@ -245,9 +249,13 @@ export class BridgeStore {
     const identity = identities[0] ?? hashes[0];
     if (!identity || this.db.prepare('SELECT COUNT(*) AS n FROM reverse_sender_aliases').get().n + hashes.length > 40_000) throw new BridgeError('busy', 429);
     for (const previous of identities.slice(1)) {
-      const preference = this.db.prepare('SELECT locale,updated_at FROM bot_preferences WHERE sender_hash=?').get(previous);
+      const preference = this.db.prepare('SELECT locale,updated_at,source FROM bot_preferences WHERE sender_hash=?').get(previous);
       if (preference) {
-        this.db.prepare('INSERT INTO bot_preferences VALUES(?,?,?) ON CONFLICT(sender_hash) DO UPDATE SET locale=excluded.locale,updated_at=excluded.updated_at WHERE excluded.updated_at>bot_preferences.updated_at').run(identity, preference.locale, preference.updated_at);
+        this.db.prepare(`INSERT INTO bot_preferences(sender_hash,locale,updated_at,source) VALUES(?,?,?,?)
+          ON CONFLICT(sender_hash) DO UPDATE SET locale=excluded.locale,updated_at=excluded.updated_at,source=excluded.source
+          WHERE (excluded.source='manual' AND bot_preferences.source<>'manual')
+            OR (excluded.source=bot_preferences.source AND excluded.updated_at>bot_preferences.updated_at)`)
+          .run(identity, preference.locale, preference.updated_at, preference.source);
         this.db.prepare('DELETE FROM bot_preferences WHERE sender_hash=?').run(previous);
       }
       this.db.prepare('UPDATE reverse_transfers SET sender_hash=? WHERE sender_hash=?').run(identity, previous);
@@ -329,13 +337,17 @@ export class BridgeStore {
   }
   getBotLocale({recipient, senderAliases}) {
     const sender = this.transaction(() => this.reverseSender(recipient, senderAliases));
-    return this.db.prepare('SELECT locale FROM bot_preferences WHERE sender_hash=?').get(sender)?.locale ?? 'en';
+    const saved = this.db.prepare('SELECT locale,source FROM bot_preferences WHERE sender_hash=? AND updated_at>?').get(sender, this.clock() - 30 * 24 * 60 * 60_000);
+    if (saved?.source === 'manual') return saved.locale;
+    return phoneLocale({recipient, senderAliases}) ?? saved?.locale ?? 'en';
   }
-  rememberBotLocale({recipient, senderAliases}, locale) {
-    if (!LOCALES.has(locale)) return;
+  rememberBotLocale({recipient, senderAliases}, locale, {source = 'manual'} = {}) {
+    if (!LOCALES.has(locale) || !['manual', 'website'].includes(source)) return;
     this.transaction(() => {
       const sender = this.reverseSender(recipient, senderAliases);
-      this.db.prepare('INSERT INTO bot_preferences VALUES(?,?,?) ON CONFLICT(sender_hash) DO UPDATE SET locale=excluded.locale,updated_at=excluded.updated_at').run(sender, locale, this.clock());
+      this.db.prepare(`INSERT INTO bot_preferences(sender_hash,locale,updated_at,source) VALUES(?,?,?,?)
+        ON CONFLICT(sender_hash) DO UPDATE SET locale=excluded.locale,updated_at=excluded.updated_at,source=excluded.source
+        WHERE excluded.source='manual' OR bot_preferences.source<>'manual'`).run(sender, locale, this.clock(), source);
     });
   }
   sweep() {
