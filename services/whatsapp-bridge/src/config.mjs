@@ -34,7 +34,7 @@ export function loadConfig(env = process.env) {
   const port = Number(env.PORT || 3001);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new BridgeError('invalid_port', 500);
   return {
-    enabled, siteUrl, serviceToken, transferKey: Buffer.from(transferKey, 'base64url'), authKey,
+    enabled, paused: env.WHATSAPP_BRIDGE_PAUSED === 'true', siteUrl, serviceToken, transferKey: Buffer.from(transferKey, 'base64url'), authKey,
     soundEnabled: enabled && env.WHATSAPP_SOUND_ENABLED === 'true', botNumber,
     dataDir: path.resolve(env.WHATSAPP_DATA_DIR || '/data/transfers'), authDir: path.resolve(env.WHATSAPP_AUTH_DIR || '/data/auth'),
     host: env.HOSTNAME || '0.0.0.0', port,

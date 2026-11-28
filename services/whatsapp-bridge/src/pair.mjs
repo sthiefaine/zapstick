@@ -27,14 +27,14 @@ export async function pairInPrivateTerminal({ env = process.env, input = process
   try {
     transport = createWhatsAppTransport({
       authDir: env.WHATSAPP_AUTH_DIR, authKey: env.WHATSAPP_AUTH_KEY, expectedNumber: env.WHATSAPP_BOT_NUMBER,
-      allowPairing: true, soundEnabled: false,
+      allowPairing: true, soundEnabled: false, paused: env.WHATSAPP_BRIDGE_PAUSED === 'true',
       onQr(value) {
         qr.generate(value, { small: true }, rendered => errorOutput.write(`\n${rendered}\n`));
         output.write('In WhatsApp Business: Settings > Linked devices > Link a device.\n');
       },
       onState(state) {
         if (state === 'connected') finish.resolve({ paired: true });
-        else if (['logged_out', 'wrong_account', 'error'].includes(state)) finish.reject(new Error('Association could not complete. Check the dedicated account on your phone.'));
+        else if (['logged_out', 'paused', 'wrong_account', 'error'].includes(state)) finish.reject(new Error('Association could not complete. Check the dedicated account and the private safety hold.'));
       }
     });
     await transport.connect();

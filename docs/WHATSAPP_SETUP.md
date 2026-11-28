@@ -167,3 +167,24 @@ Toutes les réponses de création, d’aide, d’erreur et d’édition sont tra
 Chaque expéditeur a un seul sondage actif, valable dix minutes et utilisable une seule fois. Un nouveau sondage remplace le précédent ; une action directe ou l’envoi d’un média invalide le menu devenu inutile. Un vieux vote ou le changement d’un vote déjà traité ne relance jamais l’action. Le choix « Modifier sur le site » quitte une éventuelle création temporaire ; le prochain sticker reprend le parcours de lien d’édition habituel.
 
 Le secret de sondage et les options sont chiffrés dans `bot_polls` avec la clé privée des transferts, supprimés après choix ou expiration et limités à 128 sondages actifs. Les index d’expéditeur et de message sont des HMAC. Le contexte survit à un redémarrage sans conserver l’historique WhatsApp. La lecture des votes utilise le déchiffrement Baileys pour le seul sondage connu de cet expéditeur, avec vérification des identités PN/LID et du SHA-256 du libellé sélectionné. Les votes modifiés, étrangers ou à plusieurs choix sont ignorés. La file et l’anti-spam habituels protègent aussi les sondages ; un accusé d’envoi inconnu n’entraîne pas de renvoi automatique. Si le sondage ne peut pas être préparé, les commandes textuelles sont proposées.
+
+## Cadence et pauses du transport
+
+Tous les envois utilisent une seule file, y compris les stickers sonores, les textes, les sondages et leurs réponses de repli. La file accepte seize opérations au maximum. Une garde appliquée à notre appel `relayMessage` réserve chaque envoi avant sa remise au fournisseur : trois secondes au moins entre deux réservations, vingt réservations par minute et 240 par heure, avec cinq secondes d'attente après connexion. Une attente de cadence dépassant quinze secondes est refusée ; les expirations et annulations interrompent l'attente. Une remise sans accusé reste incertaine et n'est jamais réessayée automatiquement.
+
+Les budgets et les pauses sont chiffrés dans `auth.sqlite`, sous le verrou de session existant ; aucun numéro, texte, média ou secret n'est ajouté aux diagnostics. Les codes numériques de déconnexion et d'échec de remise sont journalisés comme `whatsapp_guard_connection_failed_403`, par exemple. Ce sont des observations techniques, pas la preuve du motif d'une sanction.
+
+Les codes 401/440, 403/411/463 et 429 imposent une pause persistante ; une fermeture 500 conserve également une pause technique. Trois échecs de remise consécutifs en une minute suspendent les envois. Le budget de connexion est de huit tentatives en quinze minutes, conservé après redémarrage, avec délai exponentiel de deux à trente secondes ; une brève connexion réussie ne réinitialise pas ce budget. Ces seuils sont des choix prudents de Zapstick, pas des quotas ou garanties publiés par WhatsApp.
+
+Pour suspendre explicitement le service : `WHATSAPP_BRIDGE_PAUSED=true` à l'exécution du service privé, ou `WHATSAPP_BOT_PAUSED=true` avec le Compose optionnel. Le service HTTP et son nettoyage restent actifs, mais aucun socket WhatsApp n'est créé. Cette pause est mémorisée : retirer seulement la variable ne reprend pas la connexion.
+
+L'administrateur peut inspecter ou gérer cette garde **hors ligne, après arrêt du service qui possède la session** :
+
+```sh
+docker compose --env-file .env.whatsapp.local -f docker-compose.whatsapp.yml run --rm whatsapp-bridge npm run safety -- status
+docker compose --env-file .env.whatsapp.local -f docker-compose.whatsapp.yml run --rm whatsapp-bridge npm run safety -- pause
+```
+
+Après résolution du problème et vérification du statut du compte, retirer la variable de pause puis utiliser `npm run safety -- resume` dans cette même console privée. La reprise exige un terminal interactif et une confirmation explicite ; elle n'ouvre aucun socket et conserve les budgets d'envoi. Un compte encore bloqué doit rester en pause. La commande d'association respecte aussi les pauses : elle n'est pas un moyen de les contourner.
+
+Ces protections n'autorisent pas un client non officiel et ne garantissent pas l'absence de blocage. Elles ne simulent ni frappe humaine, ni faux échanges, et ne modifient pas les textes avec des caractères invisibles. Les principes de cadence et d'arrêt sont inspirés de [baileys-antiban](https://github.com/kobie3717/baileys-antiban) ; son wrapper `sendMessage` ne couvre pas directement nos remises `relayMessage`, d'où la garde locale commune.

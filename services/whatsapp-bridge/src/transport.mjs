@@ -1,11 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import {randomBytes} from 'node:crypto';
+import {setTimeout as sleep} from 'node:timers/promises';
 import { openAuthStore } from './auth.mjs';
 import { withSoundSticker, installSoundStickerDecoder, incomingStickerAudio } from './sound-adapter.mjs';
 import {downloadIncomingMedia} from './incoming-media.mjs';
 import { loadBaileysPrivately } from './private-console.mjs';
 import {botLocale} from './bot-copy.mjs';
 import {decodePollChoice, validPollChoices, pollJid} from './bot-polls.mjs';
+import {TransportSafety} from './transport-safety.mjs';
 
 const noop = () => {};
 const silentLogger = { level: 'silent', trace: noop, debug: noop, info: noop, warn: noop, error: noop, fatal: noop, child() { return this; } };
@@ -84,14 +86,15 @@ export function parseReverseMessage(message, connectedAt = 0) {
  * service never displays a QR; only pair.mjs opts into an interactive callback. */
 export function createWhatsAppTransport({
   authDir, authKey, expectedNumber, soundEnabled = false, onClaim = async () => {}, onReceipt = async () => {}, onInbound = () => {},
-  allowPairing = false, onQr, onState = noop,
+  allowPairing = false, onQr, onState = noop, onDiagnostic = noop, paused = false,
   loadBaileys = loadBaileysPrivately, authStoreFactory = openAuthStore,
   reconnect = true
 }) {
-  let state = 'idle', stopped = false, socket, store, baileys, connecting, reconnectTimer;
+  let state = 'idle', stopped = false, socket, store, safety, baileys, connecting, reconnectTimer;
   let attempt = 0, connectedAt = 0, inboundPending = 0, textPending = 0, sendTail = Promise.resolve();
   let inboundTail = Promise.resolve();
   const sent = new Map();
+  const waiting = new AbortController();
   const setState = next => { state = next; try { onState(next); } catch {} };
   const handlers = new Map();
 
@@ -114,9 +117,12 @@ export function createWhatsAppTransport({
   }
   function scheduleReconnect() {
     if (stopped || !reconnect || reconnectTimer) return;
+    let minimumWait = 0;
+    try { minimumWait = safety?.connectionDelay() ?? 0; }
+    catch { setState('paused'); return; }
     if (attempt >= 8) { setState('error'); return; }
     setState('reconnecting');
-    const wait = Math.min(30_000, 1000 * 2 ** attempt++) + Math.floor(Math.random() * 500);
+    const wait = Math.max(minimumWait, Math.min(30_000, 1000 * 2 ** attempt++)) + Math.floor(Math.random() * 500);
     reconnectTimer = setTimeout(() => {
       reconnectTimer = undefined;
       connect().catch(() => { if (!stopped) scheduleReconnect(); });
@@ -138,9 +144,18 @@ export function createWhatsAppTransport({
     if (!baileys) { baileys = await loadBaileys(); installSoundStickerDecoder(baileys.proto); }
     if (stopped) return;
     if (!store) store = authStoreFactory({ authDir, authKey, initAuthCreds: baileys.initAuthCreds, BufferJSON: baileys.BufferJSON, proto: baileys.proto });
+    if (!safety) safety = new TransportSafety({read: () => store.readSafetyState?.(), write: value => store.saveSafetyState?.(value), onEvent: onDiagnostic});
+    if (paused) safety.pause('operator');
+    if (safety.isPaused()) { setState('paused'); return; }
     // QR-linked sessions persist `me`; Baileys' `registered` flag can remain
     // false. Use the same identity that its login handshake consumes.
     if (!privateJid(store.state.creds.me?.id) && !allowPairing) { setState('needs_pairing'); return; }
+    let wait;
+    try { wait = safety.connectionDelay(); }
+    catch { setState('paused'); return; }
+    if (wait) await sleep(wait, undefined, {signal: waiting.signal, ref: false});
+    if (stopped || safety.isPaused()) return;
+    safety.recordConnection();
     setState('connecting');
     const target = baileys.default({
       auth: store.state, logger: silentLogger, printQRInTerminal: false,
@@ -167,17 +182,19 @@ export function createWhatsAppTransport({
         if (expectedNumber && ownNumber !== expectedNumber) {
           setState('wrong_account'); endSocket(target, 'The associated account does not match the configured bot.'); return;
         }
-        attempt = 0; connectedAt = Math.floor(Date.now() / 1000); setState('connected');
+        // The persistent connection budget is not reset by a brief successful
+        // handshake. Repeated open/close cycles still trigger a manual hold.
+        safety.connected(); attempt = 0; connectedAt = Math.floor(Date.now() / 1000); setState('connected');
       } else if (update.connection === 'close') {
-        const code = update.lastDisconnect?.error?.output?.statusCode;
+        try { safety.failed(update.lastDisconnect?.error, {connection: true}); } catch {}
         endSocket(target, 'WhatsApp connection closed.');
         setState('disconnected');
-        if (code === baileys.DisconnectReason?.loggedOut || [401, 403, 411, 440, 500].includes(code)) setState('logged_out');
+        if (safety.isPaused()) setState(safety.status().paused?.reason === 'logged_out' ? 'logged_out' : 'paused');
         else if (!stopped) scheduleReconnect();
       }
     });
     listen(target, 'messages.upsert', event => {
-      if (state !== 'connected' || event.type !== 'notify' || event.requestId) return;
+      if (state !== 'connected' || safety.isPaused() || event.type !== 'notify' || event.requestId) return;
       for (const message of (event.messages ?? []).slice(0, 100)) {
         const claim = parseClaimMessage(message, connectedAt), incoming = claim ? undefined : parseReverseMessage(message, connectedAt);
         if ((!claim && !incoming) || inboundPending >= 32) continue;
@@ -215,6 +232,41 @@ export function createWhatsAppTransport({
     return connecting;
   }
 
+  async function reserveRelay(target, signal) {
+    const started = Date.now();
+    const abort = signal ? AbortSignal.any([signal, waiting.signal]) : waiting.signal;
+    for (;;) {
+      if (abort.aborted) throw failure('expired', 'WhatsApp send was cancelled.');
+      if (stopped || state !== 'connected' || socket !== target || !safety || safety.isPaused()) throw failure('unavailable', 'WhatsApp is not connected.');
+      const wait = safety.sendDelay();
+      if (!wait) { safety.recordSend(); return; }
+      if (Date.now() - started + wait > 15_000) {
+        safety.report('local_rate_limited');
+        throw failure('unavailable', 'WhatsApp sending budget is busy.');
+      }
+      await sleep(wait, undefined, {signal: abort, ref: false});
+    }
+  }
+
+  async function relayMessage(target, recipient, message, options) {
+    let timer;
+    try {
+      await Promise.race([
+        target.relayMessage(recipient, message, options),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(failure('delivery_unknown', 'WhatsApp acknowledgement is unknown.')), 15_000); timer.unref(); }),
+      ]);
+      safety.succeeded();
+    } catch (error) {
+      try { safety.failed(error); } catch {}
+      if (safety.isPaused()) {
+        clearTimeout(reconnectTimer); reconnectTimer = undefined;
+        endSocket(target, 'WhatsApp sends are paused.'); setState('paused');
+      }
+      // A failed acknowledgement must never cause an automatic second send.
+      throw failure('delivery_unknown', 'WhatsApp acknowledgement is unknown.');
+    } finally { clearTimeout(timer); }
+  }
+
   async function performSend({ recipient, webpPath, oggPath, kind, duration, signal, onHandoff }) {
     if (stopped || state !== 'connected' || !socket) throw failure('unavailable', 'WhatsApp is not connected.');
     if (!privateJid(recipient)) throw failure('invalid_recipient', 'Invalid WhatsApp conversation.');
@@ -249,13 +301,15 @@ export function createWhatsAppTransport({
       if (!messageId) throw failure('invalid_media', 'Missing outgoing message identity.');
       const relay = async () => {
         check();
+        await reserveRelay(currentSocket, signal);
+        check();
         if (onHandoff) await onHandoff({ messageId });
         check();
         for (const [id, value] of sent) if (value.expiresAt <= Date.now()) sent.delete(id);
         if (sent.size >= 100) sent.delete(sent.keys().next().value);
         sent.set(messageId, { recipient, expiresAt: Date.now() + 10 * 60_000 });
         handedOff = true;
-        await currentSocket.relayMessage(recipient, generated.message, { messageId });
+        await relayMessage(currentSocket, recipient, generated.message, { messageId });
         if (signal?.aborted) throw failure('delivery_unknown', 'The WhatsApp acknowledgement is unknown.', messageId);
         return { messageId };
       };
@@ -269,10 +323,12 @@ export function createWhatsAppTransport({
 
   return {
     connect,
-    isReady: () => !stopped && state === 'connected' && !!socket,
+    isReady: () => !stopped && state === 'connected' && !!socket && !safety?.isPaused(),
     getState: () => state,
     send(options) {
-      const operation = sendTail.then(() => performSend(options));
+      if (textPending >= 16) return Promise.reject(failure('unavailable', 'WhatsApp reply queue is full.'));
+      textPending++;
+      const operation = sendTail.then(() => performSend(options)).finally(() => { textPending--; });
       sendTail = operation.catch(noop);
       return operation;
     },
@@ -294,16 +350,10 @@ export function createWhatsAppTransport({
         const generated = baileys.generateWAMessageFromContent(recipient, content, {userJid:ownJid});
         const messageId = generated.key?.id;
         if (!messageId || !creators.length) throw failure('unavailable', 'Poll unavailable.');
+        await reserveRelay(target);
         await onPrepared({messageId, secret, creators});
         if (stopped || socket !== target || state !== 'connected') throw failure('unavailable', 'Poll unavailable.');
-        let timer;
-        try {
-          await Promise.race([
-            target.relayMessage(recipient, generated.message, {messageId, additionalNodes:[{tag:'meta', attrs:{polltype:'creation'}}]}),
-            new Promise((_, reject) => { timer = setTimeout(() => reject(failure('delivery_unknown', 'Poll acknowledgement is unknown.')), 15_000); timer.unref(); }),
-          ]);
-        } catch { throw failure('delivery_unknown', 'Poll acknowledgement is unknown.'); }
-        finally { clearTimeout(timer); }
+        await relayMessage(target, recipient, generated.message, {messageId, additionalNodes:[{tag:'meta', attrs:{polltype:'creation'}}]});
         return {messageId};
       }).finally(() => { textPending--; });
       sendTail = operation.catch(noop); return operation;
@@ -339,19 +389,17 @@ export function createWhatsAppTransport({
       const operation = sendTail.then(async () => {
         if (stopped || state !== 'connected' || !socket || !privateJid(recipient) || typeof text !== 'string' || text.length > 1024) throw failure('unavailable', 'WhatsApp is not connected.');
         const currentSocket = socket, ownJid = recipient.endsWith('@lid') ? currentSocket.user?.lid ?? currentSocket.user?.id : currentSocket.user?.id;
+        await reserveRelay(currentSocket);
         const generated = baileys.generateWAMessageFromContent(recipient, baileys.proto.Message.fromObject({conversation: text}), {userJid: ownJid});
         if (stopped || socket !== currentSocket || state !== 'connected') throw failure('unavailable', 'WhatsApp is not connected.');
-        let timer;
-        try { await Promise.race([
-          currentSocket.relayMessage(recipient, generated.message, {messageId: generated.key.id}),
-          new Promise((_, reject) => { timer = setTimeout(() => reject(failure('delivery_unknown', 'Reply acknowledgement is unknown.')), 15_000); timer.unref(); }),
-        ]); } finally { clearTimeout(timer); }
+        await relayMessage(currentSocket, recipient, generated.message, {messageId: generated.key.id});
       }).finally(() => { textPending--; });
       sendTail = operation.catch(noop); return operation;
     },
     async close() {
       if (stopped) return;
       stopped = true; clearTimeout(reconnectTimer); reconnectTimer = undefined;
+      waiting.abort();
       endSocket(socket, 'WhatsApp bridge is stopping.');
       await connecting?.catch(noop);
       await sendTail;

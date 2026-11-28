@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node src/main.mjs",
     "pair": "node src/pair.mjs",
+    "safety": "node src/safety.mjs",
     "sample": "node src/sample.mjs",
     "test": "node --test test/*.test.mjs"
   },

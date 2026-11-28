@@ -88,6 +88,7 @@ export function openAuthStore({ authDir, authKey, initAuthCreds, BufferJSON, pro
     }
     const creds = saved ? unseal(saved.value, credentialId) : initAuthCreds();
     if (!saved) write.run('creds', credentialId, seal(creds, credentialId));
+    const safetyId = address('control', 'transport-safety');
     function transaction(work) {
       assertOpen();
       database.exec('BEGIN IMMEDIATE');
@@ -95,6 +96,14 @@ export function openAuthStore({ authDir, authKey, initAuthCreds, BufferJSON, pro
       catch (error) { database.exec('ROLLBACK'); throw error; }
     }
     return {
+      readSafetyState() {
+        assertOpen();
+        const saved = read.get('control', safetyId);
+        return saved ? unseal(saved.value, safetyId) : undefined;
+      },
+      saveSafetyState(value) {
+        transaction(() => write.run('control', safetyId, seal(value, safetyId)));
+      },
       state: {
         creds,
         keys: {
